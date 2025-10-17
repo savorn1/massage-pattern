@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Guide - NestJS Messaging Patterns</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --dark-bg: #1a1a2e;
+            --darker-bg: #16213e;
+            --light-bg: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-light: #ffffff;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--light-bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            --light-bg: #1a1a2e;
+            --text-dark: #e2e8f0;
+            --border-color: #2d3748;
+            --dark-bg: #0f1419;
+            --darker-bg: #0a0e17;
+        }
+
+        header {
+            background: var(--primary-gradient);
+            color: var(--text-light);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: var(--text-light);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .page-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        body.dark-mode .breadcrumb {
+            background: var(--darker-bg);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .steps-container {
+            display: grid;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            border-left: 4px solid #667eea;
+        }
+
+        body.dark-mode .step-card {
+            background: var(--darker-bg);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .step-title {
+            font-size: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .code-block {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .code-header {
+            background: #2d3748;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        pre {
+            margin: 0;
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            font-size: 0.9rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+            border-left: 4px solid #667eea;
+        }
+
+        body.dark-mode .info-card {
+            background: var(--darker-bg);
+        }
+
+        .info-card.warning {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .info-card.success {
+            border-left-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .info-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .checklist li {
+            padding: 0.75rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .checklist i {
+            color: #48bb78;
+            margin-top: 0.25rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #718096;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .env-vars {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        body.dark-mode .env-vars {
+            background: var(--darker-bg);
+        }
+
+        .env-var {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 1rem;
+        }
+
+        .env-var:last-child {
+            border-bottom: none;
+        }
+
+        .env-var-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        footer {
+            background: var(--dark-bg);
+            color: var(--text-light);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .step-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .env-var {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                NestJS Messaging Patterns
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="api-reference.html">API Reference</a></li>
+                <li><a href="frontend-integration.html">Frontend Guide</a></li>
+                <li><a href="deployment.html">Deployment</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                        <span id="themeText">Dark</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="page-header">
+        <h1>Deployment Guide</h1>
+        <p>Deploy your NestJS messaging application to production</p>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="index.html">Home</a> / <span>Deployment</span>
+    </div>
+
+    <div class="container">
+        <!-- Docker Deployment -->
+        <section class="section">
+            <h2 class="section-title">Docker Deployment</h2>
+            <p>Deploy your application using Docker and Docker Compose for easy orchestration.</p>
+
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-number">1</div>
+                        <h3 class="step-title">Create Dockerfile</h3>
+                    </div>
+                    <p>Create a production-optimized Dockerfile for your NestJS application:</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Dockerfile</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'dockerfile')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="dockerfile" class="language-dockerfile"># Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package*.json ./
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
+
+USER nestjs
+
+EXPOSE 3000
+
+CMD ["node", "dist/main"]</code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-number">2</div>
+                        <h3 class="step-title">Docker Compose Configuration</h3>
+                    </div>
+                    <p>Use Docker Compose to orchestrate all services:</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>docker-compose.prod.yml</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'docker-compose')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="docker-compose" class="language-yaml">version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NATS_URL=nats://nats:4222
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  nats:
+    image: nats:2-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "--http_port 8222 --js"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222/varz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Optional: NGINX reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  app-network:
+    driver: bridge</code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-number">3</div>
+                        <h3 class="step-title">Build and Run</h3>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Deployment Commands</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'docker-run')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="docker-run" class="language-bash"># Build and start all services
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f app
+
+# Scale the application
+docker-compose -f docker-compose.prod.yml up -d --scale app=3
+
+# Stop all services
+docker-compose -f docker-compose.prod.yml down
+
+# Stop and remove volumes
+docker-compose -f docker-compose.prod.yml down -v</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kubernetes Deployment -->
+        <section class="section">
+            <h2 class="section-title">Kubernetes Deployment</h2>
+            <p>Deploy to Kubernetes for advanced orchestration and scaling.</p>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('k8s', 'deployment')">Deployment</button>
+                <button class="tab-btn" onclick="showTab('k8s', 'service')">Service</button>
+                <button class="tab-btn" onclick="showTab('k8s', 'configmap')">ConfigMap</button>
+                <button class="tab-btn" onclick="showTab('k8s', 'ingress')">Ingress</button>
+            </div>
+
+            <div id="k8s-deployment" class="tab-content active">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>deployment.yaml</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'k8s-deploy')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="k8s-deploy" class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-app
+  labels:
+    app: messaging-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: messaging-app
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+    spec:
+      containers:
+      - name: app
+        image: your-registry/messaging-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: redis-host
+        - name: NATS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: nats-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+      - name: nats
+        image: nats:2-alpine
+        ports:
+        - containerPort: 4222
+        - containerPort: 8222
+        args: ["--http_port", "8222", "--js"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management-alpine
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "guest"
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-pass
+        volumeMounts:
+        - name: rabbitmq-storage
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: rabbitmq-storage
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc</code></pre>
+                </div>
+            </div>
+
+            <div id="k8s-service" class="tab-content">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>service.yaml</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'k8s-svc')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="k8s-svc" class="language-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-app
+spec:
+  selector:
+    app: messaging-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - protocol: TCP
+    port: 6379
+    targetPort: 6379
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+spec:
+  selector:
+    app: nats
+  ports:
+  - name: client
+    protocol: TCP
+    port: 4222
+    targetPort: 4222
+  - name: monitoring
+    protocol: TCP
+    port: 8222
+    targetPort: 8222
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+  - name: amqp
+    protocol: TCP
+    port: 5672
+    targetPort: 5672
+  - name: management
+    protocol: TCP
+    port: 15672
+    targetPort: 15672
+  type: ClusterIP</code></pre>
+                </div>
+            </div>
+
+            <div id="k8s-configmap" class="tab-content">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>configmap.yaml</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'k8s-cm')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="k8s-cm" class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  redis-host: "redis"
+  redis-port: "6379"
+  nats-url: "nats://nats:4222"
+  rabbitmq-host: "rabbitmq"
+  rabbitmq-port: "5672"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+stringData:
+  rabbitmq-url: "amqp://guest:guest@rabbitmq:5672"
+  rabbitmq-pass: "guest"
+  jwt-secret: "your-secret-key-here"</code></pre>
+                </div>
+            </div>
+
+            <div id="k8s-ingress" class="tab-content">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>ingress.yaml</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'k8s-ing')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="k8s-ing" class="language-yaml">apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: messaging-app-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/websocket-services: messaging-app
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  tls:
+  - hosts:
+    - messaging.yourdomain.com
+    secretName: messaging-tls
+  rules:
+  - host: messaging.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: messaging-app
+            port:
+              number: 80</code></pre>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3><i class="fas fa-terminal"></i> Deploy to Kubernetes</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>kubectl commands</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'kubectl-deploy')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="kubectl-deploy" class="language-bash"># Apply all manifests
+kubectl apply -f k8s/
+
+# Check deployment status
+kubectl get deployments
+kubectl get pods
+kubectl get services
+
+# View logs
+kubectl logs -f deployment/messaging-app
+
+# Scale deployment
+kubectl scale deployment messaging-app --replicas=5
+
+# Update deployment
+kubectl set image deployment/messaging-app app=your-registry/messaging-app:v2
+
+# Rollback if needed
+kubectl rollout undo deployment/messaging-app</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Environment Configuration -->
+        <section class="section">
+            <h2 class="section-title">Environment Configuration</h2>
+
+            <div class="env-vars">
+                <div class="env-var">
+                    <div class="env-var-name">NODE_ENV</div>
+                    <div>Set to "production" for production deployments</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">PORT</div>
+                    <div>Application port (default: 3000)</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">REDIS_HOST</div>
+                    <div>Redis server hostname</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">REDIS_PORT</div>
+                    <div>Redis server port (default: 6379)</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">NATS_URL</div>
+                    <div>NATS server URL (e.g., nats://localhost:4222)</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">RABBITMQ_URL</div>
+                    <div>RabbitMQ connection URL</div>
+                </div>
+                <div class="env-var">
+                    <div class="env-var-name">JWT_SECRET</div>
+                    <div>Secret key for JWT token signing</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>.env.production</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'env-prod')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <pre><code id="env-prod" class="language-bash">NODE_ENV=production
+PORT=3000
+
+# Redis Configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# NATS Configuration
+NATS_URL=nats://nats:4222
+
+# RabbitMQ Configuration
+RABBITMQ_URL=amqp://user:password@rabbitmq:5672
+
+# Security
+JWT_SECRET=your-super-secret-key-change-this
+CORS_ORIGIN=https://yourdomain.com
+
+# Logging
+LOG_LEVEL=info</code></pre>
+            </div>
+        </section>
+
+        <!-- Monitoring -->
+        <section class="section">
+            <h2 class="section-title">Monitoring & Health Checks</h2>
+
+            <div class="info-card">
+                <h3><i class="fas fa-heartbeat"></i> Health Check Endpoint</h3>
+                <p>Implement a health check endpoint for monitoring:</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>health.controller.ts</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'health-check')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <pre><code id="health-check" class="language-typescript">import { Controller, Get } from '@nestjs/common';
+
+@Controller('health')
+export class HealthController {
+  @Get()
+  check() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+    };
+  }
+
+  @Get('ready')
+  ready() {
+    // Check if all services are ready
+    return { ready: true };
+  }
+
+  @Get('live')
+  live() {
+    // Check if application is alive
+    return { alive: true };
+  }
+}</code></pre>
+            </div>
+
+            <div class="info-card success">
+                <h3><i class="fas fa-chart-line"></i> Prometheus Metrics</h3>
+                <p>Add Prometheus metrics for monitoring:</p>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Install Prometheus client</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'prom-install')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="prom-install" class="language-bash">npm install prom-client</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security Hardening -->
+        <section class="section">
+            <h2 class="section-title">Security Hardening Checklist</h2>
+
+            <div class="info-card warning">
+                <h3><i class="fas fa-shield-alt"></i> Production Security</h3>
+                <ul class="checklist">
+                    <li><i class="fas fa-check-square"></i> Use HTTPS/WSS in production</li>
+                    <li><i class="fas fa-check-square"></i> Set secure CORS policies</li>
+                    <li><i class="fas fa-check-square"></i> Implement rate limiting</li>
+                    <li><i class="fas fa-check-square"></i> Use environment variables for secrets</li>
+                    <li><i class="fas fa-check-square"></i> Enable Helmet for security headers</li>
+                    <li><i class="fas fa-check-square"></i> Validate and sanitize all inputs</li>
+                    <li><i class="fas fa-check-square"></i> Use strong JWT secrets</li>
+                    <li><i class="fas fa-check-square"></i> Implement proper authentication</li>
+                    <li><i class="fas fa-check-square"></i> Keep dependencies updated</li>
+                    <li><i class="fas fa-check-square"></i> Use non-root users in containers</li>
+                    <li><i class="fas fa-check-square"></i> Enable audit logging</li>
+                    <li><i class="fas fa-check-square"></i> Set up firewall rules</li>
+                </ul>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>main.ts - Security Configuration</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'security-config')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <pre><code id="security-config" class="language-typescript">import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import helmet from 'helmet';
+import * as compression from 'compression';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Security headers
+  app.use(helmet());
+
+  // CORS configuration
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    credentials: true,
+  });
+
+  // Compression
+  app.use(compression());
+
+  // Global prefix
+  app.setGlobalPrefix('api');
+
+  await app.listen(process.env.PORT || 3000);
+}
+bootstrap();</code></pre>
+            </div>
+        </section>
+
+        <!-- Troubleshooting -->
+        <section class="section">
+            <h2 class="section-title">Troubleshooting</h2>
+
+            <div class="info-card">
+                <h3><i class="fas fa-bug"></i> Common Issues</h3>
+
+                <h4>Connection Issues</h4>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Debug Commands</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'debug-conn')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="debug-conn" class="language-bash"># Check Redis connection
+docker exec -it redis redis-cli ping
+
+# Check NATS status
+curl http://localhost:8222/varz
+
+# Check RabbitMQ
+docker exec -it rabbitmq rabbitmq-diagnostics status
+
+# View application logs
+docker logs -f messaging-app
+
+# Check network connectivity
+docker exec -it messaging-app ping redis</code></pre>
+                </div>
+
+                <h4>Performance Issues</h4>
+                <ul class="checklist">
+                    <li><i class="fas fa-check-circle"></i> Monitor memory usage and CPU</li>
+                    <li><i class="fas fa-check-circle"></i> Check connection pool settings</li>
+                    <li><i class="fas fa-check-circle"></i> Review application logs for errors</li>
+                    <li><i class="fas fa-check-circle"></i> Use caching where appropriate</li>
+                    <li><i class="fas fa-check-circle"></i> Scale horizontally if needed</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 NestJS Messaging Patterns Documentation</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-docker.min.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+
+            body.classList.toggle('dark-mode');
+
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.className = 'fas fa-sun';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+                document.getElementById('themeText').textContent = 'Light';
+            }
+        });
+
+        function copyCode(btn, codeId) {
+            const code = document.getElementById(codeId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showTab(section, tab) {
+            const contents = document.querySelectorAll(`[id^="${section}-"]`);
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const buttons = event.target.parentElement.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(`${section}-${tab}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

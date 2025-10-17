@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        .sidebar {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+            height: 500px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .message.own {
+            background: #dbeafe;
+            margin-left: 20px;
+        }
+
+        .message.system {
+            background: #fef3c7;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+        }
+
+        .username {
+            font-weight: bold;
+            color: #6366f1;
+        }
+
+        .timestamp {
+            color: #6b7280;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #4f46e5;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #10b981;
+        }
+
+        button.secondary:hover {
+            background: #059669;
+        }
+
+        button.danger {
+            background: #ef4444;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        .message-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input-area input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .message-input-area button {
+            width: auto;
+            padding: 12px 30px;
+            margin: 0;
+        }
+
+        .user-list, .room-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .user-item, .room-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .user-item:hover, .room-item:hover {
+            background: #e5e7eb;
+        }
+
+        .room-item.active {
+            background: #6366f1;
+            color: white;
+        }
+
+        .practice-tasks {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .practice-tasks h4 {
+            margin-bottom: 10px;
+            color: #92400e;
+        }
+
+        .practice-tasks ul {
+            margin-left: 20px;
+        }
+
+        .practice-tasks li {
+            margin-bottom: 5px;
+            color: #78350f;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>= WebSocket Test Client</h1>
+            <p>Real-time bidirectional communication with NestJS</p>
+            <div class="status disconnected" id="status">Disconnected</div>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Sidebar - Connection & Settings -->
+            <div class="sidebar">
+                <h3>Connection</h3>
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" value="User1">
+                </div>
+                <div class="input-group">
+                    <label>Server URL</label>
+                    <input type="text" id="serverUrl" value="http://localhost:3000">
+                </div>
+                <button id="connectBtn" class="secondary">Connect</button>
+                <button id="disconnectBtn" class="danger" disabled>Disconnect</button>
+
+                <h3 style="margin-top: 30px;">Authentication</h3>
+                <div class="input-group">
+                    <label>Token (for auth test)</label>
+                    <input type="text" id="token" value="secret-token">
+                </div>
+                <button id="authMessageBtn" disabled>Send Auth Message</button>
+
+                <div class="practice-tasks">
+                    <h4> Practice Tasks</h4>
+                    <ul>
+                        <li>Connect multiple tabs</li>
+                        <li>Join different rooms</li>
+                        <li>Send private messages</li>
+                        <li>Test authentication</li>
+                        <li>Monitor connection events</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Center - Chat Area -->
+            <div class="chat-area">
+                <div class="messages" id="messages"></div>
+
+                <div class="input-group">
+                    <label>Message Type</label>
+                    <select id="messageType">
+                        <option value="broadcast">Broadcast (all users)</option>
+                        <option value="room">Room Message</option>
+                        <option value="private">Private Message</option>
+                    </select>
+                </div>
+
+                <div class="input-group" id="targetGroup" style="display:none;">
+                    <label>Target User ID</label>
+                    <input type="text" id="targetId" placeholder="Enter user ID">
+                </div>
+
+                <div class="message-input-area">
+                    <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+                    <button id="sendBtn" disabled>Send</button>
+                </div>
+            </div>
+
+            <!-- Right Sidebar - Users & Rooms -->
+            <div class="sidebar">
+                <h3>Rooms</h3>
+                <div class="input-group">
+                    <input type="text" id="roomName" placeholder="Room name">
+                </div>
+                <button id="joinRoomBtn" disabled>Join Room</button>
+                <button id="leaveRoomBtn" disabled class="danger">Leave Room</button>
+                <div class="room-list" id="roomList"></div>
+
+                <h3 style="margin-top: 30px;">Online Users (<span id="userCount">0</span>)</h3>
+                <button id="refreshUsersBtn" disabled class="secondary">Refresh</button>
+                <div class="user-list" id="userList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentUsername = 'User1';
+        let currentRoom = null;
+        let myUserId = null;
+
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const messageInput = document.getElementById('messageInput');
+        const messageTypeSelect = document.getElementById('messageType');
+        const targetGroup = document.getElementById('targetGroup');
+        const targetIdInput = document.getElementById('targetId');
+        const usernameInput = document.getElementById('username');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+        const roomNameInput = document.getElementById('roomName');
+        const roomListEl = document.getElementById('roomList');
+        const userListEl = document.getElementById('userList');
+        const userCountEl = document.getElementById('userCount');
+        const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+        const authMessageBtn = document.getElementById('authMessageBtn');
+        const tokenInput = document.getElementById('token');
+
+        // Connect button
+        connectBtn.addEventListener('click', () => {
+            currentUsername = usernameInput.value || 'Anonymous';
+            const serverUrl = serverUrlInput.value;
+
+            socket = io(serverUrl, {
+                auth: {
+                    username: currentUsername,
+                    token: tokenInput.value,
+                }
+            });
+
+            socket.on('connect', () => {
+                myUserId = socket.id;
+                statusEl.textContent = `Connected as ${currentUsername} (${myUserId})`;
+                statusEl.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.disabled = false;
+                joinRoomBtn.disabled = false;
+                refreshUsersBtn.disabled = false;
+                authMessageBtn.disabled = false;
+                addSystemMessage(`Connected to server as ${currentUsername}`);
+            });
+
+            socket.on('disconnect', () => {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                messageInput.disabled = true;
+                joinRoomBtn.disabled = true;
+                leaveRoomBtn.disabled = true;
+                refreshUsersBtn.disabled = true;
+                authMessageBtn.disabled = true;
+                addSystemMessage('Disconnected from server');
+            });
+
+            socket.on('welcome', (data) => {
+                addSystemMessage(data.message + ` (${data.connectedUsers} users online)`);
+            });
+
+            socket.on('message', (data) => {
+                addMessage(data, data.userId === myUserId);
+            });
+
+            socket.on('privateMessage', (data) => {
+                addMessage({
+                    username: data.fromUsername + ' (Private)',
+                    message: data.message,
+                    timestamp: data.timestamp,
+                }, false);
+            });
+
+            socket.on('roomMessage', (data) => {
+                addMessage({
+                    username: data.username + ` [${data.room}]`,
+                    message: data.message,
+                    timestamp: data.timestamp,
+                }, data.userId === myUserId);
+            });
+
+            socket.on('userConnected', (data) => {
+                addSystemMessage(`${data.username} connected (${data.totalUsers} users online)`);
+                updateUserCount(data.totalUsers);
+            });
+
+            socket.on('userDisconnected', (data) => {
+                addSystemMessage(`${data.username} disconnected (${data.totalUsers} users online)`);
+                updateUserCount(data.totalUsers);
+            });
+
+            socket.on('userJoinedRoom', (data) => {
+                addSystemMessage(`${data.username} joined room: ${data.room}`);
+            });
+
+            socket.on('userLeftRoom', (data) => {
+                addSystemMessage(`${data.username} left room: ${data.room}`);
+            });
+        });
+
+        // Disconnect button
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        });
+
+        // Send message
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            const messageType = messageTypeSelect.value;
+
+            if (messageType === 'broadcast') {
+                socket.emit('message', { message });
+            } else if (messageType === 'room') {
+                if (!currentRoom) {
+                    addSystemMessage('Please join a room first!');
+                    return;
+                }
+                socket.emit('roomMessage', { message, room: currentRoom });
+            } else if (messageType === 'private') {
+                const targetId = targetIdInput.value.trim();
+                if (!targetId) {
+                    addSystemMessage('Please enter target user ID!');
+                    return;
+                }
+                socket.emit('privateMessage', { targetId, message }, (response) => {
+                    addSystemMessage(`Private message sent to ${targetId}`);
+                });
+            }
+
+            messageInput.value = '';
+        }
+
+        // Message type change
+        messageTypeSelect.addEventListener('change', (e) => {
+            targetGroup.style.display = e.target.value === 'private' ? 'block' : 'none';
+        });
+
+        // Join room
+        joinRoomBtn.addEventListener('click', () => {
+            const room = roomNameInput.value.trim();
+            if (!room) return;
+
+            socket.emit('joinRoom', { room }, (response) => {
+                if (response.error) {
+                    addSystemMessage(`Error: ${response.error}`);
+                } else {
+                    currentRoom = room;
+                    leaveRoomBtn.disabled = false;
+                    addSystemMessage(`Joined room: ${room} (${response.members.length} members)`);
+                    updateRoomList(room);
+                }
+            });
+        });
+
+        // Leave room
+        leaveRoomBtn.addEventListener('click', () => {
+            if (!currentRoom) return;
+
+            socket.emit('leaveRoom', { room: currentRoom }, (response) => {
+                addSystemMessage(`Left room: ${currentRoom}`);
+                removeRoomFromList(currentRoom);
+                currentRoom = null;
+                leaveRoomBtn.disabled = true;
+            });
+        });
+
+        // Refresh users
+        refreshUsersBtn.addEventListener('click', () => {
+            socket.emit('getOnlineUsers', {}, (response) => {
+                displayUsers(response.users);
+                updateUserCount(response.total);
+            });
+        });
+
+        // Auth message
+        authMessageBtn.addEventListener('click', () => {
+            socket.emit('authenticatedMessage',
+                { message: 'This is an authenticated message!' },
+                (response) => {
+                    addSystemMessage(response.message);
+                }
+            );
+        });
+
+        function addMessage(data, isOwn) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message' + (isOwn ? ' own' : '');
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'message-header';
+            headerDiv.innerHTML = `
+                <span class="username">${data.username}</span>
+                <span class="timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
+            `;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.textContent = data.message;
+
+            messageDiv.appendChild(headerDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesEl.appendChild(messageDiv);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function addSystemMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.textContent = message;
+            messagesEl.appendChild(messageDiv);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function updateRoomList(room) {
+            const roomDiv = document.createElement('div');
+            roomDiv.className = 'room-item active';
+            roomDiv.textContent = room;
+            roomDiv.dataset.room = room;
+            roomListEl.appendChild(roomDiv);
+        }
+
+        function removeRoomFromList(room) {
+            const roomDivs = roomListEl.querySelectorAll('.room-item');
+            roomDivs.forEach(div => {
+                if (div.dataset.room === room) {
+                    div.remove();
+                }
+            });
+        }
+
+        function displayUsers(users) {
+            userListEl.innerHTML = '';
+            users.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item';
+                userDiv.textContent = `${user.username} (${user.id.substring(0, 8)})`;
+                userDiv.title = `ID: ${user.id}\nRooms: ${user.rooms.join(', ') || 'None'}`;
+                userDiv.onclick = () => {
+                    targetIdInput.value = user.id;
+                    messageTypeSelect.value = 'private';
+                    targetGroup.style.display = 'block';
+                };
+                userListEl.appendChild(userDiv);
+            });
+        }
+
+        function updateUserCount(count) {
+            userCountEl.textContent = count;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NestJS Messaging Patterns - Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --dark-bg: #1a1a2e;
+            --darker-bg: #16213e;
+            --light-bg: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-light: #ffffff;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--light-bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            --light-bg: #1a1a2e;
+            --text-dark: #e2e8f0;
+            --border-color: #2d3748;
+            --dark-bg: #0f1419;
+            --darker-bg: #0a0e17;
+        }
+
+        header {
+            background: var(--primary-gradient);
+            color: var(--text-light);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: var(--text-light);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .hero {
+            background: var(--primary-gradient);
+            color: var(--text-light);
+            padding: 6rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="none"/><path d="M0 50 L50 0 L100 50 L50 100 Z" fill="rgba(255,255,255,0.05)"/></svg>');
+            opacity: 0.1;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease 0.2s backwards;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.4s backwards;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+        }
+
+        .search-container {
+            margin-bottom: 3rem;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 1rem 3rem 1rem 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 50px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background: white;
+        }
+
+        body.dark-mode .search-box input {
+            background: var(--darker-bg);
+            color: var(--text-dark);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #718096;
+        }
+
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .pattern-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        body.dark-mode .pattern-card {
+            background: var(--darker-bg);
+        }
+
+        .pattern-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: #667eea;
+        }
+
+        .pattern-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .pattern-icon.websocket { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .pattern-icon.redis { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .pattern-icon.nats { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .pattern-icon.rabbitmq { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+        .pattern-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .pattern-card .subtitle {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .pattern-card p {
+            color: #4a5568;
+            margin-bottom: 1rem;
+        }
+
+        body.dark-mode .pattern-card p {
+            color: #a0aec0;
+        }
+
+        .pattern-features {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .pattern-features li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #4a5568;
+        }
+
+        body.dark-mode .pattern-features li {
+            color: #a0aec0;
+        }
+
+        .pattern-features i {
+            color: #48bb78;
+        }
+
+        .quick-start {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem;
+            border-radius: 20px;
+            margin-bottom: 3rem;
+        }
+
+        .quick-start h2 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .step {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: white;
+            color: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .step h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .code-block {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .code-header {
+            background: #2d3748;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        pre {
+            margin: 0;
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            font-size: 0.9rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-gradient);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            margin: 0 auto 1rem;
+        }
+
+        .feature h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .feature p {
+            color: #718096;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        body.dark-mode .comparison-table {
+            background: var(--darker-bg);
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: white;
+            font-weight: 600;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        footer {
+            background: var(--dark-bg);
+            color: var(--text-light);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .pattern-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+
+        @media print {
+            header, footer, .theme-toggle, .search-container, .cta-buttons {
+                display: none;
+            }
+
+            .pattern-card, .quick-start {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                NestJS Messaging Patterns
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="api-reference.html">API Reference</a></li>
+                <li><a href="frontend-integration.html">Frontend Guide</a></li>
+                <li><a href="deployment.html">Deployment</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                        <span id="themeText">Dark</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <div class="hero-content">
+            <h1>NestJS Messaging Patterns</h1>
+            <p>Master 4 essential messaging patterns with real-world examples, test clients, and comprehensive documentation</p>
+            <div class="cta-buttons">
+                <a href="#quick-start" class="btn btn-primary">
+                    <i class="fas fa-rocket"></i>
+                    Get Started
+                </a>
+                <a href="api-reference.html" class="btn btn-secondary">
+                    <i class="fas fa-book"></i>
+                    API Docs
+                </a>
+                <a href="https://github.com" class="btn btn-secondary">
+                    <i class="fab fa-github"></i>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search documentation..." onkeyup="searchDocs()">
+                <i class="fas fa-search"></i>
+            </div>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Messaging Patterns</h2>
+            <p class="section-subtitle">Learn four essential patterns for real-time and asynchronous communication</p>
+
+            <div class="pattern-grid" id="patternGrid">
+                <div class="pattern-card" data-keywords="websocket realtime chat bidirectional">
+                    <div class="pattern-icon websocket">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3>WebSocket Pattern</h3>
+                    <p class="subtitle">Real-time Bidirectional Communication</p>
+                    <p>Perfect for chat applications, live updates, and real-time collaboration. Enables persistent connections with low latency.</p>
+                    <ul class="pattern-features">
+                        <li><i class="fas fa-check-circle"></i> Connection management</li>
+                        <li><i class="fas fa-check-circle"></i> Room-based messaging</li>
+                        <li><i class="fas fa-check-circle"></i> Private messaging</li>
+                        <li><i class="fas fa-check-circle"></i> Authentication guards</li>
+                    </ul>
+                </div>
+
+                <div class="pattern-card" data-keywords="redis pubsub scaling distributed events">
+                    <div class="pattern-icon redis">
+                        <i class="fas fa-broadcast-tower"></i>
+                    </div>
+                    <h3>Redis Pub/Sub</h3>
+                    <p class="subtitle">Horizontal Scaling & Event Broadcasting</p>
+                    <p>Ideal for distributed systems that need to scale horizontally. Fast, simple event broadcasting across multiple server instances.</p>
+                    <ul class="pattern-features">
+                        <li><i class="fas fa-check-circle"></i> Channel-based messaging</li>
+                        <li><i class="fas fa-check-circle"></i> Server-Sent Events (SSE)</li>
+                        <li><i class="fas fa-check-circle"></i> Horizontal scaling</li>
+                        <li><i class="fas fa-check-circle"></i> High performance</li>
+                    </ul>
+                </div>
+
+                <div class="pattern-card" data-keywords="nats rpc microservices request response">
+                    <div class="pattern-icon nats">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3>NATS RPC</h3>
+                    <p class="subtitle">Microservices Request/Response</p>
+                    <p>Lightweight and fast RPC for microservices. Perfect for request-response patterns with queue groups for load balancing.</p>
+                    <ul class="pattern-features">
+                        <li><i class="fas fa-check-circle"></i> Request-response pattern</li>
+                        <li><i class="fas fa-check-circle"></i> Queue groups</li>
+                        <li><i class="fas fa-check-circle"></i> Load balancing</li>
+                        <li><i class="fas fa-check-circle"></i> Low latency</li>
+                    </ul>
+                </div>
+
+                <div class="pattern-card" data-keywords="rabbitmq queue jobs workers background processing">
+                    <div class="pattern-icon rabbitmq">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h3>RabbitMQ</h3>
+                    <p class="subtitle">Background Job Processing</p>
+                    <p>Reliable message queue for background jobs. Features durable queues, acknowledgments, and worker patterns for reliable processing.</p>
+                    <ul class="pattern-features">
+                        <li><i class="fas fa-check-circle"></i> Durable queues</li>
+                        <li><i class="fas fa-check-circle"></i> Message acknowledgments</li>
+                        <li><i class="fas fa-check-circle"></i> Worker pattern</li>
+                        <li><i class="fas fa-check-circle"></i> Management UI</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="quick-start">
+            <div class="quick-start">
+                <h2>Quick Start Guide</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Install Dependencies</h3>
+                        <p>Install all required Node.js packages</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Start Brokers</h3>
+                        <p>Launch Redis, NATS, and RabbitMQ with Docker</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Configure Environment</h3>
+                        <p>Copy and customize your .env file</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <h3>Start Application</h3>
+                        <p>Run the NestJS server in development mode</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>Installation Commands</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'install-code')">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre><code id="install-code" class="language-bash"># 1. Install dependencies
+npm install
+
+# 2. Start message brokers (Redis, NATS, RabbitMQ)
+docker-compose up -d
+
+# 3. Copy environment file
+cp .env.example .env
+
+# 4. Start the application
+npm run start:dev
+
+# The server will start on http://localhost:3000</code></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Key Features</h2>
+            <p class="section-subtitle">Everything you need for production-ready messaging</p>
+
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Production Ready</h3>
+                    <p>Battle-tested patterns with error handling, authentication, and monitoring</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h3>High Performance</h3>
+                    <p>Optimized for low latency and high throughput with proper connection pooling</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Secure by Default</h3>
+                    <p>Built-in authentication, authorization, and security best practices</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h3>Scalable Architecture</h3>
+                    <p>Horizontal scaling support with Redis Pub/Sub and queue groups</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <h3>Easy Integration</h3>
+                    <p>Works with React, Vue, Angular, and vanilla JavaScript frontends</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <h3>Complete Documentation</h3>
+                    <p>Comprehensive guides, API reference, and working examples</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Pattern Comparison</h2>
+            <p class="section-subtitle">Choose the right pattern for your use case</p>
+
+            <div style="overflow-x: auto;">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Pattern</th>
+                            <th>Best For</th>
+                            <th>Pros</th>
+                            <th>Cons</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>WebSocket</strong></td>
+                            <td>Real-time chat, live updates, gaming</td>
+                            <td>Bidirectional, low latency, persistent connection</td>
+                            <td>Doesn't scale horizontally without Redis</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Redis Pub/Sub</strong></td>
+                            <td>Event broadcasting, caching, sessions</td>
+                            <td>Fast, simple, scalable, widely supported</td>
+                            <td>Fire-and-forget, no persistence guarantee</td>
+                        </tr>
+                        <tr>
+                            <td><strong>NATS RPC</strong></td>
+                            <td>Microservices RPC, API gateway</td>
+                            <td>Lightweight, fast, simple protocol</td>
+                            <td>Requires NATS server, learning curve</td>
+                        </tr>
+                        <tr>
+                            <td><strong>RabbitMQ</strong></td>
+                            <td>Background jobs, task queues, workflows</td>
+                            <td>Reliable, persistent, mature ecosystem</td>
+                            <td>More complex setup, higher resource usage</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Recommended Learning Path</h2>
+            <p class="section-subtitle">Follow this sequence to master messaging patterns</p>
+
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Learning Roadmap</span>
+                    </div>
+                    <pre><code class="language-markdown">1. Start with WebSocket
+   Most visual and interactive
+   Open test client and experiment
+
+2. Move to Redis Pub/Sub
+   Learn distributed messaging
+   Test horizontal scaling
+
+3. Try NATS RPC
+   Understand request-response patterns
+   Implement queue groups
+
+4. End with RabbitMQ
+   Master reliable job queues
+   Explore advanced features</code></pre>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 NestJS Messaging Patterns. Built with <i class="fas fa-heart" style="color: #e74c3c;"></i> for learning.</p>
+        <p>
+            <a href="https://docs.nestjs.com">NestJS Docs</a> |
+            <a href="https://socket.io/docs">Socket.IO</a> |
+            <a href="https://redis.io">Redis</a> |
+            <a href="https://docs.nats.io">NATS</a> |
+            <a href="https://www.rabbitmq.com">RabbitMQ</a>
+        </p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+
+            body.classList.toggle('dark-mode');
+
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.className = 'fas fa-sun';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+                document.getElementById('themeText').textContent = 'Light';
+            }
+        });
+
+        function copyCode(btn, codeId) {
+            const code = document.getElementById(codeId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function searchDocs() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toLowerCase();
+            const cards = document.querySelectorAll('.pattern-card');
+
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                const keywords = card.getAttribute('data-keywords');
+
+                if (text.includes(filter) || keywords.includes(filter)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

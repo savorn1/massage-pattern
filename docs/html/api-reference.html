@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Reference - NestJS Messaging Patterns</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --dark-bg: #1a1a2e;
+            --darker-bg: #16213e;
+            --light-bg: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-light: #ffffff;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--light-bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            --light-bg: #1a1a2e;
+            --text-dark: #e2e8f0;
+            --border-color: #2d3748;
+            --dark-bg: #0f1419;
+            --darker-bg: #0a0e17;
+        }
+
+        header {
+            background: var(--primary-gradient);
+            color: var(--text-light);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: var(--text-light);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .page-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        body.dark-mode .breadcrumb {
+            background: var(--darker-bg);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: calc(100vh - 300px);
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1rem;
+            position: sticky;
+            top: 80px;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+        }
+
+        body.dark-mode .sidebar {
+            background: var(--darker-bg);
+        }
+
+        .sidebar h3 {
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-nav a {
+            color: #4a5568;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .sidebar-nav a:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .sidebar-nav a.active {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .content {
+            flex: 1;
+            padding: 3rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .endpoint-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            border-left: 4px solid #667eea;
+        }
+
+        body.dark-mode .endpoint-card {
+            background: var(--darker-bg);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .method {
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .method.get {
+            background: #4facfe;
+            color: white;
+        }
+
+        .method.post {
+            background: #43e97b;
+            color: white;
+        }
+
+        .method.ws {
+            background: #764ba2;
+            color: white;
+        }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            flex: 1;
+        }
+
+        .endpoint-description {
+            color: #718096;
+            margin-bottom: 1.5rem;
+        }
+
+        .code-block {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .code-header {
+            background: #2d3748;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        pre {
+            margin: 0;
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+
+        .try-it-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.3s;
+            margin-top: 1rem;
+        }
+
+        .try-it-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .parameter-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        .parameter-table th,
+        .parameter-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .parameter-table th {
+            background: rgba(102, 126, 234, 0.1);
+            font-weight: 600;
+        }
+
+        .parameter-table .required {
+            color: #e74c3c;
+            font-size: 0.8rem;
+        }
+
+        .parameter-table .optional {
+            color: #718096;
+            font-size: 0.8rem;
+        }
+
+        .collapsible {
+            background: rgba(102, 126, 234, 0.05);
+            border: none;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .collapsible:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.active {
+            max-height: 2000px;
+        }
+
+        .error-codes {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        body.dark-mode .error-codes {
+            background: var(--darker-bg);
+        }
+
+        .error-code {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-left: 3px solid #e74c3c;
+            margin-bottom: 0.5rem;
+            background: rgba(231, 76, 60, 0.05);
+            border-radius: 5px;
+        }
+
+        .error-code.success {
+            border-left-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .status-code {
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            min-width: 60px;
+        }
+
+        footer {
+            background: var(--dark-bg);
+            color: var(--text-light);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+
+            .endpoint-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .endpoint-path {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                NestJS Messaging Patterns
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="api-reference.html">API Reference</a></li>
+                <li><a href="frontend-integration.html">Frontend Guide</a></li>
+                <li><a href="deployment.html">Deployment</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                        <span id="themeText">Dark</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="page-header">
+        <h1>API Reference</h1>
+        <p>Complete documentation of all endpoints and WebSocket events</p>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="index.html">Home</a> / <span>API Reference</span>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Navigation</h3>
+            <ul class="sidebar-nav">
+                <li><a href="#websocket" class="active"><i class="fas fa-comments"></i> WebSocket</a></li>
+                <li><a href="#redis"><i class="fas fa-broadcast-tower"></i> Redis Pub/Sub</a></li>
+                <li><a href="#nats"><i class="fas fa-exchange-alt"></i> NATS RPC</a></li>
+                <li><a href="#rabbitmq"><i class="fas fa-tasks"></i> RabbitMQ</a></li>
+                <li><a href="#errors"><i class="fas fa-exclamation-triangle"></i> Error Codes</a></li>
+                <li><a href="#auth"><i class="fas fa-lock"></i> Authentication</a></li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- WebSocket API -->
+            <section class="section" id="websocket">
+                <h2 class="section-title">WebSocket API</h2>
+                <p>Real-time bidirectional communication using Socket.IO</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method ws">WS</span>
+                        <code class="endpoint-path">ws://localhost:3000</code>
+                    </div>
+                    <p class="endpoint-description">Connect to the WebSocket gateway for real-time messaging</p>
+
+                    <button class="collapsible" onclick="toggleCollapse(this)">
+                        Connection Options
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="collapsible-content">
+                        <table class="parameter-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>username</td>
+                                    <td>string</td>
+                                    <td><span class="optional">Optional</span></td>
+                                    <td>Username for the connection</td>
+                                </tr>
+                                <tr>
+                                    <td>token</td>
+                                    <td>string</td>
+                                    <td><span class="optional">Optional</span></td>
+                                    <td>JWT token for authenticated messages</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>JavaScript Connection Example</span>
+                                <button class="copy-btn" onclick="copyCode(this, 'ws-connect')"><i class="fas fa-copy"></i> Copy</button>
+                            </div>
+                            <pre><code id="ws-connect" class="language-javascript">const socket = io('http://localhost:3000', {
+  auth: {
+    username: 'JohnDoe'
+  }
+});
+
+socket.on('connect', () => {
+  console.log('Connected!', socket.id);
+});
+
+socket.on('welcome', (data) => {
+  console.log(data.message);
+});</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method ws">EVENT</span>
+                        <code class="endpoint-path">message</code>
+                    </div>
+                    <p class="endpoint-description">Send a broadcast message to all connected clients</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'ws-message')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="ws-message" class="language-javascript">// Send message
+socket.emit('message', {
+  message: 'Hello everyone!'
+});
+
+// Receive messages
+socket.on('message', (data) => {
+  console.log(`${data.username}: ${data.message}`);
+});</code></pre>
+                    </div>
+
+                    <button class="try-it-btn" onclick="generateCurl('ws', 'message')">
+                        <i class="fas fa-terminal"></i> Generate Code
+                    </button>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method ws">EVENT</span>
+                        <code class="endpoint-path">joinRoom</code>
+                    </div>
+                    <p class="endpoint-description">Join a specific room for targeted messaging</p>
+
+                    <table class="parameter-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>room</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Name of the room to join</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'ws-join')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="ws-join" class="language-javascript">// Join room
+socket.emit('joinRoom', { room: 'developers' }, (response) => {
+  console.log('Joined room:', response.room);
+  console.log('Members:', response.members);
+});
+
+// Listen for room events
+socket.on('userJoinedRoom', (data) => {
+  console.log(`${data.username} joined ${data.room}`);
+});</code></pre>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method ws">EVENT</span>
+                        <code class="endpoint-path">roomMessage</code>
+                    </div>
+                    <p class="endpoint-description">Send message to a specific room only</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'ws-room-msg')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="ws-room-msg" class="language-javascript">// Send to room
+socket.emit('roomMessage', {
+  room: 'developers',
+  message: 'Hello developers!'
+});
+
+// Receive room messages
+socket.on('roomMessage', (data) => {
+  console.log(`[${data.room}] ${data.username}: ${data.message}`);
+});</code></pre>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method ws">EVENT</span>
+                        <code class="endpoint-path">privateMessage</code>
+                    </div>
+                    <p class="endpoint-description">Send a private message to a specific user</p>
+
+                    <table class="parameter-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>targetId</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Socket ID of the recipient</td>
+                            </tr>
+                            <tr>
+                                <td>message</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Message content</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'ws-private')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="ws-private" class="language-javascript">// Send private message
+socket.emit('privateMessage', {
+  targetId: 'user-socket-id',
+  message: 'Secret message!'
+});
+
+// Receive private messages
+socket.on('privateMessage', (data) => {
+  console.log(`Private from ${data.fromUsername}: ${data.message}`);
+});</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Redis Pub/Sub API -->
+            <section class="section" id="redis">
+                <h2 class="section-title">Redis Pub/Sub API</h2>
+                <p>Publisher/Subscriber pattern for horizontal scaling</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <code class="endpoint-path">/redis-pubsub</code>
+                    </div>
+                    <p class="endpoint-description">Get pattern information and examples</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'redis-info')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="redis-info" class="language-bash">curl http://localhost:3000/redis-pubsub</code></pre>
+                    </div>
+
+                    <button class="try-it-btn" onclick="generateCurl('GET', '/redis-pubsub')">
+                        <i class="fas fa-terminal"></i> Try It
+                    </button>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <code class="endpoint-path">/redis-pubsub/publish</code>
+                    </div>
+                    <p class="endpoint-description">Publish a message to a Redis channel</p>
+
+                    <table class="parameter-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>channel</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Channel name to publish to</td>
+                            </tr>
+                            <tr>
+                                <td>message</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Message content</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'redis-publish')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="redis-publish" class="language-bash">curl -X POST http://localhost:3000/redis-pubsub/publish \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel": "news",
+    "message": "Breaking news!"
+  }'</code></pre>
+                    </div>
+
+                    <button class="collapsible" onclick="toggleCollapse(this)">
+                        Response Example
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="collapsible-content">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>JSON Response</span>
+                            </div>
+                            <pre><code class="language-json">{
+  "success": true,
+  "channel": "news",
+  "message": "Breaking news!",
+  "subscriberCount": 2,
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <button class="try-it-btn" onclick="generateCurl('POST', '/redis-pubsub/publish', {channel: 'news', message: 'Hello Redis!'})">
+                        <i class="fas fa-terminal"></i> Generate curl
+                    </button>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <code class="endpoint-path">/redis-pubsub/subscribe</code>
+                    </div>
+                    <p class="endpoint-description">Subscribe to a Redis channel</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'redis-sub')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="redis-sub" class="language-bash">curl -X POST http://localhost:3000/redis-pubsub/subscribe \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "news"}'</code></pre>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <code class="endpoint-path">/redis-pubsub/stream?channel=news</code>
+                    </div>
+                    <p class="endpoint-description">Server-Sent Events (SSE) stream for real-time updates</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>JavaScript Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'redis-sse')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="redis-sse" class="language-javascript">const eventSource = new EventSource(
+  'http://localhost:3000/redis-pubsub/stream?channel=news'
+);
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(`${data.channel}: ${data.message}`);
+};</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NATS RPC API -->
+            <section class="section" id="nats">
+                <h2 class="section-title">NATS RPC API</h2>
+                <p>Request/Response pattern for microservices communication</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <code class="endpoint-path">/nats-rpc/request</code>
+                    </div>
+                    <p class="endpoint-description">Send an RPC request and wait for response</p>
+
+                    <table class="parameter-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>subject</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>NATS subject name</td>
+                            </tr>
+                            <tr>
+                                <td>data</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Request payload</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'nats-req')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="nats-req" class="language-bash">curl -X POST http://localhost:3000/nats-rpc/request \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "greet",
+    "data": "World"
+  }'</code></pre>
+                    </div>
+
+                    <button class="try-it-btn" onclick="generateCurl('POST', '/nats-rpc/request', {subject: 'greet', data: 'World'})">
+                        <i class="fas fa-terminal"></i> Generate curl
+                    </button>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <code class="endpoint-path">/nats-rpc/publish</code>
+                    </div>
+                    <p class="endpoint-description">Publish a fire-and-forget message to a subject</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'nats-pub')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="nats-pub" class="language-bash">curl -X POST http://localhost:3000/nats-rpc/publish \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "events",
+    "data": "User logged in"
+  }'</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RabbitMQ API -->
+            <section class="section" id="rabbitmq">
+                <h2 class="section-title">RabbitMQ API</h2>
+                <p>Background job processing with reliable message queues</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method post">POST</span>
+                        <code class="endpoint-path">/rabbitmq/send</code>
+                    </div>
+                    <p class="endpoint-description">Send a job to the message queue</p>
+
+                    <table class="parameter-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>queue</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Queue name</td>
+                            </tr>
+                            <tr>
+                                <td>message</td>
+                                <td>string</td>
+                                <td><span class="required">Required</span></td>
+                                <td>Job payload</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'rmq-send')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="rmq-send" class="language-bash">curl -X POST http://localhost:3000/rabbitmq/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "queue": "tasks",
+    "message": "Process video upload"
+  }'</code></pre>
+                    </div>
+
+                    <button class="try-it-btn" onclick="generateCurl('POST', '/rabbitmq/send', {queue: 'tasks', message: 'Process job'})">
+                        <i class="fas fa-terminal"></i> Generate curl
+                    </button>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <code class="endpoint-path">/rabbitmq/status</code>
+                    </div>
+                    <p class="endpoint-description">Check RabbitMQ connection status</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>curl</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'rmq-status')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="rmq-status" class="language-bash">curl http://localhost:3000/rabbitmq/status</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error Codes -->
+            <section class="section" id="errors">
+                <h2 class="section-title">Error Codes</h2>
+
+                <div class="error-codes">
+                    <div class="error-code success">
+                        <span class="status-code">200</span>
+                        <div>
+                            <strong>OK</strong>
+                            <p>Request successful</p>
+                        </div>
+                    </div>
+                    <div class="error-code success">
+                        <span class="status-code">201</span>
+                        <div>
+                            <strong>Created</strong>
+                            <p>Resource created successfully</p>
+                        </div>
+                    </div>
+                    <div class="error-code">
+                        <span class="status-code">400</span>
+                        <div>
+                            <strong>Bad Request</strong>
+                            <p>Invalid request parameters</p>
+                        </div>
+                    </div>
+                    <div class="error-code">
+                        <span class="status-code">401</span>
+                        <div>
+                            <strong>Unauthorized</strong>
+                            <p>Authentication required or invalid token</p>
+                        </div>
+                    </div>
+                    <div class="error-code">
+                        <span class="status-code">404</span>
+                        <div>
+                            <strong>Not Found</strong>
+                            <p>Resource or endpoint not found</p>
+                        </div>
+                    </div>
+                    <div class="error-code">
+                        <span class="status-code">500</span>
+                        <div>
+                            <strong>Internal Server Error</strong>
+                            <p>Server error, check logs for details</p>
+                        </div>
+                    </div>
+                    <div class="error-code">
+                        <span class="status-code">503</span>
+                        <div>
+                            <strong>Service Unavailable</strong>
+                            <p>Message broker connection failed</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Authentication -->
+            <section class="section" id="auth">
+                <h2 class="section-title">Authentication</h2>
+
+                <div class="endpoint-card">
+                    <h3>WebSocket Authentication</h3>
+                    <p>For authenticated WebSocket messages, provide a JWT token during connection:</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'ws-auth')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="ws-auth" class="language-javascript">const socket = io('http://localhost:3000', {
+  auth: {
+    token: 'your-jwt-token-here',
+    username: 'JohnDoe'
+  }
+});
+
+// Send authenticated message
+socket.emit('authenticatedMessage', {
+  message: 'This requires authentication'
+});</code></pre>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <h3>HTTP API Authentication</h3>
+                    <p>For authenticated HTTP endpoints, include the Authorization header:</p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Example</span>
+                            <button class="copy-btn" onclick="copyCode(this, 'http-auth')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <pre><code id="http-auth" class="language-bash">curl -X POST http://localhost:3000/endpoint \
+  -H "Authorization: Bearer your-jwt-token" \
+  -H "Content-Type: application/json" \
+  -d '{"data": "value"}'</code></pre>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 NestJS Messaging Patterns Documentation</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+
+            body.classList.toggle('dark-mode');
+
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.className = 'fas fa-sun';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+                document.getElementById('themeText').textContent = 'Light';
+            }
+
+            // Sidebar scroll spy
+            const sections = document.querySelectorAll('.section');
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (window.pageYOffset >= sectionTop - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${current}`) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        function copyCode(btn, codeId) {
+            const code = document.getElementById(codeId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function toggleCollapse(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('i');
+
+            content.classList.toggle('active');
+
+            if (content.classList.contains('active')) {
+                icon.className = 'fas fa-chevron-up';
+            } else {
+                icon.className = 'fas fa-chevron-down';
+            }
+        }
+
+        function generateCurl(method, endpoint, data = null) {
+            let curl = `curl -X ${method} http://localhost:3000${endpoint}`;
+
+            if (data) {
+                curl += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(data, null, 2)}'`;
+            }
+
+            alert('Generated curl command:\n\n' + curl);
+            navigator.clipboard.writeText(curl);
+        }
+    </script>
+</body>
+</html>

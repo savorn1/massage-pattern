@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Integration Guide - NestJS Messaging Patterns</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --dark-bg: #1a1a2e;
+            --darker-bg: #16213e;
+            --light-bg: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-light: #ffffff;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--light-bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            --light-bg: #1a1a2e;
+            --text-dark: #e2e8f0;
+            --border-color: #2d3748;
+            --dark-bg: #0f1419;
+            --darker-bg: #0a0e17;
+        }
+
+        header {
+            background: var(--primary-gradient);
+            color: var(--text-light);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: var(--text-light);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .page-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        body.dark-mode .breadcrumb {
+            background: var(--darker-bg);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #718096;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .code-block {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .code-header {
+            background: #2d3748;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        pre {
+            margin: 0;
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            font-size: 0.9rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+            border-left: 4px solid #667eea;
+        }
+
+        body.dark-mode .info-card {
+            background: var(--darker-bg);
+        }
+
+        .info-card.warning {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .info-card.success {
+            border-left-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .info-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .checklist li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .checklist i {
+            color: #48bb78;
+            margin-top: 0.25rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        body.dark-mode .feature-card {
+            background: var(--darker-bg);
+        }
+
+        .feature-card h4 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card i {
+            color: #667eea;
+        }
+
+        footer {
+            background: var(--dark-bg);
+            color: var(--text-light);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                overflow-x: auto;
+            }
+
+            .tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                NestJS Messaging Patterns
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="api-reference.html">API Reference</a></li>
+                <li><a href="frontend-integration.html">Frontend Guide</a></li>
+                <li><a href="deployment.html">Deployment</a></li>
+                <li>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                        <span id="themeText">Dark</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="page-header">
+        <h1>Frontend Integration Guide</h1>
+        <p>Connect your frontend application to NestJS messaging patterns</p>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="index.html">Home</a> / <span>Frontend Integration</span>
+    </div>
+
+    <div class="container">
+        <!-- Installation Section -->
+        <section class="section">
+            <h2 class="section-title">Installation</h2>
+            <p>First, install the required client libraries for your frontend application:</p>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('install', 'npm')">npm</button>
+                <button class="tab-btn" onclick="showTab('install', 'yarn')">yarn</button>
+                <button class="tab-btn" onclick="showTab('install', 'pnpm')">pnpm</button>
+            </div>
+
+            <div id="install-npm" class="tab-content active">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>npm install</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'npm-install')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="npm-install" class="language-bash"># Install Socket.IO client for WebSocket
+npm install socket.io-client
+
+# For TypeScript projects
+npm install --save-dev @types/socket.io-client</code></pre>
+                </div>
+            </div>
+
+            <div id="install-yarn" class="tab-content">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>yarn add</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'yarn-install')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="yarn-install" class="language-bash">yarn add socket.io-client
+yarn add -D @types/socket.io-client</code></pre>
+                </div>
+            </div>
+
+            <div id="install-pnpm" class="tab-content">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>pnpm add</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'pnpm-install')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="pnpm-install" class="language-bash">pnpm add socket.io-client
+pnpm add -D @types/socket.io-client</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Framework Integration -->
+        <section class="section">
+            <h2 class="section-title">Framework Integration</h2>
+            <p>Choose your frontend framework to see complete integration examples:</p>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('framework', 'react')">React</button>
+                <button class="tab-btn" onclick="showTab('framework', 'vue')">Vue</button>
+                <button class="tab-btn" onclick="showTab('framework', 'angular')">Angular</button>
+                <button class="tab-btn" onclick="showTab('framework', 'vanilla')">Vanilla JS</button>
+            </div>
+
+            <!-- React -->
+            <div id="framework-react" class="tab-content active">
+                <h3>React Integration</h3>
+
+                <div class="info-card">
+                    <h3><i class="fas fa-info-circle"></i> React Hook Pattern</h3>
+                    <p>Create a custom hook to manage WebSocket connections in your React app.</p>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>hooks/useSocket.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'react-hook')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="react-hook" class="language-typescript">import { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+export const useSocket = (url: string, username?: string) => {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    const newSocket = io(url, {
+      auth: { username: username || 'Anonymous' }
+    });
+
+    newSocket.on('connect', () => {
+      setConnected(true);
+      console.log('Connected:', newSocket.id);
+    });
+
+    newSocket.on('disconnect', () => {
+      setConnected(false);
+    });
+
+    newSocket.on('message', (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, [url, username]);
+
+  const sendMessage = (message: string) => {
+    if (socket) {
+      socket.emit('message', { message });
+    }
+  };
+
+  return { socket, connected, messages, sendMessage };
+};</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>components/Chat.tsx</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'react-component')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="react-component" class="language-typescript">import React, { useState } from 'react';
+import { useSocket } from '../hooks/useSocket';
+
+export const Chat: React.FC = () => {
+  const [input, setInput] = useState('');
+  const { connected, messages, sendMessage } = useSocket(
+    'http://localhost:3000',
+    'ReactUser'
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      sendMessage(input);
+      setInput('');
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      <div className="status">
+        {connected ? '=â Connected' : '=4 Disconnected'}
+      </div>
+
+      <div className="messages">
+        {messages.map((msg, idx) => (
+          <div key={idx} className="message">
+            <strong>{msg.username}:</strong> {msg.message}
+            <span className="time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          disabled={!connected}
+        />
+        <button type="submit" disabled={!connected}>
+          Send
+        </button>
+      </form>
+    </div>
+  );
+};</code></pre>
+                </div>
+
+                <div class="info-card success">
+                    <h3><i class="fas fa-check-circle"></i> Server-Sent Events in React</h3>
+                    <p>For Redis Pub/Sub, use the EventSource API:</p>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>hooks/useSSE.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'react-sse')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="react-sse" class="language-typescript">import { useEffect, useState } from 'react';
+
+export const useSSE = (channel: string) => {
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    const eventSource = new EventSource(
+      `http://localhost:3000/redis-pubsub/stream?channel=${channel}`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setEvents((prev) => [...prev, data]);
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [channel]);
+
+  return events;
+};</code></pre>
+                </div>
+            </div>
+
+            <!-- Vue -->
+            <div id="framework-vue" class="tab-content">
+                <h3>Vue 3 Integration</h3>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>composables/useSocket.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'vue-composable')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="vue-composable" class="language-typescript">import { ref, onMounted, onUnmounted } from 'vue';
+import { io, Socket } from 'socket.io-client';
+
+export function useSocket(url: string, username?: string) {
+  const socket = ref<Socket | null>(null);
+  const connected = ref(false);
+  const messages = ref<any[]>([]);
+
+  onMounted(() => {
+    socket.value = io(url, {
+      auth: { username: username || 'VueUser' }
+    });
+
+    socket.value.on('connect', () => {
+      connected.value = true;
+    });
+
+    socket.value.on('disconnect', () => {
+      connected.value = false;
+    });
+
+    socket.value.on('message', (data) => {
+      messages.value.push(data);
+    });
+  });
+
+  onUnmounted(() => {
+    socket.value?.close();
+  });
+
+  const sendMessage = (message: string) => {
+    socket.value?.emit('message', { message });
+  };
+
+  return {
+    socket,
+    connected,
+    messages,
+    sendMessage
+  };
+}</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>components/Chat.vue</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'vue-component')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="vue-component" class="language-html">&lt;template&gt;
+  &lt;div class="chat-container"&gt;
+    &lt;div class="status"&gt;
+      {{ connected ? '=â Connected' : '=4 Disconnected' }}
+    &lt;/div&gt;
+
+    &lt;div class="messages"&gt;
+      &lt;div v-for="(msg, idx) in messages" :key="idx" class="message"&gt;
+        &lt;strong&gt;{{ msg.username }}:&lt;/strong&gt; {{ msg.message }}
+        &lt;span class="time"&gt;{{ formatTime(msg.timestamp) }}&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;form @submit.prevent="handleSubmit"&gt;
+      &lt;input
+        v-model="input"
+        type="text"
+        placeholder="Type a message..."
+        :disabled="!connected"
+      /&gt;
+      &lt;button type="submit" :disabled="!connected"&gt;Send&lt;/button&gt;
+    &lt;/form&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script setup lang="ts"&gt;
+import { ref } from 'vue';
+import { useSocket } from '../composables/useSocket';
+
+const input = ref('');
+const { connected, messages, sendMessage } = useSocket(
+  'http://localhost:3000',
+  'VueUser'
+);
+
+const handleSubmit = () => {
+  if (input.value.trim()) {
+    sendMessage(input.value);
+    input.value = '';
+  }
+};
+
+const formatTime = (timestamp: string) => {
+  return new Date(timestamp).toLocaleTimeString();
+};
+&lt;/script&gt;</code></pre>
+                </div>
+            </div>
+
+            <!-- Angular -->
+            <div id="framework-angular" class="tab-content">
+                <h3>Angular Integration</h3>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>services/socket.service.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'angular-service')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="angular-service" class="language-typescript">import { Injectable } from '@angular/core';
+import { io, Socket } from 'socket.io-client';
+import { BehaviorSubject, Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SocketService {
+  private socket: Socket;
+  private connectedSubject = new BehaviorSubject<boolean>(false);
+  private messagesSubject = new BehaviorSubject<any[]>([]);
+
+  public connected$ = this.connectedSubject.asObservable();
+  public messages$ = this.messagesSubject.asObservable();
+
+  constructor() {
+    this.socket = io('http://localhost:3000', {
+      auth: { username: 'AngularUser' }
+    });
+
+    this.socket.on('connect', () => {
+      this.connectedSubject.next(true);
+    });
+
+    this.socket.on('disconnect', () => {
+      this.connectedSubject.next(false);
+    });
+
+    this.socket.on('message', (data) => {
+      const messages = this.messagesSubject.getValue();
+      this.messagesSubject.next([...messages, data]);
+    });
+  }
+
+  sendMessage(message: string): void {
+    this.socket.emit('message', { message });
+  }
+
+  disconnect(): void {
+    this.socket.close();
+  }
+}</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>components/chat.component.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'angular-component')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="angular-component" class="language-typescript">import { Component, OnDestroy } from '@angular/core';
+import { SocketService } from '../services/socket.service';
+
+@Component({
+  selector: 'app-chat',
+  template: `
+    &lt;div class="chat-container"&gt;
+      &lt;div class="status"&gt;
+        {{ (socketService.connected$ | async) ? '=â Connected' : '=4 Disconnected' }}
+      &lt;/div&gt;
+
+      &lt;div class="messages"&gt;
+        &lt;div *ngFor="let msg of socketService.messages$ | async" class="message"&gt;
+          &lt;strong&gt;{{ msg.username }}:&lt;/strong&gt; {{ msg.message }}
+          &lt;span class="time"&gt;{{ msg.timestamp | date:'short' }}&lt;/span&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;form (ngSubmit)="handleSubmit()"&gt;
+        &lt;input
+          [(ngModel)]="input"
+          type="text"
+          name="message"
+          placeholder="Type a message..."
+          [disabled]="!(socketService.connected$ | async)"
+        /&gt;
+        &lt;button
+          type="submit"
+          [disabled]="!(socketService.connected$ | async)"
+        &gt;
+          Send
+        &lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/div&gt;
+  `
+})
+export class ChatComponent implements OnDestroy {
+  input = '';
+
+  constructor(public socketService: SocketService) {}
+
+  handleSubmit(): void {
+    if (this.input.trim()) {
+      this.socketService.sendMessage(this.input);
+      this.input = '';
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.socketService.disconnect();
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Vanilla JS -->
+            <div id="framework-vanilla" class="tab-content">
+                <h3>Vanilla JavaScript</h3>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>index.html</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'vanilla-html')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="vanilla-html" class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Chat Client&lt;/title&gt;
+  &lt;script src="https://cdn.socket.io/4.5.4/socket.io.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id="status"&gt;&lt;/div&gt;
+  &lt;div id="messages"&gt;&lt;/div&gt;
+  &lt;form id="chat-form"&gt;
+    &lt;input id="message-input" type="text" placeholder="Type a message..." /&gt;
+    &lt;button type="submit"&gt;Send&lt;/button&gt;
+  &lt;/form&gt;
+
+  &lt;script src="app.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>app.js</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'vanilla-js')"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <pre><code id="vanilla-js" class="language-javascript">const socket = io('http://localhost:3000', {
+  auth: {
+    username: 'VanillaUser'
+  }
+});
+
+const statusDiv = document.getElementById('status');
+const messagesDiv = document.getElementById('messages');
+const form = document.getElementById('chat-form');
+const input = document.getElementById('message-input');
+
+// Connection status
+socket.on('connect', () => {
+  statusDiv.textContent = '=â Connected';
+  statusDiv.style.color = 'green';
+});
+
+socket.on('disconnect', () => {
+  statusDiv.textContent = '=4 Disconnected';
+  statusDiv.style.color = 'red';
+});
+
+// Receive messages
+socket.on('message', (data) => {
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'message';
+  msgDiv.innerHTML = `
+    &lt;strong&gt;${data.username}:&lt;/strong&gt; ${data.message}
+    &lt;span class="time"&gt;${new Date(data.timestamp).toLocaleTimeString()}&lt;/span&gt;
+  `;
+  messagesDiv.appendChild(msgDiv);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+// Send messages
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (input.value.trim()) {
+    socket.emit('message', { message: input.value });
+    input.value = '';
+  }
+});</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices -->
+        <section class="section">
+            <h2 class="section-title">Best Practices</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4><i class="fas fa-plug"></i> Connection Management</h4>
+                    <p>Always clean up connections when components unmount to prevent memory leaks.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-sync-alt"></i> Reconnection Logic</h4>
+                    <p>Implement automatic reconnection with exponential backoff for better user experience.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-shield-alt"></i> Error Handling</h4>
+                    <p>Handle connection errors gracefully and show meaningful error messages to users.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-lock"></i> Authentication</h4>
+                    <p>Send authentication tokens securely and validate on both client and server.</p>
+                </div>
+            </div>
+
+            <div class="info-card warning">
+                <h3><i class="fas fa-exclamation-triangle"></i> Security Guidelines</h3>
+                <ul class="checklist">
+                    <li><i class="fas fa-check-circle"></i> Always validate and sanitize user input before sending</li>
+                    <li><i class="fas fa-check-circle"></i> Use HTTPS/WSS in production environments</li>
+                    <li><i class="fas fa-check-circle"></i> Implement proper authentication and authorization</li>
+                    <li><i class="fas fa-check-circle"></i> Set CORS policies appropriately</li>
+                    <li><i class="fas fa-check-circle"></i> Never trust client-side data on the server</li>
+                    <li><i class="fas fa-check-circle"></i> Implement rate limiting to prevent abuse</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Connection Management -->
+        <section class="section">
+            <h2 class="section-title">Connection Management Tips</h2>
+
+            <div class="info-card">
+                <h3><i class="fas fa-lightbulb"></i> Reconnection Strategy</h3>
+                <p>Implement a robust reconnection strategy for better reliability:</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>Reconnection Example</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'reconnect')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <pre><code id="reconnect" class="language-javascript">const socket = io('http://localhost:3000', {
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 5
+});
+
+socket.on('reconnect_attempt', (attemptNumber) => {
+  console.log(`Reconnection attempt ${attemptNumber}`);
+});
+
+socket.on('reconnect', () => {
+  console.log('Reconnected successfully');
+});
+
+socket.on('reconnect_failed', () => {
+  console.error('Failed to reconnect after maximum attempts');
+});</code></pre>
+            </div>
+
+            <div class="info-card success">
+                <h3><i class="fas fa-check-circle"></i> Performance Optimization</h3>
+                <ul class="checklist">
+                    <li><i class="fas fa-check-circle"></i> Batch messages when possible to reduce overhead</li>
+                    <li><i class="fas fa-check-circle"></i> Use compression for large payloads</li>
+                    <li><i class="fas fa-check-circle"></i> Implement message throttling for high-frequency updates</li>
+                    <li><i class="fas fa-check-circle"></i> Clean up event listeners when they're no longer needed</li>
+                    <li><i class="fas fa-check-circle"></i> Use rooms/channels to target specific users</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Testing -->
+        <section class="section">
+            <h2 class="section-title">Testing Your Integration</h2>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span>Jest Test Example</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'test-code')"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <pre><code id="test-code" class="language-typescript">import { renderHook, act } from '@testing-library/react-hooks';
+import { useSocket } from './useSocket';
+
+// Mock socket.io-client
+jest.mock('socket.io-client');
+
+describe('useSocket', () => {
+  it('should connect to socket server', () => {
+    const { result } = renderHook(() =>
+      useSocket('http://localhost:3000', 'TestUser')
+    );
+
+    expect(result.current.connected).toBe(false);
+
+    // Simulate connection
+    act(() => {
+      // Trigger connect event
+    });
+
+    expect(result.current.connected).toBe(true);
+  });
+
+  it('should send messages', () => {
+    const { result } = renderHook(() =>
+      useSocket('http://localhost:3000', 'TestUser')
+    );
+
+    act(() => {
+      result.current.sendMessage('Hello World');
+    });
+
+    // Assert message was sent
+  });
+});</code></pre>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 NestJS Messaging Patterns Documentation</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+
+            body.classList.toggle('dark-mode');
+
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.className = 'fas fa-sun';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+                document.getElementById('themeText').textContent = 'Light';
+            }
+        });
+
+        function copyCode(btn, codeId) {
+            const code = document.getElementById(codeId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showTab(section, framework) {
+            // Hide all tab contents for this section
+            const contents = document.querySelectorAll(`[id^="${section}-"]`);
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all buttons in this section
+            const buttons = event.target.parentElement.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${section}-${framework}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
