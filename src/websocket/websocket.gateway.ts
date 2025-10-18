@@ -30,19 +30,22 @@ export class WebsocketGateway
     { username: string; rooms: Set<string> }
   >();
 
-  afterInit(server: Server) {
+  afterInit() {
     this.logger.log('WebSocket Gateway Initialized');
   }
 
   handleConnection(client: Socket) {
+    const authUsername: unknown = client.handshake.auth?.username;
     const username =
-      client.handshake.auth?.username || `User-${client.id.substring(0, 5)}`;
+      typeof authUsername === 'string'
+        ? authUsername
+        : `User-${client.id.substring(0, 5)}`;
     this.connectedClients.set(client.id, { username, rooms: new Set() });
 
     this.logger.log(`Client connected: ${client.id} (${username})`);
 
     // Notify all clients about new connection
-    this.server.emit('userConnected', {
+    void this.server.emit('userConnected', {
       userId: client.id,
       username,
       totalUsers: this.connectedClients.size,
@@ -63,7 +66,7 @@ export class WebsocketGateway
     if (clientInfo) {
       // Leave all rooms
       clientInfo.rooms.forEach((room) => {
-        client.leave(room);
+        void client.leave(room);
         this.server.to(room).emit('userLeftRoom', {
           userId: client.id,
           username: clientInfo.username,
@@ -141,7 +144,7 @@ export class WebsocketGateway
       return { error: 'Client not found' };
     }
 
-    client.join(data.room);
+    void client.join(data.room);
     clientInfo.rooms.add(data.room);
 
     this.logger.log(`Client ${client.id} joined room: ${data.room}`);
@@ -171,7 +174,7 @@ export class WebsocketGateway
       return { error: 'Client not found' };
     }
 
-    client.leave(data.room);
+    void client.leave(data.room);
     clientInfo.rooms.delete(data.room);
 
     this.logger.log(`Client ${client.id} left room: ${data.room}`);
@@ -230,7 +233,8 @@ export class WebsocketGateway
     @MessageBody() data: MessageDto,
     @ConnectedSocket() client: Socket,
   ) {
-    const user = client.data.user;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = client.data.user as { id: string; username: string };
 
     return {
       message: `Authenticated message from ${user.username}: ${data.message}`,

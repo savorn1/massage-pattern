@@ -20,10 +20,10 @@ export class RedisPubsubController {
 
   constructor(private readonly redisPubsubService: RedisPubsubService) {
     // Set up event emitter to forward Redis messages
-    this.setupEventForwarding();
+    void this.setupEventForwarding();
   }
 
-  private async setupEventForwarding() {
+  private async setupEventForwarding(): Promise<void> {
     // This will be called when clients subscribe via SSE
   }
 
@@ -32,7 +32,9 @@ export class RedisPubsubController {
     return {
       pattern: 'Redis Pub/Sub',
       description: 'Publisher/Subscriber architecture for horizontal scaling',
-      status: this.redisPubsubService.isConnected() ? 'connected' : 'disconnected',
+      status: this.redisPubsubService.isConnected()
+        ? 'connected'
+        : 'disconnected',
       subscribedChannels: this.redisPubsubService.getSubscribedChannels(),
       endpoints: {
         publish: 'POST /redis-pubsub/publish',
@@ -98,7 +100,9 @@ export class RedisPubsubController {
       success: true,
       channel: subscribeDto.channel,
       message: `Subscribed to channel: ${subscribeDto.channel}`,
-      subscriberCount: this.redisPubsubService.getSubscriberCount(subscribeDto.channel),
+      subscriberCount: this.redisPubsubService.getSubscriberCount(
+        subscribeDto.channel,
+      ),
     };
   }
 
@@ -135,13 +139,13 @@ export class RedisPubsubController {
     }
 
     // Subscribe to Redis channel if not already subscribed
-    this.redisPubsubService.subscribe(channel, (message) => {
+    void this.redisPubsubService.subscribe(channel, (message) => {
       this.eventEmitter.emit(channel, message);
     });
 
     // Create SSE stream from event emitter
     return fromEvent(this.eventEmitter, channel).pipe(
-      map((data: any) => ({
+      map((data: unknown) => ({
         data: JSON.stringify({
           channel,
           message: data,

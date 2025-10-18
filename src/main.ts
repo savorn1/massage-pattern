@@ -27,7 +27,9 @@ async function bootstrap() {
   await app.listen(3000);
   console.log('🚀 Application running on http://localhost:3000');
   console.log('🔌 WebSocket server running on ws://localhost:3000');
-  console.log('🧪 WebSocket Test Client: http://localhost:3000/websocket-client.html');
+  console.log(
+    '🧪 WebSocket Test Client: http://localhost:3000/websocket-client.html',
+  );
   console.log('📚 HTML Documentation: http://localhost:3000/docs/index.html');
 }
-bootstrap();
+void bootstrap();

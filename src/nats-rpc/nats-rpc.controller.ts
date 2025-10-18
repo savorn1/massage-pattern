@@ -26,8 +26,9 @@ export class NatsRpcController {
   }
 
   @Post('publish')
-  async publish(@Body() body: { subject: string; data: string }) {
-    await this.natsRpcService.publish(body.subject, body.data);
+  publish(@Body() body: { subject: string; data: string }) {
+    this.natsRpcService.publish(body.subject, body.data);
+    console.log('publish ====== nats');
     return { success: true };
   }
 

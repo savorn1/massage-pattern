@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { connect, NatsConnection, StringCodec } from 'nats';
 
 @Injectable()
@@ -24,11 +29,13 @@ export class NatsRpcService implements OnModuleInit, OnModuleDestroy {
 
   async request(subject: string, data: string): Promise<string> {
     if (!this.nc) throw new Error('NATS not connected');
-    const msg = await this.nc.request(subject, this.sc.encode(data), { timeout: 5000 });
+    const msg = await this.nc.request(subject, this.sc.encode(data), {
+      timeout: 5000,
+    });
     return this.sc.decode(msg.data);
   }
 
-  async publish(subject: string, data: string): Promise<void> {
+  publish(subject: string, data: string) {
     if (!this.nc) throw new Error('NATS not connected');
     this.nc.publish(subject, this.sc.encode(data));
   }

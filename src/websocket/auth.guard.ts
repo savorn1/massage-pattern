@@ -5,8 +5,8 @@ import { Socket } from 'socket.io';
 @Injectable()
 export class WsAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const client: Socket = context.switchToWs().getClient();
-    const token =
+    const client: Socket = context.switchToWs().getClient<Socket>();
+    const token: unknown =
       client.handshake.auth?.token || client.handshake.headers?.authorization;
 
     // Simple token validation (in real app, use JWT)
@@ -15,9 +15,11 @@ export class WsAuthGuard implements CanActivate {
     }
 
     // Attach user info to socket
+    const username: unknown = client.handshake.auth?.username;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     client.data.user = {
       id: client.id,
-      username: client.handshake.auth?.username || 'Anonymous',
+      username: typeof username === 'string' ? username : 'Anonymous',
     };
 
     return true;

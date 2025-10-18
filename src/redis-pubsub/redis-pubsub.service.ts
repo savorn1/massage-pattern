@@ -13,7 +13,7 @@ export class RedisPubsubService implements OnModuleInit, OnModuleDestroy {
   private subscriber: Redis;
   private subscribers = new Map<string, Set<(message: string) => void>>();
 
-  async onModuleInit() {
+  onModuleInit() {
     // Create Redis connections
     this.publisher = new Redis({
       host: process.env.REDIS_HOST || 'localhost',

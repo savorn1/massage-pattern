@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Test Tool</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .connection-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    input, select {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    input {
+      flex: 1;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    button.danger {
+      background: #f44336;
+    }
+
+    button.danger:hover {
+      background: #da190b;
+    }
+
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-weight: 500;
+    }
+
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background: rgb(227, 38, 38);
+      border: none;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .tab.active {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .tab-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .messages {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #fafafa;
+    }
+
+    .message {
+      padding: 8px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      background: white;
+      border-left: 3px solid #4CAF50;
+    }
+
+    .message.event {
+      border-left-color: #2196F3;
+    }
+
+    .message.error {
+      border-left-color: #f44336;
+    }
+
+    .message-type {
+      font-weight: 600;
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .message-content {
+      font-size: 14px;
+      color: #333;
+    }
+
+    .timestamp {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    .users-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .user-card {
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .user-id {
+      font-size: 12px;
+      color: #666;
+      word-break: break-all;
+    }
+
+    .rooms-list {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .room-badge {
+      padding: 4px 8px;
+      background: #2196F3;
+      color: white;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>WebSocket Test Tool</h1>
+
+    <div class="connection-panel">
+      <h2>Connection</h2>
+      <div class="input-group">
+        <input v-model="serverUrl" placeholder="Server URL (e.g., http://localhost:3000)" :disabled="isConnected">
+        <input v-model="username" placeholder="Username" :disabled="isConnected">
+        <button v-if="!isConnected" @click="connect">Connect</button>
+        <button v-else @click="disconnect" class="danger">Disconnect</button>
+      </div>
+      <div class="status" :class="isConnected ? 'connected' : 'disconnected'">
+        {{ isConnected ? `Connected as ${username} (${userId})` : 'Disconnected' }}
+      </div>
+    </div>
+
+    <div v-if="isConnected">
+      <div class="tabs">
+        <button class="tab" :class="{active: activeTab === 'messages'}" @click="activeTab = 'messages'">Messages</button>
+        <button class="tab" :class="{active: activeTab === 'private'}" @click="activeTab = 'private'">Private Messages</button>
+        <button class="tab" :class="{active: activeTab === 'rooms'}" @click="activeTab = 'rooms'">Rooms</button>
+        <button class="tab" :class="{active: activeTab === 'users'}" @click="activeTab = 'users'">Online Users</button>
+      </div>
+
+      <div class="tab-content">
+        <!-- Broadcast Messages Tab -->
+        <div v-if="activeTab === 'messages'">
+          <h3>Broadcast Messages</h3>
+          <div class="messages" ref="messagesContainer">
+            <div v-for="msg in messages" :key="msg.id" class="message">
+              <div class="message-type">MESSAGE</div>
+              <div class="message-content"><strong>{{ msg.username }}:</strong> {{ msg.message }}</div>
+              <div class="timestamp">{{ msg.timestamp }}</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <input v-model="messageText" @keyup.enter="sendMessage" placeholder="Type a message...">
+            <button @click="sendMessage">Send</button>
+          </div>
+        </div>
+
+        <!-- Private Messages Tab -->
+        <div v-if="activeTab === 'private'">
+          <h3>Private Messages</h3>
+          <div class="messages" ref="privateMessagesContainer">
+            <div v-for="msg in privateMessages" :key="msg.id" class="message">
+              <div class="message-type">PRIVATE</div>
+              <div class="message-content"><strong>{{ msg.fromUsername }}:</strong> {{ msg.message }}</div>
+              <div class="timestamp">{{ msg.timestamp }}</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <input v-model="privateTargetId" placeholder="Target User ID">
+            <input v-model="privateMessageText" @keyup.enter="sendPrivateMessage" placeholder="Type a private message...">
+            <button @click="sendPrivateMessage">Send Private</button>
+          </div>
+        </div>
+
+        <!-- Rooms Tab -->
+        <div v-if="activeTab === 'rooms'">
+          <h3>Room Management</h3>
+          <div class="input-group">
+            <input v-model="roomName" placeholder="Room name">
+            <button @click="joinRoom">Join Room</button>
+            <button @click="leaveRoom" class="danger">Leave Room</button>
+          </div>
+          <div v-if="currentRooms.length > 0">
+            <h4>Your Rooms:</h4>
+            <div class="rooms-list">
+              <span v-for="room in currentRooms" :key="room" class="room-badge">{{ room }}</span>
+            </div>
+          </div>
+          <div class="messages" ref="roomMessagesContainer" style="margin-top: 20px;">
+            <div v-for="msg in roomMessages" :key="msg.id" class="message">
+              <div class="message-type">ROOM: {{ msg.room }}</div>
+              <div class="message-content"><strong>{{ msg.username }}:</strong> {{ msg.message }}</div>
+              <div class="timestamp">{{ msg.timestamp }}</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <select v-model="selectedRoom">
+              <option value="">Select room...</option>
+              <option v-for="room in currentRooms" :key="room" :value="room">{{ room }}</option>
+            </select>
+            <input v-model="roomMessageText" @keyup.enter="sendRoomMessage" placeholder="Type a room message...">
+            <button @click="sendRoomMessage">Send to Room</button>
+          </div>
+        </div>
+
+        <!-- Online Users Tab -->
+        <div v-if="activeTab === 'users'">
+          <h3>Online Users ({{ onlineUsers.length }})</h3>
+          <button @click="refreshUsers" style="margin-bottom: 15px;">Refresh Users</button>
+          <div class="users-list">
+            <div v-for="user in onlineUsers" :key="user.id" class="user-card">
+              <strong>{{ user.username }}</strong>
+              <div class="user-id">ID: {{ user.id }}</div>
+              <div v-if="user.rooms && user.rooms.length > 0" class="rooms-list">
+                <span v-for="room in user.rooms" :key="room" class="room-badge">{{ room }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events Log -->
+      <div class="tab-content" style="margin-top: 20px;">
+        <h3>Events Log</h3>
+        <div class="messages">
+          <div v-for="event in events" :key="event.id" class="message event">
+            <div class="message-type">{{ event.type }}</div>
+            <div class="message-content">{{ event.content }}</div>
+            <div class="timestamp">{{ event.timestamp }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          socket: null,
+          isConnected: false,
+          serverUrl: 'http://localhost:3000',
+          username: '',
+          userId: '',
+          activeTab: 'messages',
+          messageText: '',
+          privateMessageText: '',
+          privateTargetId: '',
+          roomMessageText: '',
+          roomName: '',
+          selectedRoom: '',
+          messages: [],
+          privateMessages: [],
+          roomMessages: [],
+          events: [],
+          onlineUsers: [],
+          currentRooms: [],
+          messageIdCounter: 0
+        };
+      },
+      methods: {
+        connect() {
+          if (!this.username) {
+            alert('Please enter a username');
+            return;
+          }
+
+          this.socket = io(this.serverUrl, {
+            auth: {
+              username: this.username
+            }
+          });
+
+          this.socket.on('connect', () => {
+            this.isConnected = true;
+            this.userId = this.socket.id;
+            this.addEvent('CONNECTED', `Connected to server as ${this.username}`);
+          });
+
+          this.socket.on('disconnect', () => {
+            this.isConnected = false;
+            this.addEvent('DISCONNECTED', 'Disconnected from server');
+          });
+
+          this.socket.on('welcome', (data) => {
+            this.addEvent('WELCOME', JSON.stringify(data));
+          });
+
+          this.socket.on('message', (data) => {
+            this.messages.push({ ...data, id: this.messageIdCounter++ });
+            this.$nextTick(() => {
+              if (this.$refs.messagesContainer) {
+                this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
+              }
+            });
+          });
+
+          this.socket.on('privateMessage', (data) => {
+            this.privateMessages.push({ ...data, id: this.messageIdCounter++ });
+            this.$nextTick(() => {
+              if (this.$refs.privateMessagesContainer) {
+                this.$refs.privateMessagesContainer.scrollTop = this.$refs.privateMessagesContainer.scrollHeight;
+              }
+            });
+          });
+
+          this.socket.on('roomMessage', (data) => {
+            this.roomMessages.push({ ...data, id: this.messageIdCounter++ });
+            this.$nextTick(() => {
+              if (this.$refs.roomMessagesContainer) {
+                this.$refs.roomMessagesContainer.scrollTop = this.$refs.roomMessagesContainer.scrollHeight;
+              }
+            });
+          });
+
+          this.socket.on('userConnected', (data) => {
+            this.addEvent('USER_CONNECTED', `${data.username} connected (Total: ${data.totalUsers})`);
+          });
+
+          this.socket.on('userDisconnected', (data) => {
+            this.addEvent('USER_DISCONNECTED', `${data.username} disconnected (Total: ${data.totalUsers})`);
+          });
+
+          this.socket.on('userJoinedRoom', (data) => {
+            this.addEvent('USER_JOINED_ROOM', `${data.username} joined room: ${data.room}`);
+          });
+
+          this.socket.on('userLeftRoom', (data) => {
+            this.addEvent('USER_LEFT_ROOM', `${data.username} left room: ${data.room}`);
+          });
+        },
+
+        disconnect() {
+          if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+            this.isConnected = false;
+            this.userId = '';
+            this.currentRooms = [];
+          }
+        },
+
+        sendMessage() {
+          if (!this.messageText.trim()) return;
+
+          this.socket.emit('message', { message: this.messageText });
+          this.messageText = '';
+        },
+
+        sendPrivateMessage() {
+          if (!this.privateMessageText.trim() || !this.privateTargetId) {
+            alert('Please enter both target ID and message');
+            return;
+          }
+
+          this.socket.emit('privateMessage', {
+            targetId: this.privateTargetId,
+            message: this.privateMessageText
+          }, (response) => {
+            this.addEvent('PRIVATE_MESSAGE_SENT', JSON.stringify(response));
+          });
+
+          this.privateMessageText = '';
+        },
+
+        sendRoomMessage() {
+          if (!this.roomMessageText.trim() || !this.selectedRoom) {
+            alert('Please select a room and enter a message');
+            return;
+          }
+
+          this.socket.emit('roomMessage', {
+            room: this.selectedRoom,
+            message: this.roomMessageText
+          });
+
+          this.roomMessageText = '';
+        },
+
+        joinRoom() {
+          if (!this.roomName.trim()) {
+            alert('Please enter a room name');
+            return;
+          }
+
+          this.socket.emit('joinRoom', { room: this.roomName }, (response) => {
+            if (response.error) {
+              alert(response.error);
+            } else {
+              this.currentRooms.push(this.roomName);
+              this.addEvent('JOINED_ROOM', `Joined room: ${this.roomName}`);
+              this.roomName = '';
+            }
+          });
+        },
+
+        leaveRoom() {
+          if (!this.roomName.trim()) {
+            alert('Please enter a room name');
+            return;
+          }
+
+          this.socket.emit('leaveRoom', { room: this.roomName }, (response) => {
+            if (response.error) {
+              alert(response.error);
+            } else {
+              this.currentRooms = this.currentRooms.filter(r => r !== this.roomName);
+              this.addEvent('LEFT_ROOM', `Left room: ${this.roomName}`);
+              this.roomName = '';
+            }
+          });
+        },
+
+        refreshUsers() {
+          this.socket.emit('getOnlineUsers', null, (response) => {
+            this.onlineUsers = response.users;
+            this.addEvent('USERS_REFRESHED', `Total users: ${response.total}`);
+          });
+        },
+
+        addEvent(type, content) {
+          this.events.unshift({
+            id: this.messageIdCounter++,
+            type,
+            content,
+            timestamp: new Date().toLocaleTimeString()
+          });
+
+          // Keep only last 50 events
+          if (this.events.length > 50) {
+            this.events = this.events.slice(0, 50);
+          }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
