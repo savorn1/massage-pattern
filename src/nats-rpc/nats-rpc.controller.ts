@@ -21,14 +21,29 @@ export class NatsRpcController {
 
   @Post('request')
   async request(@Body() body: { subject: string; data: string }) {
+    console.log('=== NATS RPC Request ===');
+    console.log('Subject:', body.subject);
+    console.log('Data:', body.data);
+
     const response = await this.natsRpcService.request(body.subject, body.data);
+
+    console.log('Response received:', response);
+    console.log('========================');
+
     return { success: true, response };
   }
 
   @Post('publish')
   publish(@Body() body: { subject: string; data: string }) {
+    console.log('=== NATS Publish ===');
+    console.log('Subject:', body.subject);
+    console.log('Data:', body.data);
+
     this.natsRpcService.publish(body.subject, body.data);
-    console.log('publish ====== nats');
+
+    console.log('Message published successfully');
+    console.log('====================');
+
     return { success: true };
   }
 

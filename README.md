@@ -2,6 +2,24 @@
 
 A comprehensive hands-on learning project covering **4 essential messaging patterns** in NestJS with real-world examples, test clients, and practice tasks.
 
+## 🆕 NEW: Live Interactive Examples!
+
+### 🎨 Interactive Test Dashboard
+Open in your browser: **[http://localhost:3000/examples-test.html](http://localhost:3000/examples-test.html)**
+
+Beautiful web interface to test all messaging patterns with one click!
+
+### 🔧 Command Line Testing
+Try the new `/examples` endpoints to see **NATS, RabbitMQ, and Redis working together** in real-world scenarios:
+
+```bash
+# Quick test (after starting the app)
+curl -X POST http://localhost:3000/examples/setup
+curl -X POST http://localhost:3000/examples/combined?email=test@example.com
+```
+
+📖 **[View Examples Guide →](./EXAMPLES_GUIDE.md)** | **[How They Work →](./HOW_THEY_WORK.md)**
+
 ## 📚 What You'll Learn
 
 ### 1. **WebSocket Pattern** - Real-time Bidirectional Communication

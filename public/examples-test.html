@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messaging Patterns - Interactive Test Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            font-size: 1.5em;
+        }
+
+        .card p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #555;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-setup {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-setup:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .console {
+            background: #1e1e1e;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .console h3 {
+            color: #4facfe;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .console-content {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            border-left: 4px solid;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-info {
+            background: rgba(79, 172, 254, 0.1);
+            border-left-color: #4facfe;
+            color: #4facfe;
+        }
+
+        .log-success {
+            background: rgba(76, 217, 100, 0.1);
+            border-left-color: #4cd964;
+            color: #4cd964;
+        }
+
+        .log-error {
+            background: rgba(255, 59, 48, 0.1);
+            border-left-color: #ff3b30;
+            color: #ff3b30;
+        }
+
+        .log-warning {
+            background: rgba(255, 204, 0, 0.1);
+            border-left-color: #ffcc00;
+            color: #ffcc00;
+        }
+
+        .log-data {
+            background: rgba(142, 142, 147, 0.1);
+            border-left-color: #8e8e93;
+            color: #8e8e93;
+            margin-left: 20px;
+            font-size: 0.85em;
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: 2px solid #ff3b30;
+            color: #ff3b30;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-ready {
+            background: #4cd964;
+        }
+
+        .status-pending {
+            background: #ffcc00;
+        }
+
+        .status-error {
+            background: #ff3b30;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge-nats {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .badge-rabbitmq {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+
+        .badge-redis {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .info-box {
+            background: rgba(79, 172, 254, 0.1);
+            border-left: 4px solid #4facfe;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            color: #4facfe;
+            margin: 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 Messaging Patterns Test Dashboard</h1>
+            <p>Interactive testing for NATS, RabbitMQ, and Redis messaging patterns</p>
+        </div>
+
+        <!-- Setup Card -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2>
+                <span class="card-icon">⚙️</span>
+                Setup Workers & Subscribers
+            </h2>
+            <p>First, you need to setup the background workers and event subscribers before testing the messaging patterns.</p>
+            <div class="info-box">
+                <p><strong>What this does:</strong> Activates 5 RabbitMQ workers and 4 Redis subscribers to process messages</p>
+            </div>
+            <button class="btn btn-setup" onclick="setupWorkers()">
+                🚀 Setup Workers & Subscribers
+            </button>
+            <div id="setup-status" style="text-align: center; margin-top: 10px; color: #666;"></div>
+        </div>
+
+        <!-- Test Cards Grid -->
+        <div class="grid">
+            <!-- RabbitMQ Card -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">🐰</span>
+                    RabbitMQ - Job Queue
+                    <span class="badge badge-rabbitmq">Job Queue</span>
+                </h2>
+                <p>Test background job processing. Jobs are queued and processed by workers one by one.</p>
+                <div class="info-box">
+                    <p><strong>Use case:</strong> Send emails, process images, generate reports</p>
+                </div>
+                <button class="btn btn-primary" onclick="testRabbitMQ()">
+                    📤 Send Jobs to Queue
+                </button>
+            </div>
+
+            <!-- Redis Card -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">💾</span>
+                    Redis - Pub/Sub
+                    <span class="badge badge-redis">Broadcast</span>
+                </h2>
+                <p>Test event broadcasting. Messages are instantly broadcast to all subscribers.</p>
+                <div class="info-box">
+                    <p><strong>Use case:</strong> Cache invalidation, real-time notifications, live updates</p>
+                </div>
+                <button class="btn btn-primary" onclick="testRedis()">
+                    📡 Broadcast Events
+                </button>
+            </div>
+
+            <!-- NATS Card -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">⚡</span>
+                    NATS - RPC
+                    <span class="badge badge-nats">Request/Response</span>
+                </h2>
+                <p>Test request/response pattern. Send a request and wait for a response (may timeout if no responder).</p>
+                <div class="info-box">
+                    <p><strong>Use case:</strong> Microservices communication, API calls, authentication</p>
+                </div>
+                <button class="btn btn-primary" onclick="testNATS()">
+                    🔄 Send RPC Request
+                </button>
+            </div>
+
+            <!-- Combined Card -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">🎯</span>
+                    Combined Example
+                </h2>
+                <p>See all three patterns working together in a real-world user registration scenario!</p>
+                <div class="input-group">
+                    <label for="email">Email Address:</label>
+                    <input type="email" id="email" value="test@example.com" placeholder="Enter email address">
+                </div>
+                <button class="btn btn-success" onclick="testCombined()">
+                    🚀 Run Full Registration Flow
+                </button>
+            </div>
+        </div>
+
+        <!-- Console Output -->
+        <div class="console">
+            <h3>
+                <span>
+                    <span class="status-indicator status-ready"></span>
+                    Console Output
+                </span>
+                <button class="clear-btn" onclick="clearConsole()">Clear</button>
+            </h3>
+            <div class="console-content" id="console">
+                <div class="log-info">📋 Ready to test! Click "Setup Workers & Subscribers" to begin.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+
+        function log(message, type = 'info', data = null) {
+            const console = document.getElementById('console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `[${timestamp}] ${message}`;
+
+            console.appendChild(entry);
+
+            if (data) {
+                const dataEntry = document.createElement('div');
+                dataEntry.className = 'log-entry log-data';
+                dataEntry.textContent = JSON.stringify(data, null, 2);
+                console.appendChild(dataEntry);
+            }
+
+            // Auto scroll to bottom
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            log('Console cleared', 'info');
+        }
+
+        async function setupWorkers() {
+            const statusDiv = document.getElementById('setup-status');
+            statusDiv.innerHTML = '<span class="status-indicator status-pending"></span>Setting up...';
+
+            log('🔧 Setting up workers and subscribers...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/examples/setup`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    log('✅ Setup completed successfully!', 'success');
+                    log(`✓ RabbitMQ workers: ${data.details.rabbitmq.consumers.join(', ')}`, 'success');
+                    log(`✓ Redis subscribers: ${data.details.redis.subscribers.join(', ')}`, 'success');
+                    statusDiv.innerHTML = '<span class="status-indicator status-ready"></span><strong style="color: #4cd964;">✓ Ready to test!</strong>';
+                } else {
+                    throw new Error('Setup failed');
+                }
+            } catch (error) {
+                log('❌ Setup failed: ' + error.message, 'error');
+                statusDiv.innerHTML = '<span class="status-indicator status-error"></span><strong style="color: #ff3b30;">✗ Setup failed</strong>';
+            }
+        }
+
+        async function testRabbitMQ() {
+            log('🐰 Testing RabbitMQ Job Queue...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/examples/rabbitmq`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    log(`✅ Sent ${data.jobsSent} jobs to queues: ${data.queues.join(', ')}`, 'success');
+                    log('💡 Check your server console to see workers processing jobs!', 'warning');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                log('❌ RabbitMQ test failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testRedis() {
+            log('💾 Testing Redis Pub/Sub...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/examples/redis`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    log(`✅ Broadcast ${data.eventsPublished} events to channels: ${data.channels.join(', ')}`, 'success');
+                    log('💡 Check your server console to see subscribers receiving events!', 'warning');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                log('❌ Redis test failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testNATS() {
+            log('⚡ Testing NATS RPC...', 'info');
+            log('⏳ Waiting for response (5 second timeout)...', 'warning');
+
+            try {
+                const response = await fetch(`${API_BASE}/examples/nats`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    log('✅ NATS RPC test completed!', 'success');
+                    log('Responses:', 'info', data.examples);
+                } else {
+                    log('⚠️ No NATS responder available (this is expected in demo mode)', 'warning');
+                    log('In production, separate microservices would respond to these requests', 'info');
+                }
+            } catch (error) {
+                log('❌ NATS test failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testCombined() {
+            const email = document.getElementById('email').value;
+
+            if (!email) {
+                log('❌ Please enter an email address', 'error');
+                return;
+            }
+
+            log('🎯 Running combined example: User Registration Flow', 'info');
+            log(`📧 Registering user: ${email}`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/examples/combined?email=${encodeURIComponent(email)}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    log('✅ User registration completed!', 'success');
+                    log('📋 Registration steps:', 'info');
+
+                    data.steps.forEach(step => {
+                        const icon = step.status === 'success' ? '✓' :
+                                   step.status === 'queued' ? '📤' :
+                                   step.status === 'published' ? '📡' : '⊘';
+                        log(`  ${icon} Step ${step.step}: ${step.action} (${step.method})`,
+                            step.status === 'success' || step.status === 'queued' || step.status === 'published' ? 'success' : 'warning');
+                    });
+
+                    log('💡 Check your server console to see all workers and subscribers in action!', 'warning');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                log('❌ Combined test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Initial message
+        log('🚀 Welcome to the Messaging Patterns Test Dashboard!', 'success');
+        log('👉 Click "Setup Workers & Subscribers" to begin testing', 'info');
+    </script>
+</body>
+</html>
