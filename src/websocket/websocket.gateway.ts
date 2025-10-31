@@ -12,11 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WsAuthGuard } from './auth.guard';
-import {
-  MessageDto,
-  JoinRoomDto,
-  PrivateMessageDto,
-} from './dto/message.dto';
+import { MessageDto, JoinRoomDto, PrivateMessageDto } from './dto/message.dto';
 
 interface ClientSession {
   username: string;
@@ -53,7 +49,7 @@ export class WebsocketGateway
     this.logger.log('WebSocket Gateway Initialized');
 
     // Add server-level error listener
-    this.server.engine.on('connection_error', (err) => {
+    this.server.engine.on('connection_error', (err: Error) => {
       this.logger.error('Connection error:', err.message);
       this.logger.error('Error details:', err);
     });
