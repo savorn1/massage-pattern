@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NatsRpcService } from '../nats-rpc/nats-rpc.service';
-import { RabbitmqService } from '../rabbitmq/rabbitmq.service';
-import { RedisPubsubService } from '../redis-pubsub/redis-pubsub.service';
+import { NatsRpcService } from '../../messaging/nats-rpc/nats-rpc.service';
+import { RabbitmqService } from '../../messaging/rabbitmq/rabbitmq.service';
+import { RedisPubsubService } from '../../messaging/redis-pubsub/redis-pubsub.service';
 
 export interface Step {
   step: number;
