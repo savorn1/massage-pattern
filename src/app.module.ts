@@ -29,6 +29,11 @@ import { FinalProjectModule } from './integrations/final-project/final-project.m
 // Health module
 import { HealthModule } from './health/health.module';
 
+// Feature modules (enterprise structure)
+import { AdminModule } from './modules/admin/admin.module';
+import { ClientModule } from './modules/client/client.module';
+import { VendorModule } from './modules/vendor/vendor.module';
+
 @Module({
   imports: [
     // Global configuration with config files
@@ -49,6 +54,11 @@ import { HealthModule } from './health/health.module';
       process.env.MONGODB_URI ||
         'mongodb://admin:password@localhost:27017/messaging-patterns?authSource=admin',
     ),
+
+    // Feature modules (enterprise structure)
+    AdminModule,
+    ClientModule,
+    VendorModule,
 
     // Messaging pattern modules
     WebsocketModule,
