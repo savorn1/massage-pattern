@@ -1,3 +1,6 @@
+// Error handler
+export * from './error-handler.util';
+
 // ════════════════════════════════════════════════════════════════════════════
 // Async Utilities
 // ════════════════════════════════════════════════════════════════════════════
@@ -20,7 +23,12 @@ export async function retry<T>(
     onRetry?: (error: Error, attempt: number) => void;
   } = {},
 ): Promise<T> {
-  const { maxRetries = 3, delay = 1000, backoff = 'exponential', onRetry } = options;
+  const {
+    maxRetries = 3,
+    delay = 1000,
+    backoff = 'exponential',
+    onRetry,
+  } = options;
 
   let lastError: Error;
 
@@ -75,7 +83,9 @@ export async function withTimeout<T>(
 /**
  * Remove undefined/null values from object
  */
-export function cleanObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
+export function cleanObject<T extends Record<string, unknown>>(
+  obj: T,
+): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null),
   ) as Partial<T>;

@@ -12,11 +12,11 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from '@/core/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/core/common/guards/roles.guard';
-import { Roles } from '@/core/common/decorators/roles.decorator';
-import { UserRole } from '@/core/common/constants/roles.constant';
-import { CurrentUser } from '@/core/common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { UserRole } from '@/common/constants/roles.constant';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 /**
  * Admin controller for user management

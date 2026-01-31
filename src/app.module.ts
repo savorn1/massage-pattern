@@ -15,10 +15,7 @@ import websocketConfig from './config/websocket.config';
 import { DatabaseModule } from './infrastructure/database/database.module';
 
 // Messaging Patterns (Pub/Sub, Streams, RabbitMQ, NATS, WebSocket)
-import { MessagingModule } from './messaging/messaging.module';
-
-// Persistence (Data Operations - CRUD, Queries)
-import { PersistenceModule } from './persistence/persistence.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 
 // Workers (BullMQ Background Jobs)
 import { WorkersModule } from './workers/workers.module';
@@ -30,7 +27,10 @@ import { FeaturesModule } from './modules/features.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 
 // Health Monitoring
-import { HealthModule } from './health/health.module';
+import { HealthModule } from './modules/health/health.module';
+
+// Security (Rate Limiting)
+import { ThrottleModule } from './core/throttle/throttle.module';
 
 /**
  * App Module - Application Root
@@ -39,7 +39,6 @@ import { HealthModule } from './health/health.module';
  * ├── Config          - Environment configuration
  * ├── Infrastructure  - Database connections
  * ├── Messaging       - All messaging patterns
- * ├── Persistence     - Data storage (MongoDB)
  * ├── Workers         - Background job processing
  * ├── Features        - Business domain modules
  * ├── Integrations    - Examples and demos
@@ -73,11 +72,6 @@ import { HealthModule } from './health/health.module';
     MessagingModule,
 
     // ══════════════════════════════════════════════════════════════════════
-    // PERSISTENCE
-    // ══════════════════════════════════════════════════════════════════════
-    PersistenceModule,
-
-    // ══════════════════════════════════════════════════════════════════════
     // WORKERS (Background Jobs)
     // ══════════════════════════════════════════════════════════════════════
     WorkersModule,
@@ -91,6 +85,11 @@ import { HealthModule } from './health/health.module';
     // INTEGRATIONS (Examples & Demos)
     // ══════════════════════════════════════════════════════════════════════
     IntegrationsModule,
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECURITY (Rate Limiting)
+    // ══════════════════════════════════════════════════════════════════════
+    ThrottleModule,
 
     // ══════════════════════════════════════════════════════════════════════
     // HEALTH MONITORING

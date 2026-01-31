@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { NatsRpcService } from '../../messaging/nats-rpc/nats-rpc.service';
-import { RabbitmqService } from '../../messaging/rabbitmq/rabbitmq.service';
-import { RedisPubsubService } from '../../messaging/redis-pubsub/redis-pubsub.service';
+import { NatsRpcService } from '../../modules/messaging/nats-rpc/nats-rpc.service';
+import { RabbitmqService } from '../../modules/messaging/rabbitmq/rabbitmq.service';
+import { RedisPubsubService } from '../../modules/messaging/redis-pubsub/redis-pubsub.service';
 import {
   Task,
   TaskStatus,

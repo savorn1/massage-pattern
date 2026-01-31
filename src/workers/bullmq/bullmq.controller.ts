@@ -32,7 +32,12 @@ export class BullmqController {
    */
   @Post('emails/send')
   async sendEmail(@Body() dto: SendEmailDto) {
-    const job = await this.bullmqService.addJobWithRetry('emails', 'send-email', dto, 3);
+    const job = await this.bullmqService.addJobWithRetry(
+      'emails',
+      'send-email',
+      dto,
+      3,
+    );
     return {
       success: true,
       jobId: job.id,
@@ -69,7 +74,12 @@ export class BullmqController {
     @Body() dto: SendEmailDto,
     @Query('delay', new DefaultValuePipe(60000), ParseIntPipe) delay: number,
   ) {
-    const job = await this.bullmqService.addDelayedJob('emails', 'send-email', dto, delay);
+    const job = await this.bullmqService.addDelayedJob(
+      'emails',
+      'send-email',
+      dto,
+      delay,
+    );
     return {
       success: true,
       jobId: job.id,
@@ -178,10 +188,7 @@ export class BullmqController {
       return { found: false, jobId, queue };
     }
 
-    const [state, progress] = await Promise.all([
-      job.getState(),
-      job.progress,
-    ]);
+    const state = await job.getState();
 
     return {
       found: true,
@@ -189,8 +196,8 @@ export class BullmqController {
       name: job.name,
       queue,
       state,
-      progress,
-      data: job.data,
+      progress: job.progress as unknown,
+      data: job.data as unknown,
       attemptsMade: job.attemptsMade,
       timestamp: job.timestamp,
       processedOn: job.processedOn,
@@ -244,7 +251,7 @@ export class BullmqController {
       jobs: jobs.map((j) => ({
         id: j.id,
         name: j.name,
-        data: j.data,
+        data: j.data as unknown,
         attemptsMade: j.attemptsMade,
         timestamp: j.timestamp,
         failedReason: j.failedReason,
@@ -268,7 +275,7 @@ export class BullmqController {
       jobs: jobs.map((j) => ({
         id: j.id,
         name: j.name,
-        data: j.data,
+        data: j.data as unknown,
         attemptsMade: j.attemptsMade,
         failedReason: j.failedReason,
         stacktrace: j.stacktrace,

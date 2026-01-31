@@ -505,7 +505,7 @@ export const Chat: React.FC = () => {
   return (
     <div className="chat-container">
       <div className="status">
-        {connected ? '=â Connected' : '=4 Disconnected'}
+        {connected ? '=ï¿½ Connected' : '=4 Disconnected'}
       </div>
 
       <div className="messages">
@@ -633,7 +633,7 @@ export function useSocket(url: string, username?: string) {
                     <pre><code id="vue-component" class="language-html">&lt;template&gt;
   &lt;div class="chat-container"&gt;
     &lt;div class="status"&gt;
-      {{ connected ? '=â Connected' : '=4 Disconnected' }}
+      {{ connected ? '=ï¿½ Connected' : '=4 Disconnected' }}
     &lt;/div&gt;
 
     &lt;div class="messages"&gt;
@@ -745,7 +745,7 @@ import { SocketService } from '../services/socket.service';
   template: `
     &lt;div class="chat-container"&gt;
       &lt;div class="status"&gt;
-        {{ (socketService.connected$ | async) ? '=â Connected' : '=4 Disconnected' }}
+        {{ (socketService.connected$ | async) ? '=ï¿½ Connected' : '=4 Disconnected' }}
       &lt;/div&gt;
 
       &lt;div class="messages"&gt;
@@ -838,7 +838,7 @@ const input = document.getElementById('message-input');
 
 // Connection status
 socket.on('connect', () => {
-  statusDiv.textContent = '=â Connected';
+  statusDiv.textContent = '=ï¿½ Connected';
   statusDiv.style.color = 'green';
 });
 

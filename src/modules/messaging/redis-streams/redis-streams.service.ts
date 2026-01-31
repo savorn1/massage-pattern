@@ -103,7 +103,13 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     startId = '0',
     count = 10,
   ): Promise<StreamMessage[]> {
-    const results = await this.redis.xrange(stream, startId, '+', 'COUNT', count);
+    const results = await this.redis.xrange(
+      stream,
+      startId,
+      '+',
+      'COUNT',
+      count,
+    );
     return this.parseStreamResults(results);
   }
 
@@ -116,7 +122,13 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     stream: string,
     count = 10,
   ): Promise<StreamMessage[]> {
-    const results = await this.redis.xrevrange(stream, '+', '-', 'COUNT', count);
+    const results = await this.redis.xrevrange(
+      stream,
+      '+',
+      '-',
+      'COUNT',
+      count,
+    );
     return this.parseStreamResults(results).reverse();
   }
 
@@ -146,7 +158,10 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     if (!results) return [];
 
     const messages: StreamMessage[] = [];
-    for (const [, streamMessages] of results as [string, [string, string[]][]][]) {
+    for (const [, streamMessages] of results as [
+      string,
+      [string, string[]][],
+    ][]) {
       for (const [id, fields] of streamMessages) {
         messages.push({ id, data: this.parseFields(fields) });
       }
@@ -212,7 +227,10 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     if (!results) return [];
 
     const messages: StreamMessage[] = [];
-    for (const [, streamMessages] of results as [string, [string, string[]][]][]) {
+    for (const [, streamMessages] of results as [
+      string,
+      [string, string[]][],
+    ][]) {
       for (const [id, fields] of streamMessages) {
         messages.push({ id, data: this.parseFields(fields) });
       }
@@ -246,7 +264,14 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     stream: string,
     group: string,
     count = 10,
-  ): Promise<Array<{ id: string; consumer: string; idleTime: number; deliveryCount: number }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      consumer: string;
+      idleTime: number;
+      deliveryCount: number;
+    }>
+  > {
     const pending = await this.redis.xpending(stream, group, '-', '+', count);
 
     return (pending as [string, string, number, number][]).map(
@@ -306,7 +331,11 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     stream: string,
     group: string,
     handler: (message: StreamMessage) => Promise<void>,
-    options: { batchSize?: number; blockMs?: number; claimInterval?: number } = {},
+    options: {
+      batchSize?: number;
+      blockMs?: number;
+      claimInterval?: number;
+    } = {},
   ): Promise<void> {
     const { batchSize = 10, blockMs = 5000, claimInterval = 30000 } = options;
 
@@ -314,9 +343,9 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     this.isConsuming = true;
 
     // Periodically claim stuck messages
-    const claimTimer = setInterval(async () => {
+    const claimTimer = setInterval(() => {
       if (this.isConsuming) {
-        await this.claimStuckMessages(stream, group);
+        void this.claimStuckMessages(stream, group);
       }
     }, claimInterval);
 
@@ -325,7 +354,12 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
     // Main consume loop
     while (this.isConsuming) {
       try {
-        const messages = await this.readFromGroup(stream, group, batchSize, blockMs);
+        const messages = await this.readFromGroup(
+          stream,
+          group,
+          batchSize,
+          blockMs,
+        );
 
         for (const message of messages) {
           try {
@@ -406,7 +440,10 @@ export class RedisStreamsService implements OnModuleInit, OnModuleDestroy {
   /**
    * Delete messages from stream
    */
-  async deleteMessages(stream: string, ...messageIds: string[]): Promise<number> {
+  async deleteMessages(
+    stream: string,
+    ...messageIds: string[]
+  ): Promise<number> {
     return this.redis.xdel(stream, ...messageIds);
   }
 

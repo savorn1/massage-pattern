@@ -7,7 +7,7 @@ import {
   IsEnum,
   IsBoolean,
 } from 'class-validator';
-import { UserRole } from '@/core/common/constants/roles.constant';
+import { UserRole } from '@/common/constants/roles.constant';
 
 export class UpdateUserDto {
   @IsEmail()

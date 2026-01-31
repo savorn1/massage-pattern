@@ -1,5 +1,5 @@
 import { registerAs } from '@nestjs/config';
-import { DEFAULT_CONFIG } from '../core/common/constants/default-config.constant';
+import { DEFAULT_CONFIG } from '../common/constants/default-config.constant';
 
 export default registerAs('database', () => ({
   mongodb: {

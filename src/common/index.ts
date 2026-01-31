@@ -14,5 +14,14 @@ export * from './dto';
 // Enums
 export * from './enums';
 
+// Decorators
+export * from './decorators';
+
+// Guards
+export * from './guards';
+
+// Helpers
+export * from './helpers';
+
 // Utils
 export * from './utils';

@@ -1,3 +1,7 @@
+// Default config
+export * from './default-config.constant';
+export * from './roles.constant';
+
 // Queue names
 export const QUEUE_NAMES = {
   EMAILS: 'emails',

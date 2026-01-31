@@ -57,7 +57,11 @@ export class RedisStreamsController {
     @Query('startId', new DefaultValuePipe('0')) startId: string,
     @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
   ) {
-    const messages = await this.streamsService.readMessages(stream, startId, count);
+    const messages = await this.streamsService.readMessages(
+      stream,
+      startId,
+      count,
+    );
     return {
       stream,
       count: messages.length,
@@ -74,7 +78,10 @@ export class RedisStreamsController {
     @Param('stream') stream: string,
     @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
   ) {
-    const messages = await this.streamsService.readLatestMessages(stream, count);
+    const messages = await this.streamsService.readLatestMessages(
+      stream,
+      count,
+    );
     return {
       stream,
       count: messages.length,
@@ -152,7 +159,11 @@ export class RedisStreamsController {
     @Param('group') group: string,
     @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
   ) {
-    const pending = await this.streamsService.getPendingMessages(stream, group, count);
+    const pending = await this.streamsService.getPendingMessages(
+      stream,
+      group,
+      count,
+    );
     return {
       stream,
       group,
@@ -169,7 +180,8 @@ export class RedisStreamsController {
   async claimStuckMessages(
     @Param('stream') stream: string,
     @Param('group') group: string,
-    @Query('minIdleTime', new DefaultValuePipe(60000), ParseIntPipe) minIdleTime: number,
+    @Query('minIdleTime', new DefaultValuePipe(60000), ParseIntPipe)
+    minIdleTime: number,
   ) {
     const claimed = await this.streamsService.claimStuckMessages(
       stream,
@@ -254,7 +266,7 @@ export class RedisStreamsController {
    * GET /redis-streams/health
    */
   @Get('health')
-  async healthCheck() {
+  healthCheck() {
     return {
       status: this.streamsService.isConnected() ? 'connected' : 'disconnected',
       service: 'redis-streams',

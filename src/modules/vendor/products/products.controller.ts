@@ -12,11 +12,11 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { JwtAuthGuard } from '@/core/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/core/common/guards/roles.guard';
-import { Roles } from '@/core/common/decorators/roles.decorator';
-import { UserRole } from '@/core/common/constants/roles.constant';
-import { CurrentUser } from '@/core/common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { UserRole } from '@/common/constants/roles.constant';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 /**
  * Vendor products controller

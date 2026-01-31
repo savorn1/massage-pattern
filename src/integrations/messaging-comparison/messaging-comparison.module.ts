@@ -3,9 +3,9 @@ import { MessagingComparisonController } from './messaging-comparison.controller
 import { MessagingComparisonService } from './messaging-comparison.service';
 import { UseCaseExamplesController } from './use-case-examples.controller';
 import { UseCaseExamplesService } from './use-case-examples.service';
-import { RedisPubsubModule } from '../../messaging/redis-pubsub/redis-pubsub.module';
-import { RedisStreamsModule } from '../../messaging/redis-streams/redis-streams.module';
-import { RabbitmqModule } from '../../messaging/rabbitmq/rabbitmq.module';
+import { RedisPubsubModule } from '../../modules/messaging/redis-pubsub/redis-pubsub.module';
+import { RedisStreamsModule } from '../../modules/messaging/redis-streams/redis-streams.module';
+import { RabbitmqModule } from '../../modules/messaging/rabbitmq/rabbitmq.module';
 import { BullmqModule } from '../../workers/bullmq/bullmq.module';
 
 @Module({

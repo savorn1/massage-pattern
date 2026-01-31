@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsObject, IsOptional, IsNumber, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsNumber,
+  Min,
+} from 'class-validator';
 
 export class AddMessageDto {
   @IsString()

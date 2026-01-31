@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
-import { BusinessException } from '../../exceptions/business.exception';
-import { MessagingException } from '../../exceptions/messaging.exception';
-import { DatabaseException } from '../../exceptions/database.exception';
+import { BusinessException } from '../../core/exceptions/business.exception';
+import { MessagingException } from '../../core/exceptions/messaging.exception';
+import { DatabaseException } from '../../core/exceptions/database.exception';
 
 /**
  * Error handler utility for common error handling patterns

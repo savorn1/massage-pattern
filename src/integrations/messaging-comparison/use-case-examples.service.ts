@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RedisPubsubService } from '../../messaging/redis-pubsub/redis-pubsub.service';
-import { RedisStreamsService } from '../../messaging/redis-streams/redis-streams.service';
-import { RabbitmqService } from '../../messaging/rabbitmq/rabbitmq.service';
+import { RedisPubsubService } from '../../modules/messaging/redis-pubsub/redis-pubsub.service';
+import { RedisStreamsService } from '../../modules/messaging/redis-streams/redis-streams.service';
+import { RabbitmqService } from '../../modules/messaging/rabbitmq/rabbitmq.service';
 import { BullmqService } from '../../workers/bullmq/bullmq.service';
 
 /**

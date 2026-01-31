@@ -7,7 +7,6 @@ import {
 import { Queue, QueueEvents, Job, JobsOptions } from 'bullmq';
 import Redis from 'ioredis';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type JobData = Record<string, any> | object;
 
 export interface JobResult {
@@ -34,7 +33,7 @@ export class BullmqService implements OnModuleInit, OnModuleDestroy {
   private queues: Map<string, Queue> = new Map();
   private queueEvents: Map<string, QueueEvents> = new Map();
 
-  async onModuleInit() {
+  onModuleInit() {
     this.connection = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
