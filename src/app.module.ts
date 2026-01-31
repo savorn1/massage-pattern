@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-// Configuration imports
+// Configuration
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
@@ -12,31 +11,45 @@ import natsConfig from './config/nats.config';
 import rabbitmqConfig from './config/rabbitmq.config';
 import websocketConfig from './config/websocket.config';
 
-// Messaging pattern modules
-import { WebsocketModule } from './messaging/websocket/websocket.module';
-import { RedisPubsubModule } from './messaging/redis-pubsub/redis-pubsub.module';
-import { NatsRpcModule } from './messaging/nats-rpc/nats-rpc.module';
-import { RabbitmqModule } from './messaging/rabbitmq/rabbitmq.module';
+// Infrastructure (Database, External Services)
+import { DatabaseModule } from './infrastructure/database/database.module';
 
-// Persistence modules
-import { MongodbModule } from './persistence/mongodb/mongodb.module';
+// Messaging Patterns (Pub/Sub, Streams, RabbitMQ, NATS, WebSocket)
+import { MessagingModule } from './messaging/messaging.module';
 
-// Integration modules
-import { ExamplesModule } from './integrations/examples/examples.module';
-import { TaskSystemModule } from './integrations/task-system/task-system.module';
-import { FinalProjectModule } from './integrations/final-project/final-project.module';
+// Persistence (Data Operations - CRUD, Queries)
+import { PersistenceModule } from './persistence/persistence.module';
 
-// Health module
+// Workers (BullMQ Background Jobs)
+import { WorkersModule } from './workers/workers.module';
+
+// Features (Business Logic - Users, Orders, Products)
+import { FeaturesModule } from './modules/features.module';
+
+// Integrations (Examples, Comparisons)
+import { IntegrationsModule } from './integrations/integrations.module';
+
+// Health Monitoring
 import { HealthModule } from './health/health.module';
 
-// Feature modules (enterprise structure)
-import { AdminModule } from './modules/admin/admin.module';
-import { ClientModule } from './modules/client/client.module';
-import { VendorModule } from './modules/vendor/vendor.module';
-
+/**
+ * App Module - Application Root
+ *
+ * Structure:
+ * ├── Config          - Environment configuration
+ * ├── Infrastructure  - Database connections
+ * ├── Messaging       - All messaging patterns
+ * ├── Persistence     - Data storage (MongoDB)
+ * ├── Workers         - Background job processing
+ * ├── Features        - Business domain modules
+ * ├── Integrations    - Examples and demos
+ * └── Health          - Service monitoring
+ */
 @Module({
   imports: [
-    // Global configuration with config files
+    // ══════════════════════════════════════════════════════════════════════
+    // CONFIGURATION
+    // ══════════════════════════════════════════════════════════════════════
     ConfigModule.forRoot({
       isGlobal: true,
       load: [
@@ -49,32 +62,39 @@ import { VendorModule } from './modules/vendor/vendor.module';
       ],
     }),
 
-    // Database connection
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI ||
-        'mongodb://admin:password@localhost:27017/messaging-patterns?authSource=admin',
-    ),
+    // ══════════════════════════════════════════════════════════════════════
+    // INFRASTRUCTURE
+    // ══════════════════════════════════════════════════════════════════════
+    DatabaseModule,
 
-    // Feature modules (enterprise structure)
-    AdminModule,
-    ClientModule,
-    VendorModule,
+    // ══════════════════════════════════════════════════════════════════════
+    // MESSAGING PATTERNS
+    // ══════════════════════════════════════════════════════════════════════
+    MessagingModule,
 
-    // Messaging pattern modules
-    WebsocketModule,
-    RedisPubsubModule,
-    NatsRpcModule,
-    RabbitmqModule,
+    // ══════════════════════════════════════════════════════════════════════
+    // PERSISTENCE
+    // ══════════════════════════════════════════════════════════════════════
+    PersistenceModule,
 
-    // Persistence modules
-    MongodbModule,
+    // ══════════════════════════════════════════════════════════════════════
+    // WORKERS (Background Jobs)
+    // ══════════════════════════════════════════════════════════════════════
+    WorkersModule,
 
-    // Integration modules
-    ExamplesModule,
-    TaskSystemModule,
-    FinalProjectModule,
+    // ══════════════════════════════════════════════════════════════════════
+    // FEATURES (Business Logic)
+    // ══════════════════════════════════════════════════════════════════════
+    FeaturesModule,
 
-    // Health monitoring
+    // ══════════════════════════════════════════════════════════════════════
+    // INTEGRATIONS (Examples & Demos)
+    // ══════════════════════════════════════════════════════════════════════
+    IntegrationsModule,
+
+    // ══════════════════════════════════════════════════════════════════════
+    // HEALTH MONITORING
+    // ══════════════════════════════════════════════════════════════════════
     HealthModule,
   ],
   controllers: [AppController],

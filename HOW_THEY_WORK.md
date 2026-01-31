@@ -1,6 +1,6 @@
 # 🔄 How NATS, RabbitMQ, and Redis Work
 
-A comprehensive guide to understanding the three messaging patterns in this project.
+A comprehensive guide to understanding the messaging patterns in this project.
 
 ---
 
@@ -9,9 +9,10 @@ A comprehensive guide to understanding the three messaging patterns in this proj
 1. [NATS - Request/Response Pattern](#nats---requestresponse-pattern)
 2. [RabbitMQ - Job Queue Pattern](#rabbitmq---job-queue-pattern)
 3. [Redis - Pub/Sub Pattern](#redis---pubsub-pattern)
-4. [Side-by-Side Comparison](#side-by-side-comparison)
-5. [When to Use What](#when-to-use-what)
-6. [Real-World Examples](#real-world-examples)
+4. [Redis - Streams Pattern](#redis---streams-pattern)
+5. [Side-by-Side Comparison](#side-by-side-comparison)
+6. [When to Use What](#when-to-use-what)
+7. [Real-World Examples](#real-world-examples)
 
 ---
 
@@ -307,6 +308,173 @@ Important:
 
 ---
 
+## 4. Redis - Streams Pattern
+
+### 🎯 Purpose
+**Persistent, append-only log** that combines the best of Pub/Sub and queues. Messages are persisted, can be replayed, and support consumer groups for parallel processing.
+
+### 🔧 How It Works
+
+```
+Producer                Redis Stream                    Consumers
+   |                         |                              |
+   | 1. XADD order           |                              |
+   |    {id: 123}            |                              |
+   |------------------------>|                              |
+   |                         | Stream:                      |
+   |                         | [1704067200000-0: {id:123}]  |
+   |                         | [1704067200001-0: {id:124}]  |
+   |                         | [1704067200002-0: {id:125}]  |
+   |                         |                              |
+   |                         |     Consumer Group: "workers"|
+   |                         |            |                 |
+   |                         |     ┌──────┴──────┐          |
+   |                         |     ▼             ▼          |
+   |                         |  Worker 1     Worker 2       |
+   |                         |  (msg 0)      (msg 1)        |
+   |                         |                              |
+   |                         | 2. XREADGROUP                |
+   |                         |<-----------------------------|
+   |                         |                              |
+   |                         | 3. Process message           |
+   |                         |                              |
+   |                         | 4. XACK (acknowledge)        |
+   |                         |<-----------------------------|
+```
+
+### 💻 Code Implementation
+
+**Producer:**
+```typescript
+// Add message to stream (returns unique ID)
+const messageId = await streamsService.addMessage('orders', {
+  orderId: 'ORD-001',
+  amount: '99.99',
+  customer: 'alice'
+});
+
+console.log('Added:', messageId); // "1704067200000-0"
+
+// With automatic trimming (keep last 10000 messages)
+await streamsService.addMessage('orders', data, 10000);
+```
+
+**Simple Consumer (read all):**
+```typescript
+// Read all messages from beginning
+const allMessages = await streamsService.readMessages('orders', '0', 100);
+
+// Read only latest 10 messages
+const latest = await streamsService.readLatestMessages('orders', 10);
+
+// Blocking read - wait for new messages
+const newMessages = await streamsService.blockingRead('orders', '$', 5000);
+```
+
+**Consumer Group (parallel processing):**
+```typescript
+// Create consumer group
+await streamsService.createConsumerGroup('orders', 'order-processors');
+
+// Read messages (each message goes to ONE consumer only)
+const messages = await streamsService.readFromGroup('orders', 'order-processors');
+
+for (const msg of messages) {
+  try {
+    await processOrder(msg.data);
+    // Acknowledge successful processing
+    await streamsService.acknowledge('orders', 'order-processors', msg.id);
+  } catch (error) {
+    // Message stays pending - can be retried or claimed by another worker
+    console.error('Failed to process:', msg.id);
+  }
+}
+
+// Claim stuck messages from dead consumers
+const stuck = await streamsService.claimStuckMessages('orders', 'order-processors', 60000);
+```
+
+### ⚡ Characteristics
+
+| Feature | Value |
+|---------|-------|
+| **Latency** | 1-5ms |
+| **Pattern** | Log/Stream (flexible) |
+| **Waits for response** | ❌ No |
+| **Persistence** | ✅ Yes (messages stored) |
+| **Message History** | ✅ Yes (can replay) |
+| **Guaranteed delivery** | ✅ Yes (with consumer groups) |
+| **Consumer Groups** | ✅ Yes (for scaling) |
+| **Ordering** | ✅ Guaranteed |
+
+### 📦 Use Cases
+
+✅ **Perfect for:**
+- Event sourcing
+- Activity feeds / timelines
+- Audit logs
+- IoT data ingestion
+- Task processing with history needed
+- Analytics event tracking
+
+❌ **Don't use for:**
+- Simple fire-and-forget notifications (use Pub/Sub)
+- Complex routing patterns (use RabbitMQ exchanges)
+- When you don't need message history
+
+### 🔄 Message Lifecycle
+
+```
+1. Producer adds message → Stream (persisted)
+2. Message assigned unique ID (timestamp-sequence)
+3. Consumer group distributes messages to workers
+4. Worker processes and ACKs the message
+5. Message stays in stream (can be read again)
+6. Optional: Trim old messages with MAXLEN
+
+If worker crashes before ACK:
+→ Message stays in "pending" list
+→ Another worker can CLAIM it after timeout
+→ No message lost!
+
+Key difference from RabbitMQ:
+→ Messages are NOT deleted after consumption
+→ You can replay history anytime
+→ Multiple consumer groups can read same stream independently
+```
+
+### 🆚 Pub/Sub vs Streams
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    PUB/SUB vs STREAMS                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Redis Pub/Sub:                                                │
+│  ┌─────────┐      ┌───────┐      ┌─────────┐                  │
+│  │Publisher│─────>│Channel│─────>│Subscriber│                  │
+│  └─────────┘      └───────┘      └─────────┘                  │
+│                       ↓                                        │
+│                   Message                                      │
+│                   GONE! 💨                                     │
+│                                                                │
+│  Redis Streams:                                                │
+│  ┌─────────┐      ┌────────────────────────────┐              │
+│  │Producer │─────>│ Stream: [msg1][msg2][msg3] │              │
+│  └─────────┘      └────────────────────────────┘              │
+│                            │                                   │
+│                   Messages PERSISTED 💾                        │
+│                            │                                   │
+│                   ┌────────┴────────┐                         │
+│                   ▼                 ▼                          │
+│              Read All         Consumer Group                   │
+│            (get history)    (parallel processing)              │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Side-by-Side Comparison
 
 ### Architecture Patterns
@@ -342,19 +510,37 @@ Redis Pub/Sub (Broadcast):
               └---->│Subscriber │
                     │     3     │
                     └───────────┘
+
+Redis Streams (Persistent Log):
+┌─────────┐    ┌────────────────────────────────┐
+│Producer │--->│Stream: [msg1][msg2][msg3][msg4]│
+└─────────┘    └───────────────┬────────────────┘
+                               │
+               ┌───────────────┼───────────────┐
+               │               │               │
+               ▼               ▼               ▼
+         ┌──────────┐    ┌──────────┐    ┌──────────┐
+         │ Read All │    │Consumer  │    │Consumer  │
+         │ (history)│    │Group A   │    │Group B   │
+         └──────────┘    └────┬─────┘    └────┬─────┘
+                              │               │
+                        ┌─────┴─────┐   ┌─────┴─────┐
+                        ▼           ▼   ▼           ▼
+                     Worker1    Worker2 Worker1  Worker2
 ```
 
 ### Feature Matrix
 
-| Feature | NATS | RabbitMQ | Redis Pub/Sub |
-|---------|------|----------|---------------|
-| **Speed** | ⚡⚡⚡ Very Fast | 🐇 Fast | ⚡⚡⚡ Very Fast |
-| **Reliability** | Medium | 🛡️ High | Low |
-| **Persistence** | ❌ No | ✅ Yes | ❌ No |
-| **Response** | ✅ Yes | ❌ No | ❌ No |
-| **Delivery** | 1-to-1 | 1-to-1 | 1-to-many |
-| **Load Balancing** | ✅ Queue groups | ✅ Multiple workers | ❌ All receive |
-| **Use Case** | Microservices RPC | Background jobs | Event broadcast |
+| Feature | NATS | RabbitMQ | Redis Pub/Sub | Redis Streams |
+|---------|------|----------|---------------|---------------|
+| **Speed** | ⚡⚡⚡ Very Fast | 🐇 Fast | ⚡⚡⚡ Very Fast | ⚡⚡ Fast |
+| **Reliability** | Medium | 🛡️ High | Low | 🛡️ High |
+| **Persistence** | ❌ No | ✅ Yes | ❌ No | ✅ Yes |
+| **Message History** | ❌ No | ❌ No | ❌ No | ✅ Yes |
+| **Response** | ✅ Yes | ❌ No | ❌ No | ❌ No |
+| **Delivery** | 1-to-1 | 1-to-1 | 1-to-many | Flexible |
+| **Load Balancing** | ✅ Queue groups | ✅ Multiple workers | ❌ All receive | ✅ Consumer groups |
+| **Use Case** | Microservices RPC | Background jobs | Event broadcast | Event log/sourcing |
 
 ---
 
@@ -366,12 +552,44 @@ Redis Pub/Sub (Broadcast):
 Need a response immediately?
 ├─ YES → Use NATS RPC
 └─ NO
-   └─ Multiple services need to know?
-      ├─ YES → Use Redis Pub/Sub
+   └─ Need message history/replay?
+      ├─ YES → Use Redis Streams
       └─ NO
-         └─ Job must not be lost?
-            ├─ YES → Use RabbitMQ
-            └─ NO → Use Redis Pub/Sub
+         └─ Multiple services need to know?
+            ├─ YES → Use Redis Pub/Sub
+            └─ NO
+               └─ Job must not be lost?
+                  ├─ YES → Use RabbitMQ
+                  └─ NO → Use Redis Pub/Sub
+```
+
+### Detailed Decision Guide
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CHOOSING THE RIGHT PATTERN                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Q1: Do you need a synchronous response?                        │
+│  ├─ YES → NATS RPC                                              │
+│  │        (microservice calls, auth checks)                     │
+│  │                                                              │
+│  └─ NO → Q2: Do you need message history/replay?                │
+│          ├─ YES → Redis Streams                                 │
+│          │        (audit logs, event sourcing, activity feeds)  │
+│          │                                                      │
+│          └─ NO → Q3: Should ALL subscribers receive it?         │
+│                  ├─ YES → Redis Pub/Sub                         │
+│                  │        (cache invalidation, notifications)   │
+│                  │                                              │
+│                  └─ NO → Q4: Must the job complete eventually?  │
+│                          ├─ YES → RabbitMQ                      │
+│                          │        (emails, payments, reports)   │
+│                          │                                      │
+│                          └─ NO → Redis Pub/Sub                  │
+│                                  (live updates, presence)       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Practical Examples
@@ -555,6 +773,12 @@ async function transferMoney(fromAccount, toAccount, amount) {
 - **Reliability:** Low
 - **Use when:** Multiple services need instant notification
 
+### Redis Streams
+- **Think:** Ledger/journal (everything recorded)
+- **Speed:** ⚡⚡
+- **Reliability:** ⭐⭐⭐
+- **Use when:** Need message history, event sourcing, audit logs
+
 ---
 
 ## 🚀 Try It Yourself!
@@ -570,6 +794,20 @@ curl -X POST http://localhost:3000/examples/setup
 curl -X POST http://localhost:3000/examples/rabbitmq
 curl -X POST http://localhost:3000/examples/redis
 curl -X POST http://localhost:3000/examples/combined?email=test@example.com
+
+# Test Redis Streams
+curl -X POST http://localhost:3000/redis-streams/add \
+  -H "Content-Type: application/json" \
+  -d '{"stream":"test-stream","data":{"message":"Hello Streams!"}}'
+
+curl http://localhost:3000/redis-streams/test-stream/messages
+
+# Compare all patterns
+curl http://localhost:3000/messaging-comparison/guide
+curl http://localhost:3000/messaging-comparison/full
+curl -X POST http://localhost:3000/messaging-comparison/demo/order \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"ORD-001"}'
 ```
 
 See [EXAMPLES_GUIDE.md](./EXAMPLES_GUIDE.md) for detailed instructions!
