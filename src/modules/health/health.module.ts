@@ -14,7 +14,7 @@ import {
 import { RedisPubsubModule } from '../messaging/redis-pubsub/redis-pubsub.module';
 import { RabbitmqModule } from '../messaging/rabbitmq/rabbitmq.module';
 import { NatsRpcModule } from '../messaging/nats-rpc/nats-rpc.module';
-import { BullmqModule } from '../../workers/bullmq/bullmq.module';
+import { BullmqModule } from '../workers/bullmq/bullmq.module';
 
 /**
  * Health Module

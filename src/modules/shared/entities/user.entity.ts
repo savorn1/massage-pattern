@@ -58,15 +58,3 @@ export class User extends BaseEntity {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-// Apply base entity plugin for automatic timestamp and soft delete management
-import { baseEntityPlugin } from '@/core/database/base/base-entity.plugin';
-UserSchema.plugin(baseEntityPlugin);
-
-// Add performance indexes
-UserSchema.index({ email: 1 }, { unique: true });
-UserSchema.index({ roles: 1 });
-UserSchema.index({ isActive: 1 });
-UserSchema.index({ createdAt: -1 });
-UserSchema.index({ isDeleted: 1, isActive: 1 }); // Compound index for active user queries
-UserSchema.index({ firstName: 'text', lastName: 'text', email: 'text' }); // Full-text search

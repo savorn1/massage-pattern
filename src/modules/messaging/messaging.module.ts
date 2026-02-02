@@ -6,6 +6,7 @@ import { RedisPubsubModule } from './redis-pubsub/redis-pubsub.module';
 import { RedisStreamsModule } from './redis-streams/redis-streams.module';
 import { NatsRpcModule } from './nats-rpc/nats-rpc.module';
 import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
+import { PusherModule } from './pusher/pusher.module';
 
 /**
  * Messaging Module
@@ -16,6 +17,7 @@ import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
  * - Redis Streams - Persistent event log
  * - NATS - Request/Response RPC
  * - RabbitMQ - Reliable job queues
+ * - Pusher - Hosted real-time service
  */
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
     RedisStreamsModule,
     NatsRpcModule,
     RabbitmqModule,
+    PusherModule,
   ],
   exports: [
     WebsocketModule,
@@ -31,6 +34,7 @@ import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
     RedisStreamsModule,
     NatsRpcModule,
     RabbitmqModule,
+    PusherModule,
   ],
 })
 export class MessagingModule {}

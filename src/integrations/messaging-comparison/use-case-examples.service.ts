@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RedisPubsubService } from '../../modules/messaging/redis-pubsub/redis-pubsub.service';
 import { RedisStreamsService } from '../../modules/messaging/redis-streams/redis-streams.service';
 import { RabbitmqService } from '../../modules/messaging/rabbitmq/rabbitmq.service';
-import { BullmqService } from '../../workers/bullmq/bullmq.service';
+import { BullmqService } from '../../modules/workers/bullmq/bullmq.service';
 
 /**
  * Real-world examples showing WHEN to use each messaging pattern

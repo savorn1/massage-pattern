@@ -10,15 +10,16 @@ import redisConfig from './config/redis.config';
 import natsConfig from './config/nats.config';
 import rabbitmqConfig from './config/rabbitmq.config';
 import websocketConfig from './config/websocket.config';
+import pusherConfig from './config/pusher.config';
 
-// Infrastructure (Database, External Services)
-import { DatabaseModule } from './infrastructure/database/database.module';
+// Database
+import { DatabaseModule } from './core/database/database.module';
 
 // Messaging Patterns (Pub/Sub, Streams, RabbitMQ, NATS, WebSocket)
 import { MessagingModule } from './modules/messaging/messaging.module';
 
 // Workers (BullMQ Background Jobs)
-import { WorkersModule } from './workers/workers.module';
+import { WorkersModule } from './modules/workers/workers.module';
 
 // Features (Business Logic - Users, Orders, Products)
 import { FeaturesModule } from './modules/features.module';
@@ -37,7 +38,7 @@ import { ThrottleModule } from './core/throttle/throttle.module';
  *
  * Structure:
  * ├── Config          - Environment configuration
- * ├── Infrastructure  - Database connections
+ * ├── Database        - MongoDB connection
  * ├── Messaging       - All messaging patterns
  * ├── Workers         - Background job processing
  * ├── Features        - Business domain modules
@@ -58,11 +59,12 @@ import { ThrottleModule } from './core/throttle/throttle.module';
         natsConfig,
         rabbitmqConfig,
         websocketConfig,
+        pusherConfig,
       ],
     }),
 
     // ══════════════════════════════════════════════════════════════════════
-    // INFRASTRUCTURE
+    // DATABASE
     // ══════════════════════════════════════════════════════════════════════
     DatabaseModule,
 

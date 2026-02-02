@@ -6,7 +6,7 @@ import { UseCaseExamplesService } from './use-case-examples.service';
 import { RedisPubsubModule } from '../../modules/messaging/redis-pubsub/redis-pubsub.module';
 import { RedisStreamsModule } from '../../modules/messaging/redis-streams/redis-streams.module';
 import { RabbitmqModule } from '../../modules/messaging/rabbitmq/rabbitmq.module';
-import { BullmqModule } from '../../workers/bullmq/bullmq.module';
+import { BullmqModule } from '../../modules/workers/bullmq/bullmq.module';
 
 @Module({
   imports: [

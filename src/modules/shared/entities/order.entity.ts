@@ -53,16 +53,3 @@ export class Order extends BaseEntity {
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
-
-// Apply base entity plugin for automatic timestamp and soft delete management
-import { baseEntityPlugin } from '@/core/database/base/base-entity.plugin';
-OrderSchema.plugin(baseEntityPlugin);
-
-// Add performance indexes
-OrderSchema.index({ clientId: 1, createdAt: -1 }); // Client's orders sorted by date
-OrderSchema.index({ vendorId: 1, createdAt: -1 }); // Vendor's orders sorted by date
-OrderSchema.index({ status: 1 }); // Filter by status
-OrderSchema.index({ isDeleted: 1 }); // Soft delete queries
-OrderSchema.index({ clientId: 1, status: 1, isDeleted: 1 }); // Compound index for client order queries
-OrderSchema.index({ vendorId: 1, status: 1, isDeleted: 1 }); // Compound index for vendor order queries
-OrderSchema.index({ createdAt: -1, status: 1 }); // Recent orders by status

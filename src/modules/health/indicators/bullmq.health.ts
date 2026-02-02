@@ -4,7 +4,7 @@ import {
   HealthIndicatorResult,
   HealthCheckError,
 } from '@nestjs/terminus';
-import { BullmqService } from '../../../workers/bullmq/bullmq.service';
+import { BullmqService } from '../../workers/bullmq/bullmq.service';
 
 @Injectable()
 export class BullMQHealthIndicator extends HealthIndicator {
