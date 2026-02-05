@@ -3,7 +3,6 @@ import {
   IsEmail,
   IsOptional,
   MinLength,
-  IsArray,
   IsEnum,
   IsBoolean,
 } from 'class-validator';
@@ -27,10 +26,9 @@ export class UpdateUserDto {
   @IsOptional()
   lastName?: string;
 
-  @IsArray()
-  @IsEnum(UserRole, { each: true })
+  @IsEnum(UserRole)
   @IsOptional()
-  roles?: UserRole[];
+  role?: UserRole;
 
   @IsString()
   @IsOptional()

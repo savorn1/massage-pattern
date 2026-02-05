@@ -1,12 +1,9 @@
 /**
- * User roles for multi-tenant application
+ * User roles for application
  */
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
-  CLIENT = 'client',
-  VENDOR = 'vendor',
-  GUEST = 'guest',
 }
 
 /**
@@ -57,14 +54,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.MANAGE_SETTINGS,
     Permission.MANAGE_SYSTEM,
 
-    // Client permissions (can do everything)
+    // All permissions
     Permission.CREATE_ORDER,
     Permission.VIEW_OWN_ORDERS,
     Permission.CANCEL_ORDER,
     Permission.MAKE_PAYMENT,
     Permission.VIEW_PAYMENT_HISTORY,
-
-    // Vendor permissions (can do everything)
     Permission.MANAGE_PRODUCTS,
     Permission.CREATE_PRODUCT,
     Permission.UPDATE_PRODUCT,
@@ -84,24 +79,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_ALL_USERS,
     Permission.VIEW_ANALYTICS,
     Permission.MANAGE_SETTINGS,
-    Permission.UPDATE_PROFILE,
-    Permission.VIEW_PROFILE,
-    Permission.VIEW_NOTIFICATIONS,
-    Permission.MANAGE_NOTIFICATIONS,
-  ],
-
-  [UserRole.CLIENT]: [
     Permission.CREATE_ORDER,
     Permission.VIEW_OWN_ORDERS,
     Permission.CANCEL_ORDER,
     Permission.MAKE_PAYMENT,
     Permission.VIEW_PAYMENT_HISTORY,
-    Permission.UPDATE_PROFILE,
-    Permission.VIEW_PROFILE,
-    Permission.VIEW_NOTIFICATIONS,
-  ],
-
-  [UserRole.VENDOR]: [
     Permission.MANAGE_PRODUCTS,
     Permission.CREATE_PRODUCT,
     Permission.UPDATE_PRODUCT,
@@ -112,9 +94,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.UPDATE_PROFILE,
     Permission.VIEW_PROFILE,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_NOTIFICATIONS,
   ],
-
-  [UserRole.GUEST]: [Permission.VIEW_PROFILE],
 };
 
 /**
@@ -124,19 +105,6 @@ export function getPermissionsForRole(role: UserRole): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
-/**
- * Get all permissions for multiple roles
- */
-export function getPermissionsForRoles(roles: UserRole[]): Permission[] {
-  const permissions = new Set<Permission>();
-
-  roles.forEach((role) => {
-    const rolePermissions = getPermissionsForRole(role);
-    rolePermissions.forEach((permission) => permissions.add(permission));
-  });
-
-  return Array.from(permissions);
-}
 
 /**
  * Check if a role has a specific permission

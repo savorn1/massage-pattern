@@ -9,7 +9,7 @@ import { UserRole } from '@/common/constants/roles.constant';
 interface JwtPayload {
   sub: string;
   email: string;
-  roles: string[];
+  role: string;
 }
 
 @Injectable()
@@ -90,7 +90,7 @@ export class AuthService {
       firstName: registerDto.firstName,
       lastName: registerDto.lastName,
       phone: registerDto.phone,
-      role: registerDto.roles?.[0] || UserRole.CLIENT,
+      role: registerDto.role || UserRole.ADMIN,
     };
 
     const user = await this.usersService.createUser(createUserData);
@@ -157,7 +157,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: userId,
       email: user.email,
-      roles: user.roles,
+      role: user.role,
     };
 
     const expiresInSeconds = this.getExpiresInSeconds();
@@ -232,7 +232,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      roles: user.roles,
+      role: user.role,
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
       phone: user.phone,

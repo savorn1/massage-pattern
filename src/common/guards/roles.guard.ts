@@ -3,8 +3,8 @@ import { Reflector } from '@nestjs/core';
 import { UserRole } from '../constants/roles.constant';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
-interface UserWithRoles {
-  roles: UserRole[];
+interface UserWithRole {
+  role: UserRole;
 }
 
 /**
@@ -26,14 +26,14 @@ export class RolesGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<{ user: UserWithRoles }>();
+      .getRequest<{ user: UserWithRole }>();
     const user = request.user;
 
-    if (!user || !user.roles) {
+    if (!user || !user.role) {
       return false;
     }
 
-    // Check if user has at least one of the required roles
-    return requiredRoles.some((role) => user.roles.includes(role));
+    // Check if user's role matches any of the required roles
+    return requiredRoles.includes(user.role);
   }
 }

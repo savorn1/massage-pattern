@@ -15,12 +15,11 @@ export class UserResponseDto {
   lastName: string;
 
   @ApiProperty({
-    description: 'User roles',
+    description: 'User role',
     enum: UserRole,
-    isArray: true,
-    example: [UserRole.CLIENT],
+    example: UserRole.ADMIN,
   })
-  roles: UserRole[];
+  role: UserRole;
 
   @ApiProperty({ description: 'Account active status', example: true })
   isActive: boolean;

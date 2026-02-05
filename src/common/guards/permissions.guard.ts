@@ -2,13 +2,13 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
   Permission,
-  getPermissionsForRoles,
+  getPermissionsForRole,
   UserRole,
 } from '../constants/roles.constant';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 
 interface UserWithPermissions {
-  roles: UserRole[];
+  role: UserRole;
   permissions?: Permission[];
 }
 
@@ -34,12 +34,12 @@ export class PermissionsGuard implements CanActivate {
       .getRequest<{ user: UserWithPermissions }>();
     const user = request.user;
 
-    if (!user || !user.roles) {
+    if (!user || !user.role) {
       return false;
     }
 
-    // Get all permissions for user's roles
-    const userPermissions = getPermissionsForRoles(user.roles);
+    // Get all permissions for user's role
+    const userPermissions = [...getPermissionsForRole(user.role)];
 
     // Add any custom permissions the user might have
     if (user.permissions && Array.isArray(user.permissions)) {

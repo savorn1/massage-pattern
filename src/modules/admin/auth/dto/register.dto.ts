@@ -6,7 +6,6 @@ import {
   MinLength,
   IsOptional,
   IsEnum,
-  IsArray,
 } from 'class-validator';
 import { UserRole } from '@/common/constants/roles.constant';
 
@@ -54,14 +53,12 @@ export class RegisterDto {
   phone?: string;
 
   @ApiPropertyOptional({
-    description: 'User roles',
+    description: 'User role',
     enum: UserRole,
-    isArray: true,
-    example: [UserRole.CLIENT],
-    default: [UserRole.CLIENT],
+    example: UserRole.ADMIN,
+    default: UserRole.ADMIN,
   })
   @IsOptional()
-  @IsArray()
-  @IsEnum(UserRole, { each: true, message: 'Invalid role provided' })
-  roles?: UserRole[];
+  @IsEnum(UserRole, { message: 'Invalid role provided' })
+  role?: UserRole;
 }

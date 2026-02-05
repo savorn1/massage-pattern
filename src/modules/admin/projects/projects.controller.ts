@@ -34,7 +34,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -77,7 +77,7 @@ export class ProjectsController {
   }
 
   @Get('my-projects')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get current user\'s projects' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
@@ -107,7 +107,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get project by ID' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({ status: 200, description: 'Project retrieved successfully' })
@@ -129,7 +129,7 @@ export class ProjectsController {
   }
 
   @Put(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({ status: 200, description: 'Project updated successfully' })
@@ -171,7 +171,7 @@ export class ProjectsController {
   }
 
   @Post(':id/members/:memberId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Add member to project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiParam({ name: 'memberId', description: 'Member ID to add' })
@@ -191,7 +191,7 @@ export class ProjectsController {
   }
 
   @Delete(':id/members/:memberId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Remove member from project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiParam({ name: 'memberId', description: 'Member ID to remove' })

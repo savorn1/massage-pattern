@@ -23,11 +23,11 @@ export class User extends BaseEntity {
   lastName: string;
 
   @Prop({
-    type: [String],
+    type: String,
     enum: Object.values(UserRole),
-    default: [UserRole.CLIENT],
+    default: UserRole.ADMIN,
   })
-  roles: UserRole[];
+  role: UserRole;
 
   @Prop()
   phone?: string;

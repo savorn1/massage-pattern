@@ -20,11 +20,11 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 /**
  * Vendor products controller
- * Requires authentication and vendor role
+ * Requires authentication and admin role
  */
 @Controller('vendor/products')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VENDOR)
+@Roles(UserRole.ADMIN)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 

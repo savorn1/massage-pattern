@@ -37,7 +37,7 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new task' })
   @ApiResponse({ status: 201, description: 'Task created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -58,7 +58,7 @@ export class TasksController {
   }
 
   @Get('project/:projectId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks by project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
@@ -89,7 +89,7 @@ export class TasksController {
   }
 
   @Get('my-tasks')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks assigned to current user' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
@@ -119,7 +119,7 @@ export class TasksController {
   }
 
   @Get('milestone/:milestoneId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks by milestone' })
   @ApiParam({ name: 'milestoneId', description: 'Milestone ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
@@ -150,7 +150,7 @@ export class TasksController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get task by ID' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({ status: 200, description: 'Task retrieved successfully' })
@@ -172,7 +172,7 @@ export class TasksController {
   }
 
   @Put(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update task' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({ status: 200, description: 'Task updated successfully' })
@@ -196,7 +196,7 @@ export class TasksController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update task status' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: ['todo', 'in_progress', 'review', 'done', 'cancelled'] } } } })
@@ -216,7 +216,7 @@ export class TasksController {
   }
 
   @Patch(':id/assign/:assigneeId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Assign task to user' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiParam({ name: 'assigneeId', description: 'Assignee user ID' })

@@ -18,11 +18,11 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 /**
  * Client orders controller
- * Requires authentication and client role
+ * Requires authentication and admin role
  */
 @Controller('client/orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.CLIENT)
+@Roles(UserRole.ADMIN)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 

@@ -36,7 +36,7 @@ export class MilestonesController {
   constructor(private readonly milestonesService: MilestonesService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new milestone' })
   @ApiResponse({ status: 201, description: 'Milestone created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -57,7 +57,7 @@ export class MilestonesController {
   }
 
   @Get('project/:projectId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get milestones by project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
@@ -88,7 +88,7 @@ export class MilestonesController {
   }
 
   @Get('project/:projectId/upcoming')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get upcoming milestones for a project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
@@ -119,7 +119,7 @@ export class MilestonesController {
   }
 
   @Get('project/:projectId/overdue')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get overdue milestones for a project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
@@ -150,7 +150,7 @@ export class MilestonesController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get milestone by ID' })
   @ApiParam({ name: 'id', description: 'Milestone ID' })
   @ApiResponse({ status: 200, description: 'Milestone retrieved successfully' })
@@ -172,7 +172,7 @@ export class MilestonesController {
   }
 
   @Put(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update milestone' })
   @ApiParam({ name: 'id', description: 'Milestone ID' })
   @ApiResponse({ status: 200, description: 'Milestone updated successfully' })
@@ -196,7 +196,7 @@ export class MilestonesController {
   }
 
   @Patch(':id/progress')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CLIENT, UserRole.VENDOR)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update milestone progress' })
   @ApiParam({ name: 'id', description: 'Milestone ID' })
   @ApiBody({ schema: { type: 'object', properties: { progress: { type: 'number', minimum: 0, maximum: 100, example: 75 } } } })
