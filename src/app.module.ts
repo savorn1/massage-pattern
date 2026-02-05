@@ -11,6 +11,7 @@ import natsConfig from './config/nats.config';
 import rabbitmqConfig from './config/rabbitmq.config';
 import websocketConfig from './config/websocket.config';
 import pusherConfig from './config/pusher.config';
+import jwtConfig from './config/jwt.config';
 
 // Database
 import { DatabaseModule } from './core/database/database.module';
@@ -60,6 +61,7 @@ import { ThrottleModule } from './core/throttle/throttle.module';
         rabbitmqConfig,
         websocketConfig,
         pusherConfig,
+        jwtConfig,
       ],
     }),
 

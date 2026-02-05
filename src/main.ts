@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
 
@@ -29,6 +30,78 @@ async function bootstrap() {
     }),
   );
 
+  // Swagger Configuration
+  const config = new DocumentBuilder()
+    .setTitle('Project Management API')
+    .setDescription(
+      `## Overview
+A comprehensive REST API for managing projects, tasks, milestones, and team collaboration.
+
+## Features
+- **Project Management**: Create, update, and track projects with members
+- **Task Management**: Assign tasks, track progress, and manage deadlines
+- **Milestone Tracking**: Set milestones and monitor project progress
+- **User Management**: Role-based access control with JWT authentication
+- **Real-time Updates**: WebSocket support for live notifications
+
+## Authentication
+All endpoints require JWT Bearer token authentication.
+Obtain a token via the \`/auth/login\` endpoint and include it in the Authorization header.
+
+## Rate Limiting
+API requests are rate-limited to ensure fair usage and system stability.
+`,
+    )
+    .setVersion('1.0.0')
+    .setContact(
+      'Project Management Team',
+      'https://github.com/your-org/project-management',
+      'support@projectmanagement.com',
+    )
+    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addServer('http://localhost:3000', 'Local Development')
+    .addServer('https://api.staging.example.com', 'Staging Environment')
+    .addServer('https://api.example.com', 'Production Environment')
+    .addTag('admin/users', 'User management - CRUD operations for system users')
+    .addTag('admin/projects', 'Project management - Create and manage projects with team members')
+    .addTag('admin/tasks', 'Task management - Create, assign, and track task progress')
+    .addTag('admin/milestones', 'Milestone management - Set and track project milestones')
+    .addTag('auth', 'Authentication - Login, logout, and token management')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter your JWT token obtained from /auth/login',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    customSiteTitle: 'Project Management API Docs',
+    customfavIcon: '/favicon.ico',
+    customCss: `
+      .swagger-ui .topbar { display: none; }
+      .swagger-ui .info { margin: 20px 0; }
+      .swagger-ui .info .title { font-size: 2em; }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+      syntaxHighlight: {
+        activate: true,
+        theme: 'monokai',
+      },
+      tryItOutEnabled: true,
+    },
+  });
+
   // Serve static files
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
@@ -44,5 +117,6 @@ async function bootstrap() {
     '🧪 WebSocket Test Client: http://localhost:3000/websocket-client.html',
   );
   console.log('📚 HTML Documentation: http://localhost:3000/docs/index.html');
+  console.log('📖 Swagger API Docs: http://localhost:3000/api');
 }
 void bootstrap();
