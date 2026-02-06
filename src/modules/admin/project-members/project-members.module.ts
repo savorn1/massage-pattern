@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ProjectMember, ProjectMemberSchema } from '@/modules/shared/entities';
+import { Project, ProjectMember, ProjectMemberSchema, ProjectSchema, User, UserSchema } from '@/modules/shared/entities';
 import { ProjectMembersService } from './project-members.service';
 import { ProjectMembersController } from './project-members.controller';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: ProjectMember.name, schema: ProjectMemberSchema }]),
+    MongooseModule.forFeature([
+      { name: ProjectMember.name, schema: ProjectMemberSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Project.name, schema: ProjectSchema },
+    ]),
   ],
   controllers: [ProjectMembersController],
   providers: [ProjectMembersService],
