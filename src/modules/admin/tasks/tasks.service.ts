@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Task, TaskDocument, TaskStatus } from '@/modules/shared/entities';
+import { Task, TaskDocument, TaskStatus, Project, ProjectDocument } from '@/modules/shared/entities';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -17,8 +17,23 @@ export class TasksService extends BaseRepository<TaskDocument> {
   constructor(
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<ProjectDocument>,
   ) {
     super(taskModel);
+  }
+
+  /**
+   * Generate task key
+   */
+  private async generateTaskKey(projectId: string): Promise<string> {
+    const project = await this.projectModel.findById(projectId);
+    if (!project) {
+      throw BusinessException.resourceNotFound('Project', projectId);
+    }
+
+    const taskCount = await this.count({ projectId: new Types.ObjectId(projectId) });
+    return `${project.key}-${taskCount + 1}`;
   }
 
   /**
@@ -27,30 +42,44 @@ export class TasksService extends BaseRepository<TaskDocument> {
   async createTask(
     createTaskDto: CreateTaskDto,
     userId: string,
+    projectId: string,
   ): Promise<TaskDocument> {
-    const taskData: Record<string, unknown> = {
-      ...createTaskDto,
-      projectId: new Types.ObjectId(createTaskDto.projectId),
+    const key = await this.generateTaskKey(projectId);
+
+    const taskData: Partial<Task> = {
+      title: createTaskDto.title,
+      description: createTaskDto.description,
+      type: createTaskDto.type,
+      status: createTaskDto.status,
+      priority: createTaskDto.priority,
+      storyPoints: createTaskDto.storyPoints,
+      key,
+      projectId: new Types.ObjectId(projectId),
       reporterId: new Types.ObjectId(userId),
-      createdBy: userId,
     };
 
-    if (createTaskDto.milestoneId) {
-      taskData.milestoneId = new Types.ObjectId(createTaskDto.milestoneId);
+    if (createTaskDto.sprintId) {
+      taskData.sprintId = new Types.ObjectId(createTaskDto.sprintId);
     }
 
     if (createTaskDto.assigneeId) {
       taskData.assigneeId = new Types.ObjectId(createTaskDto.assigneeId);
     }
 
-    if (createTaskDto.dependencies) {
-      taskData.dependencies = createTaskDto.dependencies.map(
-        (id) => new Types.ObjectId(id),
-      );
+    if (createTaskDto.labelIds) {
+      taskData.labelIds = createTaskDto.labelIds.map((id) => new Types.ObjectId(id));
     }
 
-    const task = await this.create(taskData);
-    this.logger.log(`Task created: ${task.title} by user ${userId}`);
+    if (createTaskDto.parentId) {
+      taskData.parentId = new Types.ObjectId(createTaskDto.parentId);
+    }
+
+    if (createTaskDto.dueDate) {
+      taskData.dueDate = new Date(createTaskDto.dueDate);
+    }
+
+    const task = await this.create(taskData as Partial<TaskDocument>);
+    this.logger.log(`Task created: ${task.title} (${task.key}) by user ${userId}`);
     return task;
   }
 
@@ -63,23 +92,24 @@ export class TasksService extends BaseRepository<TaskDocument> {
   ): Promise<TaskDocument | null> {
     const updateData: Record<string, unknown> = { ...updateTaskDto };
 
-    if (updateTaskDto.milestoneId) {
-      updateData.milestoneId = new Types.ObjectId(updateTaskDto.milestoneId);
+    if (updateTaskDto.sprintId) {
+      updateData.sprintId = new Types.ObjectId(updateTaskDto.sprintId);
     }
 
     if (updateTaskDto.assigneeId) {
       updateData.assigneeId = new Types.ObjectId(updateTaskDto.assigneeId);
     }
 
-    if (updateTaskDto.dependencies) {
-      updateData.dependencies = updateTaskDto.dependencies.map(
-        (id) => new Types.ObjectId(id),
-      );
+    if (updateTaskDto.labelIds) {
+      updateData.labelIds = updateTaskDto.labelIds.map((id) => new Types.ObjectId(id));
     }
 
-    // Auto-set completedAt when status changes to completed
-    if (updateTaskDto.status === TaskStatus.COMPLETED && !updateTaskDto.completedAt) {
-      updateData.completedAt = new Date();
+    if (updateTaskDto.parentId) {
+      updateData.parentId = new Types.ObjectId(updateTaskDto.parentId);
+    }
+
+    if (updateTaskDto.dueDate) {
+      updateData.dueDate = new Date(updateTaskDto.dueDate);
     }
 
     const task = await this.update(id, updateData);
@@ -92,16 +122,16 @@ export class TasksService extends BaseRepository<TaskDocument> {
   }
 
   /**
-   * Soft delete task
+   * Delete task
    */
-  async deleteTask(id: string, userId?: string): Promise<TaskDocument | null> {
-    const task = await this.softDelete(id, userId);
+  async deleteTask(id: string): Promise<void> {
+    const task = await this.findById(id);
     if (!task) {
       throw BusinessException.resourceNotFound('Task', id);
     }
 
+    await this.delete(id);
     this.logger.log(`Task deleted: ${id}`);
-    return task;
   }
 
   /**
@@ -109,20 +139,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
    */
   async getTasksByProject(projectId: string, skip = 0, limit = 10) {
     return this.findWithPagination(
-      { projectId: new Types.ObjectId(projectId), isDeleted: false },
+      { projectId: new Types.ObjectId(projectId) },
       { skip, limit },
-      { createdAt: -1 },
+      { order: 1, createdAt: -1 },
     );
   }
 
   /**
-   * Get tasks by milestone
+   * Get tasks by sprint
    */
-  async getTasksByMilestone(milestoneId: string, skip = 0, limit = 10) {
+  async getTasksBySprint(sprintId: string, skip = 0, limit = 100) {
     return this.findWithPagination(
-      { milestoneId: new Types.ObjectId(milestoneId), isDeleted: false },
+      { sprintId: new Types.ObjectId(sprintId) },
       { skip, limit },
-      { createdAt: -1 },
+      { order: 1, createdAt: -1 },
     );
   }
 
@@ -131,7 +161,7 @@ export class TasksService extends BaseRepository<TaskDocument> {
    */
   async getTasksByAssignee(assigneeId: string, skip = 0, limit = 10) {
     return this.findWithPagination(
-      { assigneeId: new Types.ObjectId(assigneeId), isDeleted: false },
+      { assigneeId: new Types.ObjectId(assigneeId) },
       { skip, limit },
       { dueDate: 1 },
     );
@@ -145,10 +175,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
       {
         projectId: new Types.ObjectId(projectId),
         status,
-        isDeleted: false,
       },
       { skip, limit },
-      { createdAt: -1 },
+      { order: 1, createdAt: -1 },
+    );
+  }
+
+  /**
+   * Get subtasks
+   */
+  async getSubtasks(parentId: string, skip = 0, limit = 50) {
+    return this.findWithPagination(
+      { parentId: new Types.ObjectId(parentId) },
+      { skip, limit },
+      { order: 1, createdAt: -1 },
     );
   }
 
@@ -169,21 +209,119 @@ export class TasksService extends BaseRepository<TaskDocument> {
   }
 
   /**
+   * Unassign task
+   */
+  async unassignTask(taskId: string): Promise<TaskDocument | null> {
+    const task = await this.update(taskId, {
+      $unset: { assigneeId: 1 },
+    });
+
+    if (!task) {
+      throw BusinessException.resourceNotFound('Task', taskId);
+    }
+
+    this.logger.log(`Task ${taskId} unassigned`);
+    return task;
+  }
+
+  /**
    * Update task status
    */
   async updateStatus(taskId: string, status: TaskStatus): Promise<TaskDocument | null> {
-    const updateData: Record<string, unknown> = { status };
-
-    if (status === TaskStatus.COMPLETED) {
-      updateData.completedAt = new Date();
-    }
-
-    const task = await this.update(taskId, updateData);
+    const task = await this.update(taskId, { status });
     if (!task) {
       throw BusinessException.resourceNotFound('Task', taskId);
     }
 
     this.logger.log(`Task ${taskId} status updated to ${status}`);
     return task;
+  }
+
+  /**
+   * Move task to sprint
+   */
+  async moveToSprint(taskId: string, sprintId: string | null): Promise<TaskDocument | null> {
+    const updateData: Record<string, unknown> = sprintId
+      ? { sprintId: new Types.ObjectId(sprintId) }
+      : { $unset: { sprintId: 1 } };
+
+    const task = await this.update(taskId, updateData);
+    if (!task) {
+      throw BusinessException.resourceNotFound('Task', taskId);
+    }
+
+    this.logger.log(`Task ${taskId} moved to sprint ${sprintId || 'backlog'}`);
+    return task;
+  }
+
+  /**
+   * Reorder tasks
+   */
+  async reorderTasks(taskOrders: { taskId: string; order: number }[]): Promise<void> {
+    const bulkOps = taskOrders.map(({ taskId, order }) => ({
+      updateOne: {
+        filter: { _id: new Types.ObjectId(taskId) },
+        update: { $set: { order } },
+      },
+    }));
+
+    await this.taskModel.bulkWrite(bulkOps);
+    this.logger.log(`Reordered ${taskOrders.length} tasks`);
+  }
+
+  /**
+   * Add labels to task
+   */
+  async addLabels(taskId: string, labelIds: string[]): Promise<TaskDocument | null> {
+    const task = await this.update(taskId, {
+      $addToSet: { labelIds: { $each: labelIds.map((id) => new Types.ObjectId(id)) } },
+    });
+
+    if (!task) {
+      throw BusinessException.resourceNotFound('Task', taskId);
+    }
+
+    this.logger.log(`Labels added to task ${taskId}`);
+    return task;
+  }
+
+  /**
+   * Remove labels from task
+   */
+  async removeLabels(taskId: string, labelIds: string[]): Promise<TaskDocument | null> {
+    const task = await this.update(taskId, {
+      $pull: { labelIds: { $in: labelIds.map((id) => new Types.ObjectId(id)) } },
+    });
+
+    if (!task) {
+      throw BusinessException.resourceNotFound('Task', taskId);
+    }
+
+    this.logger.log(`Labels removed from task ${taskId}`);
+    return task;
+  }
+
+  /**
+   * Get task by key
+   */
+  async findByKey(projectId: string, key: string): Promise<TaskDocument | null> {
+    return this.findOne({
+      projectId: new Types.ObjectId(projectId),
+      key,
+    });
+  }
+
+  /**
+   * Get backlog tasks (tasks without sprint)
+   */
+  async getBacklogTasks(projectId: string, skip = 0, limit = 50) {
+    return this.findWithPagination(
+      {
+        projectId: new Types.ObjectId(projectId),
+        sprintId: { $exists: false },
+      },
+      { skip, limit },
+      { order: 1, createdAt: -1 },
+    );
   }
 }

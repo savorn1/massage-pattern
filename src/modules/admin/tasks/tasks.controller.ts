@@ -39,16 +39,19 @@ export class TasksController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new task' })
+  @ApiQuery({ name: 'projectId', required: true, description: 'Project ID' })
   @ApiResponse({ status: 201, description: 'Task created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async create(
     @Body() createTaskDto: CreateTaskDto,
+    @Query('projectId') projectId: string,
     @CurrentUser() currentUser: { userId: string },
   ) {
     const task = await this.tasksService.createTask(
       createTaskDto,
       currentUser.userId,
+      projectId,
     );
     return {
       success: true,
@@ -118,24 +121,55 @@ export class TasksController {
     };
   }
 
-  @Get('milestone/:milestoneId')
+  @Get('sprint/:sprintId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get tasks by milestone' })
-  @ApiParam({ name: 'milestoneId', description: 'Milestone ID' })
+  @ApiOperation({ summary: 'Get tasks by sprint' })
+  @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getByMilestone(
-    @Param('milestoneId') milestoneId: string,
+  async getBySprint(
+    @Param('sprintId') sprintId: string,
     @Query('skip') skip?: string,
     @Query('limit') limit?: string,
   ) {
     const skipNum = skip ? parseInt(skip, 10) : 0;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = limit ? parseInt(limit, 10) : 100;
 
-    const result = await this.tasksService.getTasksByMilestone(
-      milestoneId,
+    const result = await this.tasksService.getTasksBySprint(
+      sprintId,
+      skipNum,
+      limitNum,
+    );
+
+    return {
+      success: true,
+      data: result.data,
+      total: result.total,
+      skip: skipNum,
+      limit: limitNum,
+    };
+  }
+
+  @Get('backlog/:projectId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get backlog tasks (tasks without sprint)' })
+  @ApiParam({ name: 'projectId', description: 'Project ID' })
+  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiResponse({ status: 200, description: 'Backlog tasks retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getBacklog(
+    @Param('projectId') projectId: string,
+    @Query('skip') skip?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+
+    const result = await this.tasksService.getBacklogTasks(
+      projectId,
       skipNum,
       limitNum,
     );
@@ -171,6 +205,32 @@ export class TasksController {
     };
   }
 
+  @Get(':id/subtasks')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get subtasks of a task' })
+  @ApiParam({ name: 'id', description: 'Parent task ID' })
+  @ApiQuery({ name: 'skip', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Subtasks retrieved successfully' })
+  async getSubtasks(
+    @Param('id') id: string,
+    @Query('skip') skip?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+
+    const result = await this.tasksService.getSubtasks(id, skipNum, limitNum);
+
+    return {
+      success: true,
+      data: result.data,
+      total: result.total,
+      skip: skipNum,
+      limit: limitNum,
+    };
+  }
+
   @Put(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update task' })
@@ -181,12 +241,8 @@ export class TasksController {
   async update(
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
-    @CurrentUser() currentUser: { userId: string },
   ) {
-    const task = await this.tasksService.updateTask(id, {
-      ...updateTaskDto,
-      updatedBy: currentUser.userId,
-    });
+    const task = await this.tasksService.updateTask(id, updateTaskDto);
 
     return {
       success: true,
@@ -199,7 +255,7 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update task status' })
   @ApiParam({ name: 'id', description: 'Task ID' })
-  @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: ['todo', 'in_progress', 'review', 'done', 'cancelled'] } } } })
+  @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: ['todo', 'in_progress', 'in_review', 'done'] } } } })
   @ApiResponse({ status: 200, description: 'Task status updated successfully' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -235,18 +291,52 @@ export class TasksController {
     };
   }
 
+  @Patch(':id/unassign')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Unassign task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 200, description: 'Task unassigned successfully' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  async unassignTask(@Param('id') id: string) {
+    const task = await this.tasksService.unassignTask(id);
+    return {
+      success: true,
+      data: task,
+      message: 'Task unassigned successfully',
+    };
+  }
+
+  @Patch(':id/sprint/:sprintId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Move task to sprint' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiParam({ name: 'sprintId', description: 'Sprint ID (use "backlog" to remove from sprint)' })
+  @ApiResponse({ status: 200, description: 'Task moved successfully' })
+  @ApiResponse({ status: 404, description: 'Task or sprint not found' })
+  async moveToSprint(
+    @Param('id') id: string,
+    @Param('sprintId') sprintId: string,
+  ) {
+    const task = await this.tasksService.moveToSprint(
+      id,
+      sprintId === 'backlog' ? null : sprintId,
+    );
+    return {
+      success: true,
+      data: task,
+      message: 'Task moved successfully',
+    };
+  }
+
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete task (soft delete)' })
+  @ApiOperation({ summary: 'Delete task' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({ status: 200, description: 'Task deleted successfully' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser() currentUser: { userId: string },
-  ) {
-    await this.tasksService.deleteTask(id, currentUser.userId);
+  async remove(@Param('id') id: string) {
+    await this.tasksService.deleteTask(id);
     return {
       success: true,
       message: 'Task deleted successfully',

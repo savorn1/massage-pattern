@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
@@ -9,72 +10,68 @@ import {
   Min,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TaskStatus, TaskPriority } from '@/modules/shared/entities';
+import { TaskStatus, TaskPriority, TaskType } from '@/modules/shared/entities';
 
 export class CreateTaskDto {
-  @ApiProperty({ description: 'Task title', example: 'Implement user authentication', maxLength: 200 })
+  @ApiProperty({ description: 'Task title', example: 'Implement login page' })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(200)
+  @MaxLength(500)
   title: string;
 
-  @ApiPropertyOptional({ description: 'Task description', example: 'Add JWT authentication to the API', maxLength: 2000 })
+  @ApiPropertyOptional({
+    description: 'Task description',
+    example: 'Create the login page with email and password fields',
+  })
   @IsString()
   @IsOptional()
-  @MaxLength(2000)
+  @MaxLength(10000)
   description?: string;
 
-  @ApiProperty({ description: 'Project ID this task belongs to', example: 'proj-123' })
-  @IsString()
-  @IsNotEmpty()
-  projectId: string;
-
-  @ApiPropertyOptional({ description: 'Milestone ID this task belongs to', example: 'milestone-456' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Task type', enum: TaskType, default: TaskType.TASK })
+  @IsEnum(TaskType)
   @IsOptional()
-  milestoneId?: string;
+  type?: TaskType;
 
-  @ApiPropertyOptional({ description: 'Task status', enum: TaskStatus, example: 'todo' })
+  @ApiPropertyOptional({ description: 'Task status', enum: TaskStatus, default: TaskStatus.TODO })
   @IsEnum(TaskStatus)
   @IsOptional()
   status?: TaskStatus;
 
-  @ApiPropertyOptional({ description: 'Task priority', enum: TaskPriority, example: 'high' })
+  @ApiPropertyOptional({ description: 'Task priority', enum: TaskPriority, default: TaskPriority.MEDIUM })
   @IsEnum(TaskPriority)
   @IsOptional()
   priority?: TaskPriority;
 
-  @ApiPropertyOptional({ description: 'Assignee user ID', example: 'user-789' })
+  @ApiPropertyOptional({ description: 'Assignee user ID', example: '507f1f77bcf86cd799439011' })
   @IsString()
   @IsOptional()
   assigneeId?: string;
 
-  @ApiPropertyOptional({ description: 'Task start date', example: '2024-01-15' })
-  @IsDateString()
+  @ApiPropertyOptional({ description: 'Sprint ID', example: '507f1f77bcf86cd799439011' })
+  @IsString()
   @IsOptional()
-  startDate?: string;
+  sprintId?: string;
 
-  @ApiPropertyOptional({ description: 'Task due date', example: '2024-01-30' })
+  @ApiPropertyOptional({ description: 'Label IDs', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  labelIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Due date', example: '2024-02-15' })
   @IsDateString()
   @IsOptional()
   dueDate?: string;
 
-  @ApiPropertyOptional({ description: 'Estimated hours to complete', example: 8, minimum: 0 })
+  @ApiPropertyOptional({ description: 'Story points', example: 5 })
   @IsNumber()
   @Min(0)
   @IsOptional()
-  estimatedHours?: number;
+  storyPoints?: number;
 
-  @ApiPropertyOptional({ description: 'Task dependency IDs', example: ['task-1', 'task-2'], type: [String] })
-  @IsArray()
-  @IsString({ each: true })
+  @ApiPropertyOptional({ description: 'Parent task ID (for subtasks)', example: '507f1f77bcf86cd799439011' })
+  @IsString()
   @IsOptional()
-  dependencies?: string[];
-
-  @ApiPropertyOptional({ description: 'Task tags', example: ['backend', 'auth'], type: [String] })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  tags?: string[];
+  parentId?: string;
 }

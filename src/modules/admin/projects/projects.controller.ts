@@ -39,13 +39,16 @@ export class ProjectsController {
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiQuery({ name: 'workplaceId', required: true, description: 'Workplace ID' })
   async create(
     @Body() createProjectDto: CreateProjectDto,
+    @Query('workplaceId') workplaceId: string,
     @CurrentUser() currentUser: { userId: string },
   ) {
     const project = await this.projectsService.createProject(
       createProjectDto,
       currentUser.userId,
+      workplaceId,
     );
     return {
       success: true,
@@ -76,6 +79,37 @@ export class ProjectsController {
     };
   }
 
+  @Get('by-workplace/:workplaceId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get projects by workplace' })
+  @ApiParam({ name: 'workplaceId', description: 'Workplace ID' })
+  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getByWorkplace(
+    @Param('workplaceId') workplaceId: string,
+    @Query('skip') skip?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+
+    const result = await this.projectsService.getProjectsByWorkplace(
+      workplaceId,
+      skipNum,
+      limitNum,
+    );
+
+    return {
+      success: true,
+      data: result.data,
+      total: result.total,
+      skip: skipNum,
+      limit: limitNum,
+    };
+  }
+
   @Get('my-projects')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get current user\'s projects' })
@@ -91,7 +125,7 @@ export class ProjectsController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
-    const result = await this.projectsService.getProjectsByMember(
+    const result = await this.projectsService.getProjectsByOwner(
       currentUser.userId,
       skipNum,
       limitNum,
@@ -138,12 +172,8 @@ export class ProjectsController {
   async update(
     @Param('id') id: string,
     @Body() updateProjectDto: UpdateProjectDto,
-    @CurrentUser() currentUser: { userId: string },
   ) {
-    const project = await this.projectsService.updateProject(id, {
-      ...updateProjectDto,
-      updatedBy: currentUser.userId,
-    });
+    const project = await this.projectsService.updateProject(id, updateProjectDto);
 
     return {
       success: true,
@@ -154,59 +184,46 @@ export class ProjectsController {
 
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete project (soft delete)' })
+  @ApiOperation({ summary: 'Delete project (archive)' })
   @ApiParam({ name: 'id', description: 'Project ID' })
   @ApiResponse({ status: 200, description: 'Project deleted successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser() currentUser: { userId: string },
-  ) {
-    await this.projectsService.deleteProject(id, currentUser.userId);
+  async remove(@Param('id') id: string) {
+    await this.projectsService.deleteProject(id);
     return {
       success: true,
       message: 'Project deleted successfully',
     };
   }
 
-  @Post(':id/members/:memberId')
+  @Put(':id/archive')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Add member to project' })
+  @ApiOperation({ summary: 'Archive project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
-  @ApiParam({ name: 'memberId', description: 'Member ID to add' })
-  @ApiResponse({ status: 200, description: 'Member added successfully' })
-  @ApiResponse({ status: 404, description: 'Project or member not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async addMember(
-    @Param('id') id: string,
-    @Param('memberId') memberId: string,
-  ) {
-    const project = await this.projectsService.addMember(id, memberId);
+  @ApiResponse({ status: 200, description: 'Project archived successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async archive(@Param('id') id: string) {
+    const project = await this.projectsService.archiveProject(id);
     return {
       success: true,
       data: project,
-      message: 'Member added successfully',
+      message: 'Project archived successfully',
     };
   }
 
-  @Delete(':id/members/:memberId')
+  @Put(':id/activate')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Remove member from project' })
+  @ApiOperation({ summary: 'Activate project' })
   @ApiParam({ name: 'id', description: 'Project ID' })
-  @ApiParam({ name: 'memberId', description: 'Member ID to remove' })
-  @ApiResponse({ status: 200, description: 'Member removed successfully' })
-  @ApiResponse({ status: 404, description: 'Project or member not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async removeMember(
-    @Param('id') id: string,
-    @Param('memberId') memberId: string,
-  ) {
-    const project = await this.projectsService.removeMember(id, memberId);
+  @ApiResponse({ status: 200, description: 'Project activated successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async activate(@Param('id') id: string) {
+    const project = await this.projectsService.activateProject(id);
     return {
       success: true,
       data: project,
-      message: 'Member removed successfully',
+      message: 'Project activated successfully',
     };
   }
 }

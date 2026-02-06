@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Project, ProjectDocument } from '@/modules/shared/entities';
+import { Project, ProjectDocument, ProjectStatus } from '@/modules/shared/entities';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -27,17 +27,25 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   async createProject(
     createProjectDto: CreateProjectDto,
     userId: string,
+    workplaceId: string,
   ): Promise<ProjectDocument> {
-    const { memberIds, startDate, endDate, dueDate, ...rest } = createProjectDto;
+    const { startDate, endDate, ...rest } = createProjectDto;
+
+    // Check if key is already taken in the workplace
+    const existingProject = await this.findOne({
+      workplaceId: new Types.ObjectId(workplaceId),
+      key: createProjectDto.key,
+    });
+    if (existingProject) {
+      throw BusinessException.duplicateResource('Project', 'key');
+    }
 
     const projectData: Partial<Project> = {
       ...rest,
       ownerId: new Types.ObjectId(userId),
-      memberIds: memberIds?.map((id) => new Types.ObjectId(id)) || [],
-      createdBy: userId,
+      workplaceId: new Types.ObjectId(workplaceId),
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
     };
 
     const project = await this.create(projectData as Partial<ProjectDocument>);
@@ -54,14 +62,12 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   ): Promise<ProjectDocument | null> {
     const updateData: Record<string, unknown> = { ...updateProjectDto };
 
-    if (updateProjectDto.memberIds) {
-      updateData.memberIds = updateProjectDto.memberIds.map(
-        (id) => new Types.ObjectId(id),
-      );
+    if (updateProjectDto.startDate) {
+      updateData.startDate = new Date(updateProjectDto.startDate);
     }
 
-    if (updateProjectDto.ownerId) {
-      updateData.ownerId = new Types.ObjectId(updateProjectDto.ownerId);
+    if (updateProjectDto.endDate) {
+      updateData.endDate = new Date(updateProjectDto.endDate);
     }
 
     const project = await this.update(id, updateData);
@@ -74,19 +80,10 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   }
 
   /**
-   * Soft delete project
+   * Delete project (archive)
    */
-  async deleteProject(
-    id: string,
-    userId?: string,
-  ): Promise<ProjectDocument | null> {
-    const project = await this.softDelete(id, userId);
-    if (!project) {
-      throw BusinessException.resourceNotFound('Project', id);
-    }
-
-    this.logger.log(`Project deleted: ${id}`);
-    return project;
+  async deleteProject(id: string): Promise<ProjectDocument | null> {
+    return this.archiveProject(id);
   }
 
   /**
@@ -94,24 +91,18 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
    */
   async getProjectsByOwner(ownerId: string, skip = 0, limit = 10) {
     return this.findWithPagination(
-      { ownerId: new Types.ObjectId(ownerId), isDeleted: false },
+      { ownerId: new Types.ObjectId(ownerId), status: ProjectStatus.ACTIVE },
       { skip, limit },
       { createdAt: -1 },
     );
   }
 
   /**
-   * Get projects where user is a member
+   * Get projects by workplace
    */
-  async getProjectsByMember(userId: string, skip = 0, limit = 10) {
+  async getProjectsByWorkplace(workplaceId: string, skip = 0, limit = 10) {
     return this.findWithPagination(
-      {
-        $or: [
-          { ownerId: new Types.ObjectId(userId) },
-          { memberIds: new Types.ObjectId(userId) },
-        ],
-        isDeleted: false,
-      },
+      { workplaceId: new Types.ObjectId(workplaceId), status: ProjectStatus.ACTIVE },
       { skip, limit },
       { createdAt: -1 },
     );
@@ -122,41 +113,46 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
    */
   async getActiveProjects(skip = 0, limit = 10) {
     return this.findWithPagination(
-      { isDeleted: false },
+      { status: ProjectStatus.ACTIVE },
       { skip, limit },
       { createdAt: -1 },
     );
   }
 
   /**
-   * Add member to project
+   * Find project by key within a workplace
    */
-  async addMember(projectId: string, memberId: string): Promise<ProjectDocument | null> {
-    const project = await this.update(projectId, {
-      $addToSet: { memberIds: new Types.ObjectId(memberId) },
+  async findByKey(workplaceId: string, key: string): Promise<ProjectDocument | null> {
+    return this.findOne({
+      workplaceId: new Types.ObjectId(workplaceId),
+      key,
+      status: ProjectStatus.ACTIVE,
     });
+  }
 
+  /**
+   * Archive project
+   */
+  async archiveProject(id: string): Promise<ProjectDocument | null> {
+    const project = await this.update(id, { status: ProjectStatus.ARCHIVED });
     if (!project) {
-      throw BusinessException.resourceNotFound('Project', projectId);
+      throw BusinessException.resourceNotFound('Project', id);
     }
 
-    this.logger.log(`Member ${memberId} added to project ${projectId}`);
+    this.logger.log(`Project archived: ${id}`);
     return project;
   }
 
   /**
-   * Remove member from project
+   * Activate project
    */
-  async removeMember(projectId: string, memberId: string): Promise<ProjectDocument | null> {
-    const project = await this.update(projectId, {
-      $pull: { memberIds: new Types.ObjectId(memberId) },
-    });
-
+  async activateProject(id: string): Promise<ProjectDocument | null> {
+    const project = await this.update(id, { status: ProjectStatus.ACTIVE });
     if (!project) {
-      throw BusinessException.resourceNotFound('Project', projectId);
+      throw BusinessException.resourceNotFound('Project', id);
     }
 
-    this.logger.log(`Member ${memberId} removed from project ${projectId}`);
+    this.logger.log(`Project activated: ${id}`);
     return project;
   }
 }
