@@ -8,6 +8,13 @@ export enum ProjectStatus {
   ARCHIVED = 'archived',
 }
 
+export enum ProjectPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
+
 @Schema({ collection: 'projects', timestamps: true })
 export class Project {
   @Prop({ type: Types.ObjectId, ref: 'Workplace', required: true })
@@ -31,6 +38,13 @@ export class Project {
     default: ProjectStatus.ACTIVE,
   })
   status: ProjectStatus;
+
+  @Prop({
+    type: String,
+    enum: Object.values(ProjectPriority),
+    default: ProjectPriority.MEDIUM,
+  })
+  priority: ProjectPriority;
 
   @Prop({ type: Date })
   startDate?: Date;

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsDateString, IsEnum, MaxLength } from 'class-validator';
-import { ProjectStatus } from '@/modules/shared/entities';
+import { ProjectStatus, ProjectPriority } from '@/modules/shared/entities';
 
 export class UpdateProjectDto {
   @ApiPropertyOptional({ description: 'Project name', example: 'Website Redesign' })
@@ -22,6 +22,11 @@ export class UpdateProjectDto {
   @IsEnum(ProjectStatus)
   @IsOptional()
   status?: ProjectStatus;
+
+  @ApiPropertyOptional({ description: 'Project priority', enum: ProjectPriority })
+  @IsEnum(ProjectPriority)
+  @IsOptional()
+  priority?: ProjectPriority;
 
   @ApiPropertyOptional({ description: 'Project start date', example: '2024-01-15' })
   @IsDateString()

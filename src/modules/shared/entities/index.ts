@@ -28,6 +28,7 @@ export {
   ProjectDocument,
   ProjectSchema,
   ProjectStatus,
+  ProjectPriority,
 } from './project.entity';
 
 export {

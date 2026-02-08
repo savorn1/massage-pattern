@@ -29,28 +29,12 @@ export class RegisterDto {
   password: string;
 
   @ApiProperty({
-    description: 'User first name',
-    example: 'John',
+    description: 'User name',
+    example: 'John Doe',
   })
   @IsString()
-  @IsNotEmpty({ message: 'First name is required' })
-  firstName: string;
-
-  @ApiProperty({
-    description: 'User last name',
-    example: 'Doe',
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'Last name is required' })
-  lastName: string;
-
-  @ApiPropertyOptional({
-    description: 'User phone number',
-    example: '+1234567890',
-  })
-  @IsOptional()
-  @IsString()
-  phone?: string;
+  @IsNotEmpty({ message: 'Name is required' })
+  name: string;
 
   @ApiPropertyOptional({
     description: 'User role',

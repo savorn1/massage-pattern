@@ -4,9 +4,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsDateString,
+  IsEnum,
   MaxLength,
   Matches,
 } from 'class-validator';
+import { ProjectPriority } from '@/modules/shared/entities';
 
 export class CreateProjectDto {
   @ApiProperty({ description: 'Project name', example: 'Website Redesign' })
@@ -35,6 +37,11 @@ export class CreateProjectDto {
   @IsOptional()
   @MaxLength(2000)
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Project priority', enum: ProjectPriority })
+  @IsEnum(ProjectPriority)
+  @IsOptional()
+  priority?: ProjectPriority;
 
   @ApiPropertyOptional({ description: 'Project start date', example: '2024-01-15' })
   @IsDateString()

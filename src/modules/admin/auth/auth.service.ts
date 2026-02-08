@@ -87,9 +87,7 @@ export class AuthService {
     const createUserData = {
       email: registerDto.email,
       password: registerDto.password,
-      firstName: registerDto.firstName,
-      lastName: registerDto.lastName,
-      phone: registerDto.phone,
+      name: registerDto.name,
       role: registerDto.role || UserRole.ADMIN,
     };
 
@@ -230,12 +228,10 @@ export class AuthService {
     return {
       id: userId,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      name: user.name,
       role: user.role,
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
-      phone: user.phone,
       lastLogin: user.lastLogin,
     };
   }

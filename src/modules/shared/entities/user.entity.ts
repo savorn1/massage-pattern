@@ -17,10 +17,7 @@ export class User extends BaseEntity {
   password: string;
 
   @Prop({ required: true })
-  firstName: string;
-
-  @Prop({ required: true })
-  lastName: string;
+  name: string;
 
   @Prop({
     type: String,
@@ -28,9 +25,6 @@ export class User extends BaseEntity {
     default: UserRole.ADMIN,
   })
   role: UserRole;
-
-  @Prop()
-  phone?: string;
 
   @Prop({ default: true })
   isActive: boolean;

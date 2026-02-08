@@ -14,25 +14,17 @@ export class UpdateUserDto {
   email?: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   @IsOptional()
   password?: string;
 
   @IsString()
   @IsOptional()
-  firstName?: string;
-
-  @IsString()
-  @IsOptional()
-  lastName?: string;
+  name?: string;
 
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;
-
-  @IsString()
-  @IsOptional()
-  phone?: string;
 
   @IsBoolean()
   @IsOptional()
