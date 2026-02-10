@@ -48,6 +48,16 @@ export class WorkplacesController {
     return this.workplacesService.getWorkplacesByMember(req.user.id, skip, limit);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get project and member counts for all workplaces' })
+  @ApiResponse({ status: 200, description: 'Workplace stats' })
+  async getStats(@Request() req) {
+    const result = await this.workplacesService.getWorkplacesByMember(req.user.id, 0, 100);
+    const workplaceIds = result.data.map((w: any) => w._id.toString());
+    const stats = await this.workplacesService.getWorkplaceStats(workplaceIds);
+    return { success: true, data: stats };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a workplace by ID' })
   @ApiResponse({ status: 200, description: 'Workplace details' })

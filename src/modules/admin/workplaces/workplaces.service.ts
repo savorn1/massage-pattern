@@ -7,6 +7,8 @@ import {
   WorkplaceMember,
   WorkplaceMemberDocument,
   WorkplaceMemberRole,
+  Project,
+  ProjectDocument,
 } from '@/modules/shared/entities';
 import { CreateWorkplaceDto } from './dto/create-workplace.dto';
 import { UpdateWorkplaceDto } from './dto/update-workplace.dto';
@@ -25,6 +27,8 @@ export class WorkplacesService extends BaseRepository<WorkplaceDocument> {
     private readonly workplaceModel: Model<WorkplaceDocument>,
     @InjectModel(WorkplaceMember.name)
     private readonly workplaceMemberModel: Model<WorkplaceMemberDocument>,
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<ProjectDocument>,
   ) {
     super(workplaceModel);
   }
@@ -244,5 +248,40 @@ export class WorkplacesService extends BaseRepository<WorkplaceDocument> {
       `Workplace ${workplaceId} ownership transferred from ${currentOwnerId} to ${newOwnerId}`,
     );
     return updatedWorkplace!;
+  }
+
+  /**
+   * Get project and member counts for given workplace IDs
+   */
+  async getWorkplaceStats(
+    workplaceIds: string[],
+  ): Promise<Record<string, { projectCount: number; memberCount: number }>> {
+    const ids = workplaceIds.map((id) => new Types.ObjectId(id));
+
+    const [projectCounts, memberCounts] = await Promise.all([
+      this.projectModel.aggregate([
+        { $match: { workplaceId: { $in: ids }, status: 'active' } },
+        { $group: { _id: '$workplaceId', count: { $sum: 1 } } },
+      ]),
+      this.workplaceMemberModel.aggregate([
+        { $match: { workplaceId: { $in: ids } } },
+        { $group: { _id: '$workplaceId', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const stats: Record<string, { projectCount: number; memberCount: number }> = {};
+    for (const id of workplaceIds) {
+      stats[id] = { projectCount: 0, memberCount: 0 };
+    }
+    for (const p of projectCounts) {
+      const key = p._id.toString();
+      if (stats[key]) stats[key].projectCount = p.count;
+    }
+    for (const m of memberCounts) {
+      const key = m._id.toString();
+      if (stats[key]) stats[key].memberCount = m.count;
+    }
+
+    return stats;
   }
 }
