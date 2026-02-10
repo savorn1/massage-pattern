@@ -27,14 +27,18 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { UserRole } from '@/common/constants/roles.constant';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { TaskStatus } from '@/modules/shared/entities';
+import { TaskStatus, TaskActivityAction } from '@/modules/shared/entities';
+import { TaskActivitiesService } from '../task-activities/task-activities.service';
 
 @ApiTags('admin/tasks')
 @ApiBearerAuth('JWT-auth')
 @Controller('admin/tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly activityService: TaskActivitiesService,
+  ) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -46,12 +50,17 @@ export class TasksController {
   async create(
     @Body() createTaskDto: CreateTaskDto,
     @Query('projectId') projectId: string,
-    @CurrentUser() currentUser: { userId: string },
+    @CurrentUser() currentUser: { id: string },
   ) {
     const task = await this.tasksService.createTask(
       createTaskDto,
-      currentUser.userId,
+      currentUser.id,
       projectId,
+    );
+    await this.activityService.logActivity(
+      (task as any)._id.toString(),
+      currentUser.id,
+      TaskActivityAction.CREATED,
     );
     return {
       success: true,
@@ -99,7 +108,7 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'User tasks retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyTasks(
-    @CurrentUser() currentUser: { userId: string },
+    @CurrentUser() currentUser: { id: string },
     @Query('skip') skip?: string,
     @Query('limit') limit?: string,
   ) {
@@ -107,7 +116,7 @@ export class TasksController {
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
     const result = await this.tasksService.getTasksByAssignee(
-      currentUser.userId,
+      currentUser.id,
       skipNum,
       limitNum,
     );
@@ -241,8 +250,33 @@ export class TasksController {
   async update(
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
+    @CurrentUser() currentUser: { id: string },
   ) {
+    const oldTask = await this.tasksService.findById(id);
     const task = await this.tasksService.updateTask(id, updateTaskDto);
+
+    // Log activity for tracked changes
+    if (oldTask && task) {
+      const userId = currentUser.id;
+      if (updateTaskDto.status && updateTaskDto.status !== oldTask.status) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.STATUS_CHANGED, { from: oldTask.status, to: updateTaskDto.status });
+      }
+      if (updateTaskDto.priority && updateTaskDto.priority !== oldTask.priority) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.PRIORITY_CHANGED, { from: oldTask.priority, to: updateTaskDto.priority });
+      }
+      if (updateTaskDto.title && updateTaskDto.title !== oldTask.title) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.TITLE_CHANGED, { from: oldTask.title, to: updateTaskDto.title });
+      }
+      if (updateTaskDto.description !== undefined && updateTaskDto.description !== oldTask.description) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.DESCRIPTION_CHANGED);
+      }
+      if (updateTaskDto.dueDate !== undefined) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.DUE_DATE_CHANGED, { from: oldTask.dueDate, to: updateTaskDto.dueDate });
+      }
+      if (updateTaskDto.assigneeId && updateTaskDto.assigneeId !== oldTask.assigneeId?.toString()) {
+        await this.activityService.logActivity(id, userId, TaskActivityAction.ASSIGNED, { assigneeId: updateTaskDto.assigneeId });
+      }
+    }
 
     return {
       success: true,
@@ -262,8 +296,13 @@ export class TasksController {
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: TaskStatus,
+    @CurrentUser() currentUser: { id: string },
   ) {
+    const oldTask = await this.tasksService.findById(id);
     const task = await this.tasksService.updateStatus(id, status);
+    if (oldTask) {
+      await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.STATUS_CHANGED, { from: oldTask.status, to: status });
+    }
     return {
       success: true,
       data: task,
@@ -282,8 +321,10 @@ export class TasksController {
   async assignTask(
     @Param('id') id: string,
     @Param('assigneeId') assigneeId: string,
+    @CurrentUser() currentUser: { id: string },
   ) {
     const task = await this.tasksService.assignTask(id, assigneeId);
+    await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.ASSIGNED, { assigneeId });
     return {
       success: true,
       data: task,
@@ -297,8 +338,12 @@ export class TasksController {
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({ status: 200, description: 'Task unassigned successfully' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  async unassignTask(@Param('id') id: string) {
+  async unassignTask(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { id: string },
+  ) {
     const task = await this.tasksService.unassignTask(id);
+    await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.UNASSIGNED);
     return {
       success: true,
       data: task,

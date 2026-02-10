@@ -10,6 +10,7 @@ import { ProjectMembersModule } from './project-members/project-members.module';
 import { LabelsModule } from './labels/labels.module';
 import { SprintsModule } from './sprints/sprints.module';
 import { TaskCommentsModule } from './task-comments/task-comments.module';
+import { TaskActivitiesModule } from './task-activities/task-activities.module';
 
 /**
  * Admin module - aggregates all admin-related modules
@@ -37,6 +38,7 @@ import { TaskCommentsModule } from './task-comments/task-comments.module';
     SprintsModule,
     TasksModule,
     TaskCommentsModule,
+    TaskActivitiesModule,
     MilestonesModule,
   ],
   exports: [
@@ -50,6 +52,7 @@ import { TaskCommentsModule } from './task-comments/task-comments.module';
     SprintsModule,
     TasksModule,
     TaskCommentsModule,
+    TaskActivitiesModule,
     MilestonesModule,
   ],
 })

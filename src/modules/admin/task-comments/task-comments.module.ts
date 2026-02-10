@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Task, TaskComment, TaskCommentSchema, TaskSchema, User, UserSchema } from '@/modules/shared/entities';
 import { TaskCommentsService } from './task-comments.service';
 import { TaskCommentsController } from './task-comments.controller';
+import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { TaskCommentsController } from './task-comments.controller';
       { name: Task.name, schema: TaskSchema },
       { name: User.name, schema: UserSchema }
     ]),
+    TaskActivitiesModule,
   ],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService],

@@ -166,7 +166,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
 
     const comments = await this.taskCommentModel
       .find({ taskId: new Types.ObjectId(taskId) })
-      .populate('userId', 'name email avatar')
+      .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

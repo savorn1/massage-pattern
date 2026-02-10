@@ -20,13 +20,18 @@ import {
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { TaskCommentsService } from './task-comments.service';
 import { CreateTaskCommentDto, UpdateTaskCommentDto } from './dto';
+import { TaskActivityAction } from '@/modules/shared/entities';
+import { TaskActivitiesService } from '../task-activities/task-activities.service';
 
 @ApiTags('Task Comments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('admin/tasks/:taskId/comments')
 export class TaskCommentsController {
-  constructor(private readonly commentsService: TaskCommentsService) {}
+  constructor(
+    private readonly commentsService: TaskCommentsService,
+    private readonly activityService: TaskActivitiesService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Add a comment to a task' })
@@ -36,7 +41,9 @@ export class TaskCommentsController {
     @Body() createCommentDto: CreateTaskCommentDto,
     @Request() req,
   ) {
-    return this.commentsService.createComment(taskId, req.user.id, createCommentDto);
+    const comment = await this.commentsService.createComment(taskId, req.user.id, createCommentDto);
+    await this.activityService.logActivity(taskId, req.user.id, TaskActivityAction.COMMENT_ADDED);
+    return comment;
   }
 
   @Get()
@@ -49,7 +56,7 @@ export class TaskCommentsController {
     @Query('skip') skip?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.commentsService.getTaskComments(taskId, skip, limit);
+    return this.commentsService.getTaskCommentsWithDetails(taskId, skip, limit);
   }
 
   @Get(':id')
