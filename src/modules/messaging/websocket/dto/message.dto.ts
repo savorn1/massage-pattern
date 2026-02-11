@@ -21,9 +21,9 @@ export class MessageDto {
   @IsString()
   @IsOptional()
   @MaxLength(100, { message: 'Room name is too long (max 100 characters)' })
-  @Matches(/^[a-zA-Z0-9_-]+$/, {
+  @Matches(/^[a-zA-Z0-9_:.-]+$/, {
     message:
-      'Room name can only contain letters, numbers, hyphens and underscores',
+      'Room name can only contain letters, numbers, hyphens, underscores, colons and dots',
   })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -36,9 +36,9 @@ export class JoinRoomDto {
   @IsNotEmpty()
   @MinLength(1, { message: 'Room name cannot be empty' })
   @MaxLength(100, { message: 'Room name is too long (max 100 characters)' })
-  @Matches(/^[a-zA-Z0-9_-]+$/, {
+  @Matches(/^[a-zA-Z0-9_:.-]+$/, {
     message:
-      'Room name can only contain letters, numbers, hyphens and underscores',
+      'Room name can only contain letters, numbers, hyphens, underscores, colons and dots',
   })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

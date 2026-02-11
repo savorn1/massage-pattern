@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Query,
+  Headers,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -29,6 +30,12 @@ import { UserRole } from '@/common/constants/roles.constant';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { TaskStatus, TaskActivityAction } from '@/modules/shared/entities';
 import { TaskActivitiesService } from '../task-activities/task-activities.service';
+import { TaskEventsService, TaskEventType } from './task-events.service';
+
+function toPlain(doc: any): Record<string, unknown> | null {
+  if (!doc) return null;
+  return typeof doc.toJSON === 'function' ? doc.toJSON() : doc;
+}
 
 @ApiTags('admin/tasks')
 @ApiBearerAuth('JWT-auth')
@@ -38,6 +45,7 @@ export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
     private readonly activityService: TaskActivitiesService,
+    private readonly taskEvents: TaskEventsService,
   ) {}
 
   @Post()
@@ -51,17 +59,28 @@ export class TasksController {
     @Body() createTaskDto: CreateTaskDto,
     @Query('projectId') projectId: string,
     @CurrentUser() currentUser: { id: string },
+    @Headers('x-client-id') clientId?: string,
   ) {
     const task = await this.tasksService.createTask(
       createTaskDto,
       currentUser.id,
       projectId,
     );
+    const taskId = (task as any)._id.toString();
     await this.activityService.logActivity(
-      (task as any)._id.toString(),
+      taskId,
       currentUser.id,
       TaskActivityAction.CREATED,
     );
+    await this.taskEvents.publishTaskEvent({
+      type: TaskEventType.TASK_CREATED,
+      projectId,
+      taskId,
+      data: { task: toPlain(task) },
+      userId: currentUser.id,
+      clientId,
+      timestamp: new Date().toISOString(),
+    });
     return {
       success: true,
       data: task,
@@ -192,6 +211,29 @@ export class TasksController {
     };
   }
 
+  @Patch('reorder')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reorder tasks within a column' })
+  @ApiResponse({ status: 200, description: 'Tasks reordered successfully' })
+  async reorder(
+    @Body('projectId') projectId: string,
+    @Body('taskOrders') taskOrders: { taskId: string; order: number }[],
+    @CurrentUser() currentUser: { id: string },
+    @Headers('x-client-id') clientId?: string,
+  ) {
+    await this.tasksService.reorderTasks(taskOrders);
+    await this.taskEvents.publishTaskEvent({
+      type: TaskEventType.TASK_REORDERED,
+      projectId,
+      taskId: '',
+      data: { taskOrders },
+      userId: currentUser.id,
+      clientId,
+      timestamp: new Date().toISOString(),
+    });
+    return { success: true, message: 'Tasks reordered successfully' };
+  }
+
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get task by ID' })
@@ -251,6 +293,7 @@ export class TasksController {
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
     @CurrentUser() currentUser: { id: string },
+    @Headers('x-client-id') clientId?: string,
   ) {
     const oldTask = await this.tasksService.findById(id);
     const task = await this.tasksService.updateTask(id, updateTaskDto);
@@ -276,6 +319,16 @@ export class TasksController {
       if (updateTaskDto.assigneeId && updateTaskDto.assigneeId !== oldTask.assigneeId?.toString()) {
         await this.activityService.logActivity(id, userId, TaskActivityAction.ASSIGNED, { assigneeId: updateTaskDto.assigneeId });
       }
+
+      await this.taskEvents.publishTaskEvent({
+        type: TaskEventType.TASK_UPDATED,
+        projectId: task.projectId.toString(),
+        taskId: id,
+        data: { updates: updateTaskDto, task: toPlain(task) },
+        userId: currentUser.id,
+        clientId,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     return {
@@ -297,11 +350,21 @@ export class TasksController {
     @Param('id') id: string,
     @Body('status') status: TaskStatus,
     @CurrentUser() currentUser: { id: string },
+    @Headers('x-client-id') clientId?: string,
   ) {
     const oldTask = await this.tasksService.findById(id);
     const task = await this.tasksService.updateStatus(id, status);
     if (oldTask) {
       await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.STATUS_CHANGED, { from: oldTask.status, to: status });
+      await this.taskEvents.publishTaskEvent({
+        type: TaskEventType.TASK_MOVED,
+        projectId: oldTask.projectId.toString(),
+        taskId: id,
+        data: { status, previousStatus: oldTask.status, task: toPlain(task) },
+        userId: currentUser.id,
+        clientId,
+        timestamp: new Date().toISOString(),
+      });
     }
     return {
       success: true,
@@ -380,8 +443,24 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'Task deleted successfully' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async remove(@Param('id') id: string) {
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { id: string },
+    @Headers('x-client-id') clientId?: string,
+  ) {
+    const task = await this.tasksService.findById(id);
     await this.tasksService.deleteTask(id);
+    if (task) {
+      await this.taskEvents.publishTaskEvent({
+        type: TaskEventType.TASK_DELETED,
+        projectId: task.projectId.toString(),
+        taskId: id,
+        data: {},
+        userId: currentUser.id,
+        clientId,
+        timestamp: new Date().toISOString(),
+      });
+    }
     return {
       success: true,
       message: 'Task deleted successfully',
