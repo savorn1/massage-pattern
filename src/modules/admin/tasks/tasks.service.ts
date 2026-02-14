@@ -32,8 +32,21 @@ export class TasksService extends BaseRepository<TaskDocument> {
       throw BusinessException.resourceNotFound('Project', projectId);
     }
 
-    const taskCount = await this.count({ projectId: new Types.ObjectId(projectId) });
-    return `${project.key}-${taskCount + 1}`;
+    const tasks = await this.taskModel
+      .find({ projectId: new Types.ObjectId(projectId) })
+      .select('key')
+      .lean();
+
+    let maxNumber = 0;
+    for (const task of tasks) {
+      const match = task.key?.match(/-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) maxNumber = num;
+      }
+    }
+
+    return `${project.key}-${maxNumber + 1}`;
   }
 
   /**
