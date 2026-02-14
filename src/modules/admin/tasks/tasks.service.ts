@@ -6,6 +6,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
+import { EventsService, EventType } from '../events/events.service';
 
 /**
  * Service for managing tasks
@@ -19,6 +20,7 @@ export class TasksService extends BaseRepository<TaskDocument> {
     private readonly taskModel: Model<TaskDocument>,
     @InjectModel(Project.name)
     private readonly projectModel: Model<ProjectDocument>,
+    private readonly eventsService: EventsService,
   ) {
     super(taskModel);
   }
@@ -93,6 +95,16 @@ export class TasksService extends BaseRepository<TaskDocument> {
 
     const task = await this.create(taskData as Partial<TaskDocument>);
     this.logger.log(`Task created: ${task.title} (${task.key}) by user ${userId}`);
+
+    // Emit real-time event
+    await this.eventsService.emitTaskEvent({
+      type: EventType.TASK_CREATED,
+      task: task.toObject(),
+      projectId: projectId,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+
     return task;
   }
 
@@ -131,6 +143,15 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     this.logger.log(`Task updated: ${id}`);
+
+    // Emit real-time event
+    await this.eventsService.emitTaskEvent({
+      type: EventType.TASK_UPDATED,
+      task: task.toObject(),
+      projectId: task.projectId.toString(),
+      timestamp: new Date().toISOString(),
+    });
+
     return task;
   }
 
@@ -143,8 +164,19 @@ export class TasksService extends BaseRepository<TaskDocument> {
       throw BusinessException.resourceNotFound('Task', id);
     }
 
+    const projectId = task.projectId.toString();
+    const taskData = task.toObject();
+
     await this.delete(id);
     this.logger.log(`Task deleted: ${id}`);
+
+    // Emit real-time event
+    await this.eventsService.emitTaskEvent({
+      type: EventType.TASK_DELETED,
+      task: { _id: id, ...taskData },
+      projectId,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**
@@ -280,6 +312,19 @@ export class TasksService extends BaseRepository<TaskDocument> {
 
     await this.taskModel.bulkWrite(bulkOps);
     this.logger.log(`Reordered ${taskOrders.length} tasks`);
+
+    // Emit real-time event (get projectId from first task)
+    if (taskOrders.length > 0) {
+      const firstTask = await this.findById(taskOrders[0].taskId);
+      if (firstTask) {
+        await this.eventsService.emitTaskEvent({
+          type: EventType.TASK_REORDERED,
+          task: { taskOrders },
+          projectId: firstTask.projectId.toString(),
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   /**

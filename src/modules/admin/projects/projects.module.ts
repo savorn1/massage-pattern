@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { Project, ProjectSchema } from '@/modules/shared/entities';
+import { EventsModule } from '../events/events.module';
 
 /**
  * Projects module for project management
@@ -10,6 +11,7 @@ import { Project, ProjectSchema } from '@/modules/shared/entities';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Project.name, schema: ProjectSchema }]),
+    EventsModule,
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService],

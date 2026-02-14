@@ -6,6 +6,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
+import { EventsService, EventType } from '../events/events.service';
 
 /**
  * Service for managing projects
@@ -17,6 +18,7 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   constructor(
     @InjectModel(Project.name)
     private readonly projectModel: Model<ProjectDocument>,
+    private readonly eventsService: EventsService,
   ) {
     super(projectModel);
   }
@@ -50,6 +52,16 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
 
     const project = await this.create(projectData as Partial<ProjectDocument>);
     this.logger.log(`Project created: ${project.name} by user ${userId}`);
+
+    // Emit real-time event
+    await this.eventsService.emitProjectEvent({
+      type: EventType.PROJECT_CREATED,
+      project: project.toObject(),
+      workplaceId,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+
     return project;
   }
 
@@ -76,6 +88,15 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     }
 
     this.logger.log(`Project updated: ${id}`);
+
+    // Emit real-time event
+    await this.eventsService.emitProjectEvent({
+      type: EventType.PROJECT_UPDATED,
+      project: project.toObject(),
+      workplaceId: project.workplaceId.toString(),
+      timestamp: new Date().toISOString(),
+    });
+
     return project;
   }
 
@@ -140,6 +161,15 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     }
 
     this.logger.log(`Project archived: ${id}`);
+
+    // Emit real-time event
+    await this.eventsService.emitProjectEvent({
+      type: EventType.PROJECT_DELETED,
+      project: project.toObject(),
+      workplaceId: project.workplaceId.toString(),
+      timestamp: new Date().toISOString(),
+    });
+
     return project;
   }
 
