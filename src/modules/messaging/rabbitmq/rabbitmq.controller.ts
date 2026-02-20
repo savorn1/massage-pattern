@@ -1,11 +1,23 @@
 import { Controller, Get, Post, Delete, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { RabbitmqService } from './rabbitmq.service';
+import { SagaOrchestratorService } from './saga-orchestrator.service';
+import { DlqService, DlqConfig } from './dlq.service';
+import { OutboxService } from './outbox.service';
+import { CircuitBreakerService, CircuitBreakerConfig } from './circuit-breaker.service';
+import { BackpressureService, BackpressureConfig } from './backpressure.service';
 
 @ApiTags('RabbitMQ')
 @Controller('rabbitmq')
 export class RabbitmqController {
-  constructor(private readonly rabbitmqService: RabbitmqService) {}
+  constructor(
+    private readonly rabbitmqService: RabbitmqService,
+    private readonly sagaService: SagaOrchestratorService,
+    private readonly dlqService: DlqService,
+    private readonly outboxService: OutboxService,
+    private readonly cbService: CircuitBreakerService,
+    private readonly bpService: BackpressureService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get RabbitMQ info and status' })
@@ -374,6 +386,58 @@ export class RabbitmqController {
     };
   }
 
+  // ==============================================
+  // Saga Orchestrator
+  // ==============================================
+
+  @Post('saga/run')
+  @ApiOperation({ summary: 'Run Order Processing Saga with optional failure injection' })
+  async runSaga(
+    @Body()
+    body: {
+      orderId?: string;
+      customer?: string;
+      amount?: number;
+      items?: number;
+      failAtStep?: number;
+      stepDelayMs?: number;
+    },
+  ) {
+    const payload = {
+      orderId: body.orderId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      customer: body.customer || 'John Doe',
+      amount: body.amount ?? 99.99,
+      items: body.items ?? 3,
+    };
+
+    const result = await this.sagaService.runOrderSaga(payload, {
+      failAtStep: body.failAtStep,
+      stepDelayMs: body.stepDelayMs ?? 400,
+      compensationDelayMs: 250,
+    });
+
+    return result;
+  }
+
+  @Get('saga/logs')
+  @ApiOperation({ summary: 'Get saga execution logs' })
+  getSagaLogs() {
+    return this.sagaService.getSagaLogs();
+  }
+
+  @Get('saga/:id')
+  @ApiOperation({ summary: 'Get a specific saga by ID' })
+  getSagaById(@Param('id') id: string) {
+    return this.sagaService.getSagaById(id) || { error: 'Saga not found' };
+  }
+
+  @Post('saga/clear')
+  @ApiOperation({ summary: 'Clear saga logs' })
+  clearSagaLogs() {
+    this.sagaService.clearLogs();
+    return { success: true };
+  }
+
   // --- Helper: Topic pattern matching (for display purposes) ---
   private matchTopicPattern(pattern: string, routingKey: string): boolean {
     const patternParts = pattern.split('.');
@@ -402,5 +466,273 @@ export class RabbitmqController {
       return bindKeys.every((k) => msgHeaders[k] === bindHeaders[k]);
     }
     return bindKeys.some((k) => msgHeaders[k] === bindHeaders[k]);
+  }
+
+  // ==============================================
+  // Dead Letter Queue (DLQ) Demo
+  // ==============================================
+
+  @Post('dlq/start')
+  @ApiOperation({ summary: 'Start DLQ consumer with failure config' })
+  async dlqStart(@Body() body: DlqConfig) {
+    await this.dlqService.startConsuming(body);
+    return { success: true, status: 'consuming', config: body };
+  }
+
+  @Post('dlq/stop')
+  @ApiOperation({ summary: 'Stop DLQ consumer' })
+  async dlqStop() {
+    await this.dlqService.stopConsuming();
+    return { success: true, status: 'stopped' };
+  }
+
+  @Post('dlq/send')
+  @ApiOperation({ summary: 'Send a message to the DLQ demo main queue' })
+  async dlqSend(@Body() body: { payload?: Record<string, unknown> }) {
+    const msg = await this.dlqService.sendMessage(
+      body.payload || { action: 'process_order', orderId: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}` },
+    );
+    return msg;
+  }
+
+  @Post('dlq/send-batch')
+  @ApiOperation({ summary: 'Send multiple messages to the DLQ demo' })
+  async dlqSendBatch(@Body() body: { count: number; payload?: Record<string, unknown> }) {
+    const result = await this.dlqService.sendBatch(
+      body.count || 5,
+      body.payload || { action: 'process_order' },
+    );
+    return result;
+  }
+
+  @Post('dlq/retry/:id')
+  @ApiOperation({ summary: 'Retry a dead-lettered message' })
+  async dlqRetry(@Param('id') id: string) {
+    const ok = await this.dlqService.retryDeadMessage(id);
+    return { success: ok, messageId: id };
+  }
+
+  @Post('dlq/retry-all')
+  @ApiOperation({ summary: 'Retry all dead-lettered messages' })
+  async dlqRetryAll() {
+    const count = await this.dlqService.retryAllDead();
+    return { success: true, retriedCount: count };
+  }
+
+  @Post('dlq/discard/:id')
+  @ApiOperation({ summary: 'Discard a dead-lettered message' })
+  dlqDiscard(@Param('id') id: string) {
+    const ok = this.dlqService.discardDeadMessage(id);
+    return { success: ok, messageId: id };
+  }
+
+  @Post('dlq/discard-all')
+  @ApiOperation({ summary: 'Discard all dead-lettered messages' })
+  dlqDiscardAll() {
+    const count = this.dlqService.discardAllDead();
+    return { success: true, discardedCount: count };
+  }
+
+  @Get('dlq/messages')
+  @ApiOperation({ summary: 'Get all tracked DLQ messages' })
+  dlqGetMessages() {
+    return {
+      messages: this.dlqService.getMessages(),
+      consuming: this.dlqService.isConsuming(),
+    };
+  }
+
+  @Get('dlq/stats')
+  @ApiOperation({ summary: 'Get DLQ queue stats' })
+  async dlqGetStats() {
+    return this.dlqService.getStats();
+  }
+
+  @Post('dlq/clear')
+  @ApiOperation({ summary: 'Clear all DLQ tracking data' })
+  dlqClear() {
+    this.dlqService.clearAll();
+    return { success: true };
+  }
+
+  // ==============================================
+  // Outbox Pattern Demo
+  // ==============================================
+
+  @Post('outbox/order')
+  @ApiOperation({ summary: 'Create an order (atomic: writes order + outbox row in one transaction)' })
+  outboxCreateOrder(
+    @Body() body: { customer?: string; amount?: number; items?: number },
+  ) {
+    return this.outboxService.createOrder({
+      customer: body.customer || 'John Doe',
+      amount: body.amount ?? +(Math.random() * 500 + 10).toFixed(2),
+      items: body.items ?? Math.ceil(Math.random() * 5),
+    });
+  }
+
+  @Post('outbox/order-batch')
+  @ApiOperation({ summary: 'Create multiple orders atomically' })
+  outboxCreateOrderBatch(
+    @Body() body: { count?: number; customer?: string; amount?: number; items?: number },
+  ) {
+    return this.outboxService.createOrderBatch(body.count || 5, {
+      customer: body.customer || 'Batch Customer',
+      amount: body.amount ?? 99.99,
+      items: body.items ?? 2,
+    });
+  }
+
+  @Post('outbox/relay/start')
+  @ApiOperation({ summary: 'Start the outbox relay poller' })
+  outboxStartRelay() {
+    this.outboxService.startRelay();
+    return { success: true, status: 'relay started' };
+  }
+
+  @Post('outbox/relay/stop')
+  @ApiOperation({ summary: 'Stop the outbox relay poller' })
+  outboxStopRelay() {
+    this.outboxService.stopRelay();
+    return { success: true, status: 'relay stopped' };
+  }
+
+  @Post('outbox/broker/down')
+  @ApiOperation({ summary: 'Simulate broker outage (relay will accumulate pending)' })
+  outboxBrokerDown() {
+    this.outboxService.setBrokerDown(true);
+    return { success: true, brokerDown: true };
+  }
+
+  @Post('outbox/broker/up')
+  @ApiOperation({ summary: 'Restore broker (relay will flush accumulated pending messages)' })
+  outboxBrokerUp() {
+    this.outboxService.setBrokerDown(false);
+    return { success: true, brokerDown: false };
+  }
+
+  @Get('outbox/state')
+  @ApiOperation({ summary: 'Get orders, outbox table, relay stats, and published messages' })
+  outboxGetState() {
+    return {
+      orders: this.outboxService.getOrders(),
+      outbox: this.outboxService.getOutbox(),
+      published: this.outboxService.getPublishedMessages(),
+      relay: this.outboxService.getRelayStats(),
+    };
+  }
+
+  @Post('outbox/clear')
+  @ApiOperation({ summary: 'Clear all outbox demo data' })
+  outboxClear() {
+    this.outboxService.clearAll();
+    return { success: true };
+  }
+
+  // ==============================================
+  // Circuit Breaker Demo
+  // ==============================================
+
+  @Post('cb/call')
+  @ApiOperation({ summary: 'Make one call through the circuit breaker (to simulated payment API)' })
+  async cbCall(@Body() body: { label?: string }) {
+    return this.cbService.call(body.label);
+  }
+
+  @Post('cb/call-batch')
+  @ApiOperation({ summary: 'Make N calls in rapid succession' })
+  async cbCallBatch(@Body() body: { count?: number }) {
+    return this.cbService.callBatch(body.count || 5);
+  }
+
+  @Post('cb/service/down')
+  @ApiOperation({ summary: 'Simulate downstream service going down' })
+  cbServiceDown() {
+    this.cbService.setServiceDown(true);
+    return { success: true, serviceDown: true };
+  }
+
+  @Post('cb/service/up')
+  @ApiOperation({ summary: 'Restore downstream service' })
+  cbServiceUp() {
+    this.cbService.setServiceDown(false);
+    return { success: true, serviceDown: false };
+  }
+
+  @Post('cb/reset')
+  @ApiOperation({ summary: 'Manually reset circuit to CLOSED' })
+  cbReset() {
+    this.cbService.resetCircuit();
+    return { success: true, state: 'closed' };
+  }
+
+  @Post('cb/trip')
+  @ApiOperation({ summary: 'Manually trip circuit to OPEN' })
+  cbTrip() {
+    this.cbService.tripCircuit();
+    return { success: true, state: 'open' };
+  }
+
+  @Post('cb/config')
+  @ApiOperation({ summary: 'Update circuit breaker configuration' })
+  cbUpdateConfig(@Body() body: Partial<CircuitBreakerConfig>) {
+    this.cbService.updateConfig(body);
+    return { success: true, config: this.cbService.getStatus().config };
+  }
+
+  @Get('cb/status')
+  @ApiOperation({ summary: 'Get circuit breaker state, stats, and call log' })
+  cbGetStatus() {
+    return {
+      status: this.cbService.getStatus(),
+      calls: this.cbService.getCallLog(),
+    };
+  }
+
+  @Post('cb/clear')
+  @ApiOperation({ summary: 'Clear circuit breaker log and reset state' })
+  cbClear() {
+    this.cbService.clearLog();
+    return { success: true };
+  }
+
+  // ─── Backpressure ─────────────────────────────────────────────────────────
+
+  @Post('bp/start')
+  @ApiOperation({ summary: 'Start producer/consumer simulation' })
+  bpStart(@Body() body: Partial<BackpressureConfig>) {
+    this.bpService.start(body);
+    return { success: true, config: this.bpService.getStats().config };
+  }
+
+  @Post('bp/stop')
+  @ApiOperation({ summary: 'Stop producer/consumer simulation' })
+  bpStop() {
+    this.bpService.stop();
+    return { success: true };
+  }
+
+  @Post('bp/clear')
+  @ApiOperation({ summary: 'Clear simulation state and logs' })
+  bpClear() {
+    this.bpService.clear();
+    return { success: true };
+  }
+
+  @Post('bp/config')
+  @ApiOperation({ summary: 'Update config (restarts simulation if running)' })
+  bpConfig(@Body() body: Partial<BackpressureConfig>) {
+    this.bpService.updateConfig(body);
+    return { success: true, config: this.bpService.getStats().config };
+  }
+
+  @Get('bp/stats')
+  @ApiOperation({ summary: 'Get live backpressure stats' })
+  bpStats() {
+    return {
+      stats: this.bpService.getStats(),
+      queue: this.bpService.getQueueSnapshot(),
+      log: this.bpService.getMessageLog(),
+    };
   }
 }
