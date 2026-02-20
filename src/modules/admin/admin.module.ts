@@ -11,7 +11,7 @@ import { LabelsModule } from './labels/labels.module';
 import { SprintsModule } from './sprints/sprints.module';
 import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { TaskActivitiesModule } from './task-activities/task-activities.module';
-import { TaskDomainEventsModule } from './task-domain-events/task-domain-events.module';
+import { TaskEventsModule } from './task-events/task-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 /**
@@ -41,7 +41,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     TasksModule,
     TaskCommentsModule,
     TaskActivitiesModule,
-    TaskDomainEventsModule,
+    TaskEventsModule,
     NotificationsModule,
     MilestonesModule,
   ],

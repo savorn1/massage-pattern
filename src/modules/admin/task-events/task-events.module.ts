@@ -17,4 +17,4 @@ import { TaskNotificationsListener } from './task-notifications.listener';
   providers: [TaskEventsService, TaskEventsListener, TaskNotificationsListener],
   exports: [TaskEventsService],
 })
-export class TaskDomainEventsModule {}
+export class TaskEventsModule {}

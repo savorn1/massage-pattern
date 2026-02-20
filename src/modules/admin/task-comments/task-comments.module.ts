@@ -4,7 +4,8 @@ import { Task, TaskComment, TaskCommentSchema, TaskSchema, User, UserSchema } fr
 import { TaskCommentsService } from './task-comments.service';
 import { TaskCommentsController } from './task-comments.controller';
 import { UploadsModule } from '@/modules/uploads/uploads.module';
-import { TaskDomainEventsModule } from '@/modules/admin/task-domain-events/task-domain-events.module';
+import { TaskEventsModule } from '@/modules/admin/task-events/task-events.module';
+import { ProjectMembersModule } from '@/modules/admin/project-members/project-members.module';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { TaskDomainEventsModule } from '@/modules/admin/task-domain-events/task-
       { name: User.name, schema: UserSchema }
     ]),
     UploadsModule,
-    TaskDomainEventsModule,
+    TaskEventsModule,
+    ProjectMembersModule,
   ],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService],
