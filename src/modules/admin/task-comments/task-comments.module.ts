@@ -3,8 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Task, TaskComment, TaskCommentSchema, TaskSchema, User, UserSchema } from '@/modules/shared/entities';
 import { TaskCommentsService } from './task-comments.service';
 import { TaskCommentsController } from './task-comments.controller';
-import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { UploadsModule } from '@/modules/uploads/uploads.module';
+import { TaskDomainEventsModule } from '@/modules/admin/task-domain-events/task-domain-events.module';
 
 @Module({
   imports: [
@@ -13,8 +13,8 @@ import { UploadsModule } from '@/modules/uploads/uploads.module';
       { name: Task.name, schema: TaskSchema },
       { name: User.name, schema: UserSchema }
     ]),
-    TaskActivitiesModule,
     UploadsModule,
+    TaskDomainEventsModule,
   ],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService],

@@ -20,5 +20,5 @@ export class Label {
 export const LabelSchema = SchemaFactory.createForClass(Label);
 
 // Indexes
-LabelSchema.index({ projectId: 1 });
-LabelSchema.index({ projectId: 1, name: 1 }, { unique: true });
+// LabelSchema.index({ projectId: 1 });
+// LabelSchema.index({ projectId: 1, name: 1 }, { unique: true });

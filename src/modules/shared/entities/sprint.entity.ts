@@ -39,5 +39,5 @@ export class Sprint {
 export const SprintSchema = SchemaFactory.createForClass(Sprint);
 
 // Indexes
-SprintSchema.index({ projectId: 1 });
-SprintSchema.index({ projectId: 1, status: 1 });
+// SprintSchema.index({ projectId: 1 });
+// SprintSchema.index({ projectId: 1, status: 1 });

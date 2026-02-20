@@ -31,6 +31,6 @@ export class ProjectMember {
 export const ProjectMemberSchema = SchemaFactory.createForClass(ProjectMember);
 
 // Indexes
-ProjectMemberSchema.index({ projectId: 1, userId: 1 }, { unique: true });
-ProjectMemberSchema.index({ projectId: 1 });
-ProjectMemberSchema.index({ userId: 1 });
+// ProjectMemberSchema.index({ projectId: 1, userId: 1 }, { unique: true });
+// ProjectMemberSchema.index({ projectId: 1 });
+// ProjectMemberSchema.index({ userId: 1 });

@@ -45,5 +45,5 @@ export class TaskComment {
 export const TaskCommentSchema = SchemaFactory.createForClass(TaskComment);
 
 // Indexes
-TaskCommentSchema.index({ taskId: 1 });
-TaskCommentSchema.index({ taskId: 1, createdAt: -1 });
+// TaskCommentSchema.index({ taskId: 1 });
+// TaskCommentSchema.index({ taskId: 1, createdAt: -1 });

@@ -36,5 +36,5 @@ export class File {
 export const FileSchema = SchemaFactory.createForClass(File);
 
 // Indexes
-FileSchema.index({ taskId: 1 });
-FileSchema.index({ uploaderId: 1 });
+// FileSchema.index({ taskId: 1 });
+// FileSchema.index({ uploaderId: 1 });

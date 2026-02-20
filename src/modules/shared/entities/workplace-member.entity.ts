@@ -32,6 +32,6 @@ export const WorkplaceMemberSchema =
   SchemaFactory.createForClass(WorkplaceMember);
 
 // Indexes
-WorkplaceMemberSchema.index({ workplaceId: 1, userId: 1 }, { unique: true });
-WorkplaceMemberSchema.index({ workplaceId: 1 });
-WorkplaceMemberSchema.index({ userId: 1 });
+// WorkplaceMemberSchema.index({ workplaceId: 1, userId: 1 }, { unique: true });
+// WorkplaceMemberSchema.index({ workplaceId: 1 });
+// WorkplaceMemberSchema.index({ userId: 1 });

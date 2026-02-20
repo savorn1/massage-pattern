@@ -75,6 +75,14 @@ export { Label, LabelDocument, LabelSchema } from './label.entity';
 // File entity
 export { File, FileDocument, FileSchema } from './file.entity';
 
+// Notification entity
+export {
+  Notification,
+  NotificationDocument,
+  NotificationSchema,
+  NotificationType,
+} from './notification.entity';
+
 // Order entity (e-commerce)
 export {
   Order,

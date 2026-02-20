@@ -26,8 +26,7 @@ import {
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { TaskCommentsService } from './task-comments.service';
 import { CreateTaskCommentDto, UpdateTaskCommentDto } from './dto';
-import { TaskActivityAction } from '@/modules/shared/entities';
-import { TaskActivitiesService } from '../task-activities/task-activities.service';
+import { TaskEventsService } from '@/modules/admin/task-domain-events/task-events.service';
 
 @ApiTags('Task Comments')
 @ApiBearerAuth()
@@ -36,7 +35,7 @@ import { TaskActivitiesService } from '../task-activities/task-activities.servic
 export class TaskCommentsController {
   constructor(
     private readonly commentsService: TaskCommentsService,
-    private readonly activityService: TaskActivitiesService,
+    private readonly taskEvents: TaskEventsService,
   ) {}
 
   @Post()
@@ -58,8 +57,26 @@ export class TaskCommentsController {
     if (!body.content?.trim() && !file) {
       throw new BadRequestException('Comment must have content or an attached file');
     }
-    const comment = await this.commentsService.createComment(taskId, req.user.id, body, file);
-    await this.activityService.logActivity(taskId, req.user.id, TaskActivityAction.COMMENT_ADDED);
+    const { comment, taskTitle, actorName } = await this.commentsService.createComment(taskId, req.user.id, body, file);
+
+    // Extract mentioned user IDs from content — format: @[Name](24-char-hex-id)
+    const mentionedUserIds: string[] = [];
+    const mentionRegex = /@\[[^\]]+\]\(([a-f0-9]{24})\)/g;
+    for (const match of (comment.content ?? '').matchAll(mentionRegex)) {
+      if (match[1] && match[1] !== req.user.id) mentionedUserIds.push(match[1]);
+    }
+
+    // Publish event via NATS — listeners handle activity logging + notifications async
+    this.taskEvents.publishCommentAdded({
+      taskId,
+      taskTitle,
+      userId: req.user.id,
+      actorName,
+      commentId: (comment._id as any).toString(),
+      hasAttachment: !!file,
+      content: comment.content ?? '',
+      mentionedUserIds,
+    });
     return comment;
   }
 

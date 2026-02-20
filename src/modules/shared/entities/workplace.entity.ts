@@ -46,6 +46,6 @@ export class Workplace {
 export const WorkplaceSchema = SchemaFactory.createForClass(Workplace);
 
 // Indexes
-WorkplaceSchema.index({ slug: 1 }, { unique: true });
-WorkplaceSchema.index({ ownerId: 1 });
-WorkplaceSchema.index({ status: 1 });
+// WorkplaceSchema.index({ slug: 1 }, { unique: true });
+// WorkplaceSchema.index({ ownerId: 1 });
+// WorkplaceSchema.index({ status: 1 });

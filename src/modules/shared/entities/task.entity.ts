@@ -90,9 +90,9 @@ export class Task {
 export const TaskSchema = SchemaFactory.createForClass(Task);
 
 // Indexes
-TaskSchema.index({ projectId: 1 });
-TaskSchema.index({ projectId: 1, key: 1 }, { unique: true });
-TaskSchema.index({ sprintId: 1 });
-TaskSchema.index({ assigneeId: 1 });
-TaskSchema.index({ status: 1 });
-TaskSchema.index({ projectId: 1, status: 1 });
+// TaskSchema.index({ projectId: 1 });
+// TaskSchema.index({ projectId: 1, key: 1 }, { unique: true });
+// TaskSchema.index({ sprintId: 1 });
+// TaskSchema.index({ assigneeId: 1 });
+// TaskSchema.index({ status: 1 });
+// TaskSchema.index({ projectId: 1, status: 1 });

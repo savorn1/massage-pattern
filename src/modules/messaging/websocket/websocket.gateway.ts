@@ -381,6 +381,24 @@ export class WebsocketGateway
     };
   }
 
+  /** Join a personal user room — called by the client right after authentication */
+  @SubscribeMessage('joinUserRoom')
+  handleJoinUserRoom(
+    @MessageBody() data: { userId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `user:${data.userId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined personal room: ${room}`);
+    return { joined: room };
+  }
+
+  /** Emit a named event to all clients in a room (called by server-side listeners) */
+  broadcastToRoom(room: string, event: string, data: unknown): void {
+    this.server.to(room).emit(event, data);
+    this.logger.debug(`Broadcast → room "${room}" event "${event}"`);
+  }
+
   private getRoomMembers(
     room: string,
   ): Array<{ id: string; username: string }> {

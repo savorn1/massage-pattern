@@ -45,6 +45,6 @@ export class TaskActivity {
 export const TaskActivitySchema = SchemaFactory.createForClass(TaskActivity);
 
 // Indexes
-TaskActivitySchema.index({ taskId: 1 });
-TaskActivitySchema.index({ taskId: 1, createdAt: -1 });
-TaskActivitySchema.index({ userId: 1 });
+// TaskActivitySchema.index({ taskId: 1 });
+// TaskActivitySchema.index({ taskId: 1, createdAt: -1 });
+// TaskActivitySchema.index({ userId: 1 });

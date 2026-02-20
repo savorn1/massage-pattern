@@ -42,7 +42,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
     userId: string,
     createCommentDto: CreateTaskCommentDto,
     file?: Express.Multer.File,
-  ): Promise<TaskCommentDocument> {
+  ): Promise<{ comment: TaskCommentDocument; taskTitle: string; actorName: string }> {
     // Verify task exists
     const task = await this.taskModel.findById(taskId);
     if (!task) {
@@ -84,7 +84,11 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
 
     const comment = await this.create(commentData as Partial<TaskCommentDocument>);
     this.logger.log(`Comment created on task ${taskId} by user ${userId}`);
-    return comment;
+    return {
+      comment,
+      taskTitle: task.title ?? '',
+      actorName: user.name ?? user.email ?? 'Someone',
+    };
   }
 
   /**

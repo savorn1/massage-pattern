@@ -59,7 +59,7 @@ export class Project {
 export const ProjectSchema = SchemaFactory.createForClass(Project);
 
 // Indexes
-ProjectSchema.index({ workplaceId: 1 });
-ProjectSchema.index({ workplaceId: 1, key: 1 }, { unique: true });
-ProjectSchema.index({ ownerId: 1 });
-ProjectSchema.index({ status: 1 });
+// ProjectSchema.index({ workplaceId: 1 });
+// ProjectSchema.index({ workplaceId: 1, key: 1 }, { unique: true });
+// ProjectSchema.index({ ownerId: 1 });
+// ProjectSchema.index({ status: 1 });
