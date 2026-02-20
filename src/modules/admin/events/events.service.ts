@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisPubsubService } from '@/modules/messaging/redis-pubsub/redis-pubsub.service';
+import { NatsPubSubService } from '@/modules/messaging/nats-pubsub/nats-pubsub.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 
 export enum EventType {
@@ -41,6 +42,7 @@ export class EventsService {
 
   constructor(
     private readonly redisPubsubService: RedisPubsubService,
+    private readonly natsPubSubService: NatsPubSubService,
     private readonly websocketGateway: WebsocketGateway,
   ) {}
 
@@ -108,6 +110,60 @@ export class EventsService {
       this.logger.log(`Event emitted to room ${room}: ${eventType}`);
     } catch (error) {
       this.logger.error(`Failed to emit event to room: ${error.message}`, error.stack);
+    }
+  }
+
+  // --- NATS-based methods (for benchmarking vs Redis) ---
+
+  async emitTaskEventViaNats(event: TaskEvent): Promise<void> {
+    try {
+      const payload = JSON.stringify(event);
+
+      this.natsPubSubService.publish('task:events', payload);
+
+      this.websocketGateway.server.to(`project:${event.projectId}`).emit(event.type, {
+        ...event,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(`[NATS] Task event emitted: ${event.type} for task ${event.task?._id || event.task?.id}`);
+    } catch (error) {
+      this.logger.error(`[NATS] Failed to emit task event: ${error.message}`, error.stack);
+    }
+  }
+
+  async emitProjectEventViaNats(event: ProjectEvent): Promise<void> {
+    try {
+      const payload = JSON.stringify(event);
+
+      this.natsPubSubService.publish('project:events', payload);
+
+      this.websocketGateway.server.to(`workplace:${event.workplaceId}`).emit(event.type, {
+        ...event,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(`[NATS] Project event emitted: ${event.type} for project ${event.project?._id || event.project?.id}`);
+    } catch (error) {
+      this.logger.error(`[NATS] Failed to emit project event: ${error.message}`, error.stack);
+    }
+  }
+
+  async emitToRoomViaNats(room: string, eventType: string, data: any): Promise<void> {
+    try {
+      const payload = {
+        type: eventType,
+        data,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.natsPubSubService.publish(`room.${room}`, JSON.stringify(payload));
+
+      this.websocketGateway.server.to(room).emit(eventType, payload);
+
+      this.logger.log(`[NATS] Event emitted to room ${room}: ${eventType}`);
+    } catch (error) {
+      this.logger.error(`[NATS] Failed to emit event to room: ${error.message}`, error.stack);
     }
   }
 }
