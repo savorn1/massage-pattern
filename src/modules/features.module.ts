@@ -4,9 +4,10 @@ import { Module } from '@nestjs/common';
 import { AdminModule } from './admin/admin.module';
 import { ClientModule } from './client/client.module';
 import { VendorModule } from './vendor/vendor.module';
+import { FeatureFlagModule } from './feature-flags/feature-flag.module';
 
 @Module({
-  imports: [AdminModule, ClientModule, VendorModule],
-  exports: [AdminModule, ClientModule, VendorModule],
+  imports: [AdminModule, ClientModule, VendorModule, FeatureFlagModule],
+  exports: [AdminModule, ClientModule, VendorModule, FeatureFlagModule],
 })
 export class FeaturesModule {}
