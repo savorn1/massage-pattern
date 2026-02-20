@@ -8,14 +8,20 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { TaskCommentsService } from './task-comments.service';
@@ -34,14 +40,25 @@ export class TaskCommentsController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Add a comment to a task' })
+  @ApiOperation({ summary: 'Add a comment to a task (supports optional file attachment)' })
+  @ApiConsumes('multipart/form-data', 'application/json')
   @ApiResponse({ status: 201, description: 'Comment added successfully' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
   async create(
     @Param('taskId') taskId: string,
-    @Body() createCommentDto: CreateTaskCommentDto,
+    @Body() body: CreateTaskCommentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Request() req,
   ) {
-    const comment = await this.commentsService.createComment(taskId, req.user.id, createCommentDto);
+    if (!body.content?.trim() && !file) {
+      throw new BadRequestException('Comment must have content or an attached file');
+    }
+    const comment = await this.commentsService.createComment(taskId, req.user.id, body, file);
     await this.activityService.logActivity(taskId, req.user.id, TaskActivityAction.COMMENT_ADDED);
     return comment;
   }

@@ -13,6 +13,7 @@ import { CreateTaskCommentDto } from './dto/create-comment.dto';
 import { UpdateTaskCommentDto } from './dto/update-comment.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
+import { UploadsService } from '@/modules/uploads/uploads.service';
 
 /**
  * Service for managing task comments
@@ -28,6 +29,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
     private readonly taskModel: Model<TaskDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    private readonly uploadsService: UploadsService,
   ) {
     super(taskCommentModel);
   }
@@ -39,6 +41,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
     taskId: string,
     userId: string,
     createCommentDto: CreateTaskCommentDto,
+    file?: Express.Multer.File,
   ): Promise<TaskCommentDocument> {
     // Verify task exists
     const task = await this.taskModel.findById(taskId);
@@ -52,16 +55,35 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
       throw BusinessException.resourceNotFound('User', userId);
     }
 
+    // Upload attachment if provided
+    const attachments: TaskComment['attachments'] = [];
+    if (file) {
+      const uploaded = await this.uploadsService.uploadFile(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        userId,
+        taskId,
+      );
+      attachments.push({
+        fileId: (uploaded._id as Types.ObjectId).toString(),
+        originalName: uploaded.originalName,
+        url: uploaded.url,
+        mimeType: uploaded.mimeType,
+        size: uploaded.size,
+        s3Key: uploaded.s3Key ?? '',
+      });
+    }
+
     const commentData: Partial<TaskComment> = {
-      ...createCommentDto,
+      content: createCommentDto.content ?? '',
       taskId: new Types.ObjectId(taskId),
       userId: new Types.ObjectId(userId),
+      attachments,
     };
 
     const comment = await this.create(commentData as Partial<TaskCommentDocument>);
-    this.logger.log(
-      `Comment created on task ${taskId} by user ${userId}`,
-    );
+    this.logger.log(`Comment created on task ${taskId} by user ${userId}`);
     return comment;
   }
 

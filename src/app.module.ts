@@ -12,6 +12,7 @@ import rabbitmqConfig from './config/rabbitmq.config';
 import websocketConfig from './config/websocket.config';
 import pusherConfig from './config/pusher.config';
 import jwtConfig from './config/jwt.config';
+import s3Config from './config/s3.config';
 
 // Database
 import { DatabaseModule } from './core/database/database.module';
@@ -33,6 +34,9 @@ import { HealthModule } from './modules/health/health.module';
 
 // Security (Rate Limiting)
 import { ThrottleModule } from './core/throttle/throttle.module';
+
+// Cache (Redis cache-aside)
+import { CacheModule } from './modules/cache/cache.module';
 
 /**
  * App Module - Application Root
@@ -62,6 +66,7 @@ import { ThrottleModule } from './core/throttle/throttle.module';
         websocketConfig,
         pusherConfig,
         jwtConfig,
+        s3Config,
       ],
     }),
 
@@ -94,6 +99,11 @@ import { ThrottleModule } from './core/throttle/throttle.module';
     // SECURITY (Rate Limiting)
     // ══════════════════════════════════════════════════════════════════════
     ThrottleModule,
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CACHE (Redis cache-aside)
+    // ══════════════════════════════════════════════════════════════════════
+    CacheModule,
 
     // ══════════════════════════════════════════════════════════════════════
     // HEALTH MONITORING

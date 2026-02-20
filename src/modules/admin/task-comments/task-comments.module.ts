@@ -4,6 +4,7 @@ import { Task, TaskComment, TaskCommentSchema, TaskSchema, User, UserSchema } fr
 import { TaskCommentsService } from './task-comments.service';
 import { TaskCommentsController } from './task-comments.controller';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
+import { UploadsModule } from '@/modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { TaskActivitiesModule } from '../task-activities/task-activities.module'
       { name: User.name, schema: UserSchema }
     ]),
     TaskActivitiesModule,
+    UploadsModule,
   ],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService],

@@ -1,15 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 
 export type FileDocument = File & Document;
 
 @Schema({ collection: 'files', timestamps: true })
 export class File {
-  @Prop({ type: Types.ObjectId, ref: 'Task' })
-  taskId?: Types.ObjectId;
+  @Prop({ type: String })
+  taskId?: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  uploaderId: Types.ObjectId;
+  @Prop({ type: String, required: true })
+  uploaderId: string;
 
   @Prop({ required: true })
   filename: string;
@@ -19,6 +19,10 @@ export class File {
 
   @Prop({ required: true })
   url: string;
+
+  /** S3/MinIO object key — used to delete the actual file from storage */
+  @Prop()
+  s3Key?: string;
 
   @Prop({ required: true })
   mimeType: string;
