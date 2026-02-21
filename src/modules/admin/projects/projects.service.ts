@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Project, ProjectDocument, ProjectStatus } from '@/modules/shared/entities';
+import { Project, ProjectDocument, ProjectStatus, ProjectMember, ProjectMemberDocument, ProjectMemberRole } from '@/modules/shared/entities';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -18,6 +18,8 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   constructor(
     @InjectModel(Project.name)
     private readonly projectModel: Model<ProjectDocument>,
+    @InjectModel(ProjectMember.name)
+    private readonly projectMemberModel: Model<ProjectMemberDocument>,
     private readonly eventsService: EventsService,
   ) {
     super(projectModel);
@@ -51,6 +53,15 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     };
 
     const project = await this.create(projectData as Partial<ProjectDocument>);
+
+    // Auto-add creator as manager
+    await this.projectMemberModel.create({
+      projectId: project._id,
+      userId: new Types.ObjectId(userId),
+      role: ProjectMemberRole.MANAGER,
+      joinedAt: new Date(),
+    });
+
     this.logger.log(`Project created: ${project.name} by user ${userId}`);
 
     // Emit real-time event

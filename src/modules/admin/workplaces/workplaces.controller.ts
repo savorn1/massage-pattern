@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -58,38 +59,52 @@ export class WorkplacesController {
     return { success: true, data: stats };
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a workplace by ID' })
-  @ApiResponse({ status: 200, description: 'Workplace details' })
-  @ApiResponse({ status: 404, description: 'Workplace not found' })
-  async findOne(@Param('id') id: string) {
-    return this.workplacesService.findWorkplaceById(id);
-  }
-
   @Get('slug/:slug')
   @ApiOperation({ summary: 'Get a workplace by slug' })
   @ApiResponse({ status: 200, description: 'Workplace details' })
+  @ApiResponse({ status: 403, description: 'Not a member of this workplace' })
   @ApiResponse({ status: 404, description: 'Workplace not found' })
-  async findBySlug(@Param('slug') slug: string) {
-    return this.workplacesService.findWorkplaceBySlug(slug);
+  async findBySlug(@Param('slug') slug: string, @Request() req) {
+    const workplace = await this.workplacesService.findWorkplaceBySlug(slug);
+    const access = await this.workplacesService.hasAccess((workplace._id as any).toString(), req.user.id);
+    if (!access) throw new ForbiddenException('You are not a member of this workplace');
+    return workplace;
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a workplace by ID' })
+  @ApiResponse({ status: 200, description: 'Workplace details' })
+  @ApiResponse({ status: 403, description: 'Not a member of this workplace' })
+  @ApiResponse({ status: 404, description: 'Workplace not found' })
+  async findOne(@Param('id') id: string, @Request() req) {
+    const access = await this.workplacesService.hasAccess(id, req.user.id);
+    if (!access) throw new ForbiddenException('You are not a member of this workplace');
+    return this.workplacesService.findWorkplaceById(id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a workplace' })
   @ApiResponse({ status: 200, description: 'Workplace updated successfully' })
+  @ApiResponse({ status: 403, description: 'Only admins or owners can update' })
   @ApiResponse({ status: 404, description: 'Workplace not found' })
   async update(
     @Param('id') id: string,
     @Body() updateWorkplaceDto: UpdateWorkplaceDto,
+    @Request() req,
   ) {
+    const allowed = await this.workplacesService.isAdminOrOwner(id, req.user.id);
+    if (!allowed) throw new ForbiddenException('Only workspace admins or owners can update');
     return this.workplacesService.updateWorkplace(id, updateWorkplaceDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a workplace' })
   @ApiResponse({ status: 200, description: 'Workplace deleted successfully' })
+  @ApiResponse({ status: 403, description: 'Only owners can delete' })
   @ApiResponse({ status: 404, description: 'Workplace not found' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Request() req) {
+    const allowed = await this.workplacesService.isAdminOrOwner(id, req.user.id);
+    if (!allowed) throw new ForbiddenException('Only workspace admins or owners can delete');
     return this.workplacesService.deleteWorkplace(id);
   }
 }

@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +27,13 @@ import { AddProjectMemberDto, UpdateProjectMemberRoleDto } from './dto';
 @Controller('admin/projects/:projectId/members')
 export class ProjectMembersController {
   constructor(private readonly membersService: ProjectMembersService) {}
+
+  @Post('join')
+  @ApiOperation({ summary: 'Join a project directly (self-join as developer)' })
+  @ApiResponse({ status: 201, description: 'Joined project successfully' })
+  async joinProject(@Param('projectId') projectId: string, @Request() req) {
+    return this.membersService.addMember(projectId, { userId: req.user.id });
+  }
 
   @Post()
   @ApiOperation({ summary: 'Add a member to project' })
@@ -48,6 +56,14 @@ export class ProjectMembersController {
     @Query('limit') limit?: number,
   ) {
     return this.membersService.getProjectMembers(projectId, skip, limit);
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get my membership status for this project' })
+  @ApiResponse({ status: 200, description: 'Membership status' })
+  async getMyMembership(@Param('projectId') projectId: string, @Request() req) {
+    const role = await this.membersService.getMemberRole(projectId, req.user.id);
+    return { isMember: role !== null, role };
   }
 
   @Get('details')
