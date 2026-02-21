@@ -192,29 +192,6 @@ open http://localhost:15672
 - [ ] Simulate worker failures
 - [ ] Test durable queues (restart broker)
 
-## 📁 Project Structure
-
-```
-src/
-├── websocket/              # WebSocket pattern implementation
-│   ├── websocket.gateway.ts
-│   ├── auth.guard.ts
-│   └── dto/
-├── redis-pubsub/          # Redis Pub/Sub pattern
-│   ├── redis-pubsub.service.ts
-│   ├── redis-pubsub.controller.ts
-│   └── dto/
-├── nats-rpc/              # NATS RPC pattern
-│   ├── nats-rpc.service.ts
-│   └── nats-rpc.controller.ts
-├── rabbitmq/              # RabbitMQ pattern
-│   ├── rabbitmq.service.ts
-│   └── rabbitmq.controller.ts
-└── final-project/         # Combined patterns project
-public/
-└── websocket-client.html  # Interactive WebSocket test client
-```
-
 ## 🔍 Pattern Comparison
 
 | Pattern | Use Case | Pros | Cons |
