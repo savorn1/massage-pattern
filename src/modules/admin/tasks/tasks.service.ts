@@ -7,6 +7,11 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
 import { EventsService, EventType } from '../events/events.service';
+import { CacheService } from '@/modules/cache/cache.service';
+
+// ─── Cache TTLs (seconds) ────────────────────────────────────────────────────
+const TASK_LIST_TTL = 30;  // short — tasks change often
+const TASK_ITEM_TTL = 60;
 
 /**
  * Service for managing tasks
@@ -21,6 +26,7 @@ export class TasksService extends BaseRepository<TaskDocument> {
     @InjectModel(Project.name)
     private readonly projectModel: Model<ProjectDocument>,
     private readonly eventsService: EventsService,
+    private readonly cacheService: CacheService,
   ) {
     super(taskModel);
   }
@@ -96,6 +102,13 @@ export class TasksService extends BaseRepository<TaskDocument> {
     const task = await this.create(taskData as Partial<TaskDocument>);
     this.logger.log(`Task created: ${task.title} (${task.key}) by user ${userId}`);
 
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    await this.cacheService.delPattern(`tasks:project:${projectId}:*`);
+    await this.cacheService.delPattern(`tasks:backlog:${projectId}:*`);
+    if (createTaskDto.sprintId) {
+      await this.cacheService.delPattern(`tasks:sprint:${createTaskDto.sprintId}:*`);
+    }
+
     // Emit real-time event
     await this.eventsService.emitTaskEvent({
       type: EventType.TASK_CREATED,
@@ -144,6 +157,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
 
     this.logger.log(`Task updated: ${id}`);
 
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    const projectId = task.projectId.toString();
+    await Promise.all([
+      this.cacheService.del(`tasks:id:${id}`),
+      this.cacheService.delPattern(`tasks:project:${projectId}:*`),
+      this.cacheService.delPattern(`tasks:backlog:${projectId}:*`),
+    ]);
+    if (updateTaskDto.sprintId) {
+      await this.cacheService.delPattern(`tasks:sprint:${updateTaskDto.sprintId}:*`);
+    }
+    if (updateTaskDto.assigneeId) {
+      await this.cacheService.delPattern(`tasks:assignee:${updateTaskDto.assigneeId}:*`);
+    }
+
     // Emit real-time event
     await this.eventsService.emitTaskEvent({
       type: EventType.TASK_UPDATED,
@@ -170,6 +197,16 @@ export class TasksService extends BaseRepository<TaskDocument> {
     await this.delete(id);
     this.logger.log(`Task deleted: ${id}`);
 
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    await Promise.all([
+      this.cacheService.del(`tasks:id:${id}`),
+      this.cacheService.delPattern(`tasks:project:${projectId}:*`),
+      this.cacheService.delPattern(`tasks:backlog:${projectId}:*`),
+    ]);
+    if (task.sprintId) {
+      await this.cacheService.delPattern(`tasks:sprint:${task.sprintId.toString()}:*`);
+    }
+
     // Emit real-time event
     await this.eventsService.emitTaskEvent({
       type: EventType.TASK_DELETED,
@@ -181,12 +218,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
 
   /**
    * Get tasks by project
+   *
+   * Cache-aside: results are cached in Redis for TASK_LIST_TTL seconds.
+   * Any mutation (create / update / delete) calls delPattern to bust these keys.
    */
   async getTasksByProject(projectId: string, skip = 0, limit = 10) {
-    return this.findWithPagination(
-      { projectId: new Types.ObjectId(projectId) },
-      { skip, limit },
-      { order: 1, createdAt: -1 },
+    const key = `tasks:project:${projectId}:${skip}:${limit}`;
+    return this.cacheService.getOrSet(
+      key,
+      () => this.findWithPagination(
+        { projectId: new Types.ObjectId(projectId) },
+        { skip, limit },
+        { order: 1, createdAt: -1 },
+      ),
+      TASK_LIST_TTL,
     );
   }
 
@@ -194,10 +239,15 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Get tasks by sprint
    */
   async getTasksBySprint(sprintId: string, skip = 0, limit = 100) {
-    return this.findWithPagination(
-      { sprintId: new Types.ObjectId(sprintId) },
-      { skip, limit },
-      { order: 1, createdAt: -1 },
+    const key = `tasks:sprint:${sprintId}:${skip}:${limit}`;
+    return this.cacheService.getOrSet(
+      key,
+      () => this.findWithPagination(
+        { sprintId: new Types.ObjectId(sprintId) },
+        { skip, limit },
+        { order: 1, createdAt: -1 },
+      ),
+      TASK_LIST_TTL,
     );
   }
 
@@ -205,15 +255,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Get tasks assigned to user
    */
   async getTasksByAssignee(assigneeId: string, skip = 0, limit = 10) {
-    return this.findWithPagination(
-      { assigneeId: new Types.ObjectId(assigneeId) },
-      { skip, limit },
-      { dueDate: 1 },
+    const key = `tasks:assignee:${assigneeId}:${skip}:${limit}`;
+    return this.cacheService.getOrSet(
+      key,
+      () => this.findWithPagination(
+        { assigneeId: new Types.ObjectId(assigneeId) },
+        { skip, limit },
+        { dueDate: 1 },
+      ),
+      TASK_LIST_TTL,
     );
   }
 
   /**
-   * Get tasks by status
+   * Get tasks by status (not cached — status changes are very frequent on kanban boards)
    */
   async getTasksByStatus(projectId: string, status: TaskStatus, skip = 0, limit = 10) {
     return this.findWithPagination(
@@ -227,13 +282,18 @@ export class TasksService extends BaseRepository<TaskDocument> {
   }
 
   /**
-   * Get subtasks
+   * Get subtasks — cached with longer TTL since subtask lists change rarely
    */
   async getSubtasks(parentId: string, skip = 0, limit = 50) {
-    return this.findWithPagination(
-      { parentId: new Types.ObjectId(parentId) },
-      { skip, limit },
-      { order: 1, createdAt: -1 },
+    const key = `tasks:subtasks:${parentId}:${skip}:${limit}`;
+    return this.cacheService.getOrSet(
+      key,
+      () => this.findWithPagination(
+        { parentId: new Types.ObjectId(parentId) },
+        { skip, limit },
+        { order: 1, createdAt: -1 },
+      ),
+      TASK_ITEM_TTL,
     );
   }
 
@@ -250,6 +310,14 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     this.logger.log(`Task ${taskId} assigned to user ${assigneeId}`);
+
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    await Promise.all([
+      this.cacheService.del(`tasks:id:${taskId}`),
+      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(`tasks:assignee:${assigneeId}:*`),
+    ]);
+
     return task;
   }
 
@@ -266,6 +334,13 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     this.logger.log(`Task ${taskId} unassigned`);
+
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    await Promise.all([
+      this.cacheService.del(`tasks:id:${taskId}`),
+      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+    ]);
+
     return task;
   }
 
@@ -279,6 +354,13 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     this.logger.log(`Task ${taskId} status updated to ${status}`);
+
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    await Promise.all([
+      this.cacheService.del(`tasks:id:${taskId}`),
+      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+    ]);
+
     return task;
   }
 
@@ -286,6 +368,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Move task to sprint
    */
   async moveToSprint(taskId: string, sprintId: string | null): Promise<TaskDocument | null> {
+    // Fetch before update so we can bust the old sprint's cache
+    const oldTask = await this.findById(taskId);
+
     const updateData: Record<string, unknown> = sprintId
       ? { sprintId: new Types.ObjectId(sprintId) }
       : { $unset: { sprintId: 1 } };
@@ -296,6 +381,17 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     this.logger.log(`Task ${taskId} moved to sprint ${sprintId || 'backlog'}`);
+
+    // ── Cache invalidation ──────────────────────────────────────────────────
+    const busts: Promise<unknown>[] = [
+      this.cacheService.del(`tasks:id:${taskId}`),
+      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(`tasks:backlog:${task.projectId.toString()}:*`),
+    ];
+    if (sprintId) busts.push(this.cacheService.delPattern(`tasks:sprint:${sprintId}:*`));
+    if (oldTask?.sprintId) busts.push(this.cacheService.delPattern(`tasks:sprint:${oldTask.sprintId.toString()}:*`));
+    await Promise.all(busts);
+
     return task;
   }
 
@@ -317,10 +413,15 @@ export class TasksService extends BaseRepository<TaskDocument> {
     if (taskOrders.length > 0) {
       const firstTask = await this.findById(taskOrders[0].taskId);
       if (firstTask) {
+        const projectId = firstTask.projectId.toString();
+
+        // ── Cache invalidation ────────────────────────────────────────────
+        await this.cacheService.delPattern(`tasks:project:${projectId}:*`);
+
         await this.eventsService.emitTaskEvent({
           type: EventType.TASK_REORDERED,
           task: { taskOrders },
-          projectId: firstTask.projectId.toString(),
+          projectId,
           timestamp: new Date().toISOString(),
         });
       }
@@ -373,13 +474,18 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Get backlog tasks (tasks without sprint)
    */
   async getBacklogTasks(projectId: string, skip = 0, limit = 50) {
-    return this.findWithPagination(
-      {
-        projectId: new Types.ObjectId(projectId),
-        sprintId: { $exists: false },
-      },
-      { skip, limit },
-      { order: 1, createdAt: -1 },
+    const key = `tasks:backlog:${projectId}:${skip}:${limit}`;
+    return this.cacheService.getOrSet(
+      key,
+      () => this.findWithPagination(
+        {
+          projectId: new Types.ObjectId(projectId),
+          sprintId: { $exists: false },
+        },
+        { skip, limit },
+        { order: 1, createdAt: -1 },
+      ),
+      TASK_LIST_TTL,
     );
   }
 }

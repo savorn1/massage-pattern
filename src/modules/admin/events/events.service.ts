@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RedisPubsubService } from '@/modules/messaging/redis-pubsub/redis-pubsub.service';
 import { NatsPubSubService } from '@/modules/messaging/nats-pubsub/nats-pubsub.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
+import { RedisStreamsService } from '@/modules/messaging/redis-streams/redis-streams.service';
+
+// Durable append-only event log — capped at 10 000 entries each
+const TASK_EVENT_STREAM = 'stream:task-events';
+const PROJECT_EVENT_STREAM = 'stream:project-events';
+const STREAM_MAXLEN = 10_000;
 
 export enum EventType {
   TASK_CREATED = 'task:created',
@@ -44,25 +50,47 @@ export class EventsService {
     private readonly redisPubsubService: RedisPubsubService,
     private readonly natsPubSubService: NatsPubSubService,
     private readonly websocketGateway: WebsocketGateway,
+    private readonly streamsService: RedisStreamsService,
   ) {}
 
   /**
    * Emit a task event
+   *
+   * Three things happen in parallel:
+   *  1. Redis Pub/Sub  → fan-out to any other server instances subscribed
+   *  2. WebSocket      → push directly to clients in the project room
+   *  3. Redis Streams  → durable append-only log (MAXLEN ~10 000)
    */
   async emitTaskEvent(event: TaskEvent): Promise<void> {
     try {
       const payload = JSON.stringify(event);
+      const taskId = event.task?._id?.toString() ?? event.task?.id ?? '';
 
-      // Publish to Redis
-      await this.redisPubsubService.publish('task:events', payload);
+      await Promise.all([
+        // 1. Redis Pub/Sub fan-out
+        this.redisPubsubService.publish('task:events', payload),
 
-      // Broadcast via WebSocket to project room
+        // 3. Redis Streams — durable ordered event log
+        this.streamsService.addMessage(
+          TASK_EVENT_STREAM,
+          {
+            type:      event.type,
+            taskId,
+            projectId: event.projectId,
+            userId:    event.userId ?? '',
+            timestamp: event.timestamp,
+          },
+          STREAM_MAXLEN,
+        ),
+      ]);
+
+      // 2. WebSocket push to project room
       this.websocketGateway.server.to(`project:${event.projectId}`).emit(event.type, {
         ...event,
         timestamp: new Date().toISOString(),
       });
 
-      this.logger.log(`Task event emitted: ${event.type} for task ${event.task?._id || event.task?.id}`);
+      this.logger.log(`Task event emitted: ${event.type} for task ${taskId}`);
     } catch (error) {
       this.logger.error(`Failed to emit task event: ${error.message}`, error.stack);
     }
@@ -70,21 +98,39 @@ export class EventsService {
 
   /**
    * Emit a project event
+   *
+   * Same three-way fan-out as emitTaskEvent.
    */
   async emitProjectEvent(event: ProjectEvent): Promise<void> {
     try {
       const payload = JSON.stringify(event);
+      const projectId = event.project?._id?.toString() ?? event.project?.id ?? '';
 
-      // Publish to Redis
-      await this.redisPubsubService.publish('project:events', payload);
+      await Promise.all([
+        // 1. Redis Pub/Sub fan-out
+        this.redisPubsubService.publish('project:events', payload),
 
-      // Broadcast via WebSocket to workplace room
+        // 3. Redis Streams — durable ordered event log
+        this.streamsService.addMessage(
+          PROJECT_EVENT_STREAM,
+          {
+            type:        event.type,
+            projectId,
+            workplaceId: event.workplaceId,
+            userId:      event.userId ?? '',
+            timestamp:   event.timestamp,
+          },
+          STREAM_MAXLEN,
+        ),
+      ]);
+
+      // 2. WebSocket push to workplace room
       this.websocketGateway.server.to(`workplace:${event.workplaceId}`).emit(event.type, {
         ...event,
         timestamp: new Date().toISOString(),
       });
 
-      this.logger.log(`Project event emitted: ${event.type} for project ${event.project?._id || event.project?.id}`);
+      this.logger.log(`Project event emitted: ${event.type} for project ${projectId}`);
     } catch (error) {
       this.logger.error(`Failed to emit project event: ${error.message}`, error.stack);
     }

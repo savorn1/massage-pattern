@@ -13,6 +13,8 @@ import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WsAuthGuard } from './auth.guard';
 import { MessageDto, JoinRoomDto, PrivateMessageDto } from './dto/message.dto';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 
 interface ClientSession {
   username: string;
@@ -47,6 +49,29 @@ export class WebsocketGateway
 
   afterInit() {
     this.logger.log('WebSocket Gateway Initialized');
+
+    // ── Redis Adapter (multi-instance scaling) ────────────────────────────
+    // Without this, users on different server instances can't see each other's
+    // events (e.g. user A on instance #1 won't receive events from instance #2).
+    // The adapter uses a Redis pub/sub pair to broadcast across all instances.
+    try {
+      const redisHost = this.configService.get<string>('REDIS_HOST') || 'localhost';
+      const redisPort = this.configService.get<number>('REDIS_PORT') || 6379;
+
+      // Two separate connections — one publishes, one subscribes
+      const pubClient = new Redis({ host: redisHost, port: redisPort });
+      const subClient = new Redis({ host: redisHost, port: redisPort });
+
+      pubClient.on('error', (err) => this.logger.error('[WS Adapter] Redis pub error:', err.message));
+      subClient.on('error', (err) => this.logger.error('[WS Adapter] Redis sub error:', err.message));
+
+      // Attach — all emit/broadcast calls now sync across every instance
+      this.server.adapter(createAdapter(pubClient, subClient));
+      this.logger.log('[WS Adapter] Redis adapter attached — multi-instance ready');
+    } catch (err) {
+      // Graceful degradation: app still works on a single instance without Redis
+      this.logger.warn('[WS Adapter] Could not attach Redis adapter, running single-instance:', err.message);
+    }
 
     // Add server-level error listener
     this.server.engine.on('connection_error', (err: Error) => {
