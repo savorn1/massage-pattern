@@ -488,4 +488,22 @@ export class TasksService extends BaseRepository<TaskDocument> {
       TASK_LIST_TTL,
     );
   }
+
+  /**
+   * Get task counts grouped by status for a project
+   */
+  async getTaskCountsByProject(projectId: string): Promise<{ total: number; byStatus: Record<string, number> }> {
+    const rows = await this.taskModel.aggregate<{ _id: string; count: number }>([
+      { $match: { projectId: new Types.ObjectId(projectId) } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    let total = 0;
+    for (const row of rows) {
+      byStatus[row._id] = row.count;
+      total += row.count;
+    }
+    return { total, byStatus };
+  }
 }

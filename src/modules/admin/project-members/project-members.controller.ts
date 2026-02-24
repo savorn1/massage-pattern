@@ -1,32 +1,34 @@
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  UseGuards,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { ProjectMembersService } from './project-members.service';
+import { SkipThrottle } from '@nestjs/throttler';
 import { AddProjectMemberDto, UpdateProjectMemberRoleDto } from './dto';
+import { ProjectMembersService } from './project-members.service';
 
 @ApiTags('Project Members')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@SkipThrottle({ short: true, medium: true, long: true })
 @Controller('admin/projects/:projectId/members')
 export class ProjectMembersController {
-  constructor(private readonly membersService: ProjectMembersService) {}
+  constructor(private readonly membersService: ProjectMembersService) { }
 
   @Post('join')
   @ApiOperation({ summary: 'Join a project directly (self-join as developer)' })
@@ -58,6 +60,7 @@ export class ProjectMembersController {
     return this.membersService.getProjectMembers(projectId, skip, limit);
   }
 
+  @SkipThrottle({ short: true, medium: true, long: true })
   @Get('me')
   @ApiOperation({ summary: 'Get my membership status for this project' })
   @ApiResponse({ status: 200, description: 'Membership status' })

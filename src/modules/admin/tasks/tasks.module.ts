@@ -7,6 +7,8 @@ import { Task, TaskSchema, Project, ProjectSchema } from '@/modules/shared/entit
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { MessagingModule } from '@/modules/messaging/messaging.module';
 import { EventsModule } from '../events/events.module';
+import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Tasks module for task management
@@ -20,6 +22,8 @@ import { EventsModule } from '../events/events.module';
     forwardRef(() => TaskActivitiesModule),
     MessagingModule,
     EventsModule,
+    UsersModule,
+    NotificationsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService, TaskEventsService],

@@ -103,6 +103,18 @@ export class UsersService extends BaseRepository<UserDocument> {
   }
 
   /**
+   * Atomically increment a user's points and return the new total
+   */
+  async addPoints(userId: string, amount: number): Promise<number> {
+    const updated = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $inc: { points: amount } },
+      { new: true, select: 'points' },
+    ).lean();
+    return (updated as any)?.points ?? 0;
+  }
+
+  /**
    * Get all active users with pagination
    */
   async getActiveUsers(skip = 0, limit = 10) {

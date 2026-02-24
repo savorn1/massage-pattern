@@ -47,6 +47,9 @@ export class User extends BaseEntity {
   @Prop()
   lastLoginIp?: string;
 
+  @Prop({ default: 0 })
+  points: number;
+
   @Prop({ type: Object })
   metadata?: Record<string, unknown>;
 }

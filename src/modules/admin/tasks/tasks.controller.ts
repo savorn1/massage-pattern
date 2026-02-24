@@ -1,36 +1,40 @@
+import { UserRole } from '@/common/constants/roles.constant';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { TaskActivityAction, TaskStatus, NotificationType } from '@/modules/shared/entities';
+import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Headers,
+  Param,
+  Patch,
   Post,
   Put,
-  Patch,
-  Delete,
-  Body,
-  Param,
   Query,
-  Headers,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiBody,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { TasksService } from './tasks.service';
+import { TaskActivitiesService } from '../task-activities/task-activities.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { UserRole } from '@/common/constants/roles.constant';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { TaskStatus, TaskActivityAction } from '@/modules/shared/entities';
-import { TaskActivitiesService } from '../task-activities/task-activities.service';
 import { TaskEventsService, TaskEventType } from './task-events.service';
+import { TasksService } from './tasks.service';
+import { SkipThrottle } from '@nestjs/throttler';
 
 function toPlain(doc: any): Record<string, unknown> | null {
   if (!doc) return null;
@@ -46,7 +50,10 @@ export class TasksController {
     private readonly tasksService: TasksService,
     private readonly activityService: TaskActivitiesService,
     private readonly taskEvents: TaskEventsService,
-  ) {}
+    private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
+    private readonly ws: WebsocketGateway,
+  ) { }
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -233,6 +240,16 @@ export class TasksController {
     });
     return { success: true, message: 'Tasks reordered successfully' };
   }
+  @SkipThrottle({ short: true, medium: true, long: true })
+  @Get('project/:projectId/counts')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get task counts by status for a project' })
+  @ApiParam({ name: 'projectId', description: 'Project ID' })
+  @ApiResponse({ status: 200, description: 'Task counts retrieved successfully' })
+  async getProjectTaskCounts(@Param('projectId') projectId: string) {
+    const counts = await this.tasksService.getTaskCountsByProject(projectId);
+    return { success: true, data: counts };
+  }
 
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -365,6 +382,27 @@ export class TasksController {
         clientId,
         timestamp: new Date().toISOString(),
       });
+
+      // Award 5 points when a task is moved to done for the first time
+      const assigneeId = oldTask.assigneeId?.toString();
+      if (status === TaskStatus.DONE && oldTask.status !== TaskStatus.DONE && assigneeId) {
+        const totalPoints = await this.usersService.addPoints(assigneeId, 5);
+        const notification = await this.notificationsService.create({
+          recipientId: assigneeId,
+          actorId: currentUser.id,
+          taskId: id,
+          taskTitle: oldTask.title,
+          type: NotificationType.TASK_COMPLETED,
+          message: `You earned 5 points for completing "${oldTask.title}"! Total: ${totalPoints} pts`,
+        });
+        this.ws.broadcastToRoom(`user:${assigneeId}`, 'notification:new', notification.toObject());
+        this.ws.broadcastToRoom(`user:${assigneeId}`, 'points:earned', {
+          points: 5,
+          totalPoints,
+          taskId: id,
+          taskTitle: oldTask.title,
+        });
+      }
     }
     return {
       success: true,

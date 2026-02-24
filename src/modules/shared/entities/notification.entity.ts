@@ -4,8 +4,9 @@ import { Document, Types } from 'mongoose';
 export type NotificationDocument = Notification & Document;
 
 export enum NotificationType {
-  MENTIONED  = 'mentioned',
-  ASSIGNED   = 'assigned',
+  MENTIONED       = 'mentioned',
+  ASSIGNED        = 'assigned',
+  TASK_COMPLETED  = 'task_completed',
 }
 
 @Schema({ collection: 'notifications', timestamps: true })

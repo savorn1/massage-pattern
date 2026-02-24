@@ -30,7 +30,7 @@ import { BullMQHealthIndicator } from './indicators/bullmq.health';
  * - Disk usage
  */
 @Controller('health')
-@SkipThrottle() // Health checks should not be rate limited
+@SkipThrottle({ short: true, medium: true, long: true }) // Health checks should not be rate limited
 export class HealthController {
   constructor(
     private health: HealthCheckService,

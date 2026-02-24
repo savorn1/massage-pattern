@@ -233,6 +233,7 @@ export class AuthService {
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
       lastLogin: user.lastLogin,
+      points: user.points ?? 0,
     };
   }
 }
