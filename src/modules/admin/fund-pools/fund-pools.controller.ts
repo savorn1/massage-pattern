@@ -47,6 +47,19 @@ export class FundPoolsController {
     return this.fundPoolsService.getAllFundPools(skip, limit);
   }
 
+  // ── Sub-resource routes must come before `:id` to avoid shadowing ──────────
+
+  @Get(':id/executions')
+  @ApiOperation({ summary: 'Get recent execution history for a fund pool' })
+  @ApiResponse({ status: 200, description: 'Execution history' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getExecutions(
+    @Param('id') id: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.fundPoolsService.getRecentExecutions(id, limit ? Number(limit) : 10);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a fund pool by ID' })
   @ApiResponse({ status: 200, description: 'Fund pool details' })

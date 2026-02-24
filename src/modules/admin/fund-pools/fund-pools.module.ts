@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { FundPool, FundPoolSchema } from '@/modules/shared/entities';
+import {
+  FundPool,
+  FundPoolSchema,
+  FundPoolExecution,
+  FundPoolExecutionSchema,
+} from '@/modules/shared/entities';
 import { FundPoolsService } from './fund-pools.service';
 import { FundPoolsController } from './fund-pools.controller';
 
@@ -8,6 +13,7 @@ import { FundPoolsController } from './fund-pools.controller';
   imports: [
     MongooseModule.forFeature([
       { name: FundPool.name, schema: FundPoolSchema },
+      { name: FundPoolExecution.name, schema: FundPoolExecutionSchema },
     ]),
   ],
   controllers: [FundPoolsController],

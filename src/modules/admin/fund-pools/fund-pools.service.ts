@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { FundPool, FundPoolDocument } from '@/modules/shared/entities';
-import { CreateFundPoolDto } from './dto/create-fund-pool.dto';
-import { UpdateFundPoolDto } from './dto/update-fund-pool.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
+import {
+  FundPool,
+  FundPoolDocument,
+  FundPoolExecution,
+  FundPoolExecutionDocument,
+} from '@/modules/shared/entities';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { CreateFundPoolDto } from './dto/create-fund-pool.dto';
+import { UpdateFundPoolDto } from './dto/update-fund-pool.dto';
 
 @Injectable()
 export class FundPoolsService extends BaseRepository<FundPoolDocument> {
@@ -14,6 +19,8 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
   constructor(
     @InjectModel(FundPool.name)
     private readonly fundPoolModel: Model<FundPoolDocument>,
+    @InjectModel(FundPoolExecution.name)
+    private readonly executionModel: Model<FundPoolExecutionDocument>,
   ) {
     super(fundPoolModel);
   }
@@ -71,6 +78,8 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
     }
 
     await this.delete(id);
+    // Remove all execution history for this pool
+    await this.executionModel.deleteMany({ poolId: id }).exec();
     this.logger.log(`FundPool deleted: ${id}`);
   }
 
@@ -102,30 +111,37 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
    */
   async getDuePools(): Promise<FundPoolDocument[]> {
     const now = new Date();
-    const allEnabled = await this.findAll({ isEnabled: true });
-
-    return allEnabled.filter((pool) => {
-      if (!pool.lastExecutedAt) return true;
-      const nextRun = new Date(pool.lastExecutedAt.getTime() + pool.intervalMinutes * 60_000);
-      return now >= nextRun;
-    });
+    return this.fundPoolModel.find({
+      isEnabled: true,
+      $or: [
+        { lastExecutedAt: null },
+        {
+          $expr: {
+            $lte: [
+              { $add: ['$lastExecutedAt', { $multiply: ['$intervalMinutes', 60000] }] },
+              now,
+            ],
+          },
+        },
+      ],
+    }).exec();
   }
 
   /**
    * Atomically adds recurringAmount to currentAmount and stamps lastExecutedAt.
+   * Also saves an execution record for the history log.
    */
   async applyRecurring(id: string): Promise<FundPoolDocument> {
-    const pool = await this.findById(id);
-    if (!pool) {
-      throw BusinessException.resourceNotFound('FundPool', id);
-    }
-
     const updated = await this.fundPoolModel.findByIdAndUpdate(
       id,
-      {
-        $inc: { currentAmount: pool.recurringAmount },
-        $set: { lastExecutedAt: new Date() },
-      },
+      [
+        {
+          $set: {
+            currentAmount: { $add: ['$currentAmount', '$recurringAmount'] },
+            lastExecutedAt: new Date(),
+          },
+        },
+      ],
       { new: true },
     );
 
@@ -133,9 +149,29 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
       throw BusinessException.resourceNotFound('FundPool', id);
     }
 
+    // Record execution history
+    await this.executionModel.create({
+      poolId: id,
+      amountAdded: updated.recurringAmount,
+      balanceAfter: updated.currentAmount,
+      executedAt: updated.lastExecutedAt,
+    });
+
     this.logger.log(
-      `FundPool "${updated.name}" executed: +${pool.recurringAmount} → ${updated.currentAmount}`,
+      `FundPool "${updated.name}" executed: +${updated.recurringAmount} → ${updated.currentAmount}`,
     );
     return updated;
+  }
+
+  /**
+   * Returns the most recent executions for a pool, newest first.
+   */
+  async getRecentExecutions(poolId: string, limit = 10): Promise<FundPoolExecutionDocument[]> {
+    return this.executionModel
+      .find()
+      .find({ poolId: new Types.ObjectId(poolId) })
+      .sort({ executedAt: -1 })
+      .limit(limit)
+      .exec();
   }
 }

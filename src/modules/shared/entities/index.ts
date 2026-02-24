@@ -110,3 +110,10 @@ export {
   FundPoolType,
 } from './fund-pool.entity';
 
+// Fund Pool Execution entity
+export {
+  FundPoolExecution,
+  FundPoolExecutionDocument,
+  FundPoolExecutionSchema,
+} from './fund-pool-execution.entity';
+

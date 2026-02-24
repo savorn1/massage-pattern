@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ConflictException } from '@nestj
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { FeatureFlag, FeatureFlagDocument, FlagType } from './feature-flag.entity';
+import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 
 export interface CreateFlagDto {
   key: string;
@@ -36,6 +37,7 @@ export class FeatureFlagService {
   constructor(
     @InjectModel(FeatureFlag.name)
     private readonly flagModel: Model<FeatureFlagDocument>,
+    private readonly ws: WebsocketGateway,
   ) {}
 
   // ─── CRUD ────────────────────────────────────────────────────────────────
@@ -92,15 +94,21 @@ export class FeatureFlagService {
     await flag.save();
 
     this.logger.log(`[FF] Toggled "${key}" → ${flag.enabled ? 'ENABLED' : 'DISABLED'}`);
-    return flag.toObject();
+    const result = flag.toObject();
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: result.enabled });
+    return result;
   }
 
   async enable(key: string): Promise<FeatureFlag> {
-    return this.update(key, { enabled: true });
+    const flag = await this.update(key, { enabled: true });
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: true });
+    return flag;
   }
 
   async disable(key: string): Promise<FeatureFlag> {
-    return this.update(key, { enabled: false });
+    const flag = await this.update(key, { enabled: false });
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: false });
+    return flag;
   }
 
   // ─── Evaluation ──────────────────────────────────────────────────────────
