@@ -18,9 +18,11 @@ import {
 import { TasksService } from '@/modules/admin/tasks/tasks.service';
 import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
+import { FeatureFlagService } from '@/modules/feature-flags/feature-flag.service';
 
 const QUEUE_NAME = 'task-seeder';
 const JOB_NAME = 'seed-task';
+const FLAG_KEY = 'task-seeder';
 
 const FAKE_TITLES = [
   'Implement user authentication flow',
@@ -64,6 +66,7 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
     private readonly tasksService: TasksService,
     private readonly notificationsService: NotificationsService,
     private readonly ws: WebsocketGateway,
+    private readonly featureFlags: FeatureFlagService,
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(ProjectMember.name) private readonly projectMemberModel: Model<ProjectMemberDocument>,
@@ -122,6 +125,12 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
   // ─── Job handler ────────────────────────────────────────────────────────────
 
   private async processJob(job: Job): Promise<void> {
+    const enabled = await this.featureFlags.isEnabled(FLAG_KEY);
+    if (!enabled) {
+      this.logger.log('Task seeder is disabled via feature flag — skipping');
+      return;
+    }
+
     this.logger.log(`Running seed job ${job.id}`);
 
     // 1. Pick a random active project

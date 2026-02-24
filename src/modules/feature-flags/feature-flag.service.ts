@@ -214,6 +214,13 @@ export class FeatureFlagService {
         type: 'boolean',
         category: 'workers',
       },
+      {
+        key: 'task-seeder',
+        name: 'Task Seeder',
+        description: 'Enable the BullMQ worker that auto-generates fake tasks every minute for testing',
+        type: 'boolean',
+        category: 'workers',
+      },
     ];
 
     for (const flag of defaults) {
