@@ -1,6 +1,8 @@
+import { FundPoolsModule } from '@/modules/admin/fund-pools/fund-pools.module';
 import { NotificationsModule } from '@/modules/admin/notifications/notifications.module';
 import { TasksModule } from '@/modules/admin/tasks/tasks.module';
 import { MessagingModule } from '@/modules/messaging/messaging.module';
+import { FeatureFlagModule } from '@/modules/feature-flags/feature-flag.module';
 import {
   Project,
   ProjectMember,
@@ -15,6 +17,7 @@ import { BullmqController } from './bullmq.controller';
 import { BullmqService } from './bullmq.service';
 import { EmailWorker } from './workers/email.worker';
 import { ImageWorker } from './workers/image.worker';
+import { FundPoolExecutorWorker } from './workers/fund-pool-executor.worker';
 import { TaskSeederWorker } from './workers/task-seeder.worker';
 
 @Module({
@@ -27,13 +30,16 @@ import { TaskSeederWorker } from './workers/task-seeder.worker';
     TasksModule,
     NotificationsModule,
     MessagingModule,
+    FundPoolsModule,
+    FeatureFlagModule,
   ],
   controllers: [BullmqController],
   providers: [
     BullmqService,
     EmailWorker,
     ImageWorker,
-    TaskSeederWorker
+    TaskSeederWorker,
+    FundPoolExecutorWorker,
   ],
   exports: [BullmqService],
 })

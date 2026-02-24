@@ -102,3 +102,11 @@ export {
   MilestoneStatus,
 } from './milestone.entity';
 
+// Fund Pool entity
+export {
+  FundPool,
+  FundPoolDocument,
+  FundPoolSchema,
+  FundPoolType,
+} from './fund-pool.entity';
+

@@ -13,6 +13,7 @@ import { TaskCommentsModule } from './task-comments/task-comments.module';
 import { TaskActivitiesModule } from './task-activities/task-activities.module';
 import { TaskEventsModule } from './task-events/task-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FundPoolsModule } from './fund-pools/fund-pools.module';
 
 
 /**
@@ -45,6 +46,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     TaskEventsModule,
     NotificationsModule,
     MilestonesModule,
+    FundPoolsModule,
   ],
   exports: [
     AuthModule,
@@ -59,6 +61,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     TaskCommentsModule,
     TaskActivitiesModule,
     MilestonesModule,
+    FundPoolsModule,
   ],
 })
 export class AdminModule {}

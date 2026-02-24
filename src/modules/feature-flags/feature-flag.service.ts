@@ -207,6 +207,13 @@ export class FeatureFlagService {
         type: 'boolean',
         category: 'ops',
       },
+      {
+        key: 'fund-pool-executor',
+        name: 'Fund Pool Executor',
+        description: 'Enable the BullMQ worker that automatically applies recurring amounts to fund pools',
+        type: 'boolean',
+        category: 'workers',
+      },
     ];
 
     for (const flag of defaults) {
