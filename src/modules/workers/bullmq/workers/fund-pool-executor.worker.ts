@@ -42,9 +42,10 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
       await this.queue.removeRepeatableByKey(job.key);
     }
 
-    // Schedule one repeating job — fires every minute via cron
+    // Schedule one repeating job — fires every 10 seconds via cron
+    // * * * * * runs every minute, but for testing we want it to run more frequently. In production, this should be changed back to every minute.
     await this.queue.add(JOB_NAME, {}, {
-      repeat: { pattern: '* * * * *' },
+      repeat: { pattern: '*/30 * * * * *' },
       removeOnComplete: true,
       removeOnFail: 5,
     });
