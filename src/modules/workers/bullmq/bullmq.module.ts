@@ -11,6 +11,10 @@ import {
   User,
   UserSchema,
 } from '@/modules/shared/entities';
+import {
+  PaymentQr,
+  PaymentQrSchema,
+} from '@/modules/shared/entities/payment-qr.entity';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BullmqController } from './bullmq.controller';
@@ -19,6 +23,7 @@ import { EmailWorker } from './workers/email.worker';
 import { ImageWorker } from './workers/image.worker';
 import { FundPoolExecutorWorker } from './workers/fund-pool-executor.worker';
 import { TaskSeederWorker } from './workers/task-seeder.worker';
+import { PaymentWorker } from './workers/payment.worker';
 
 @Module({
   imports: [
@@ -26,6 +31,7 @@ import { TaskSeederWorker } from './workers/task-seeder.worker';
       { name: Project.name, schema: ProjectSchema },
       { name: ProjectMember.name, schema: ProjectMemberSchema },
       { name: User.name, schema: UserSchema },
+      { name: PaymentQr.name, schema: PaymentQrSchema },
     ]),
     TasksModule,
     NotificationsModule,
@@ -40,6 +46,7 @@ import { TaskSeederWorker } from './workers/task-seeder.worker';
     ImageWorker,
     TaskSeederWorker,
     FundPoolExecutorWorker,
+    PaymentWorker,
   ],
   exports: [BullmqService],
 })

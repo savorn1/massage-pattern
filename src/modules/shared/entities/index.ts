@@ -117,3 +117,11 @@ export {
   FundPoolExecutionSchema,
 } from './fund-pool-execution.entity';
 
+// Payment QR entity
+export {
+  PaymentQr,
+  PaymentQrDocument,
+  PaymentQrSchema,
+  PaymentQrStatus,
+} from './payment-qr.entity';
+

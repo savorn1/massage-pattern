@@ -14,6 +14,7 @@ import { TaskActivitiesModule } from './task-activities/task-activities.module';
 import { TaskEventsModule } from './task-events/task-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FundPoolsModule } from './fund-pools/fund-pools.module';
+import { PaymentsModule } from './payments/payments.module';
 
 
 /**
@@ -47,6 +48,7 @@ import { FundPoolsModule } from './fund-pools/fund-pools.module';
     NotificationsModule,
     MilestonesModule,
     FundPoolsModule,
+    PaymentsModule,
   ],
   exports: [
     AuthModule,
@@ -62,6 +64,7 @@ import { FundPoolsModule } from './fund-pools/fund-pools.module';
     TaskActivitiesModule,
     MilestonesModule,
     FundPoolsModule,
+    PaymentsModule,
   ],
 })
 export class AdminModule {}
