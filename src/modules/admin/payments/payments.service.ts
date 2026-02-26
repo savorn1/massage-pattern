@@ -20,6 +20,7 @@ import Redis from 'ioredis';
 import { Model } from 'mongoose';
 import * as QRCode from 'qrcode';
 import { GenerateQrDto } from './dto/generate-qr.dto';
+import { GetQrHistoryDto } from './dto/get-qr-history.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
 /** Redis key helpers */
@@ -161,7 +162,28 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    // 2. Build signed payload
+    // 2. Cancel any existing PENDING QRs for this order — only one active QR
+    //    per order is allowed at a time. Old Redis keys are deleted so they
+    //    cannot be used to pay, and the DB records are marked CANCELLED.
+    const staleQrs = await this.qrModel
+      .find({ orderId: dto.orderId, clientId, status: PaymentQrStatus.PENDING })
+      .select('qrId')
+      .lean()
+      .exec();
+
+    if (staleQrs.length > 0) {
+      const staleIds = staleQrs.map((q) => q.qrId as string);
+      await Promise.all(staleIds.map((id) => this.redis.del(QR_KEY(id))));
+      await this.qrModel.updateMany(
+        { qrId: { $in: staleIds } },
+        { status: PaymentQrStatus.CANCELLED },
+      );
+      this.logger.log(
+        `Cancelled ${staleIds.length} stale PENDING QR(s) for orderId=${dto.orderId}`,
+      );
+    }
+
+    // 3. Build signed payload
     const qrId = randomUUID();
     const nonce = randomUUID();
     const issuedAt = Date.now();
@@ -180,7 +202,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     const signature = this.sign(payload);
 
-    // 3. Persist to MongoDB (audit trail)
+    // 4. Persist to MongoDB (audit trail)
     await this.qrModel.create({
       qrId,
       orderId: dto.orderId,
@@ -194,14 +216,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       createdBy: clientId,
     });
 
-    // 4. Cache in Redis for fast lookup (TTL = QR lifetime)
+    // 5. Cache in Redis for fast lookup (TTL = QR lifetime)
     await this.redis.setex(
       QR_KEY(qrId),
       QR_TTL_SECONDS,
       JSON.stringify({ ...payload, signature }),
     );
 
-    // 5. Schedule proactive expiry — fires after TTL, marks DB record EXPIRED
+    // 6. Schedule proactive expiry — fires after TTL, marks DB record EXPIRED
     //    and pushes payment:expired WebSocket event to the user
     const expiryJobData: QrExpiredJobData = { qrId, orderId: dto.orderId, clientId };
     await this.paymentQueue.add('expire-qr', expiryJobData, {
@@ -212,7 +234,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       removeOnFail: 5,
     });
 
-    // 6. Encode signed payload → QR image (base64 PNG)
+    // 7. Encode signed payload → QR image (base64 PNG)
     const qrContent = JSON.stringify({ ...payload, signature });
     const qrImage = await QRCode.toDataURL(qrContent, {
       errorCorrectionLevel: 'H',
@@ -352,6 +374,129 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   // Status check
   // ─────────────────────────────────────────────────────────────────────────────
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Get QR by ID — returns full details including the rendered QR image
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch a single QR code record with all display fields.
+   *
+   * For PENDING QRs that are still cached in Redis, the QR image is re-rendered
+   * from the stored signed payload so the response is ready to display in a modal.
+   * For expired / paid / cancelled QRs, qrImage is null and secondsLeft is 0.
+   */
+  async getQrById(qrId: string, clientId: string): Promise<{
+    qrId:       string;
+    orderId:    string;
+    amount:     number;
+    currency:   string;
+    status:     PaymentQrStatus;
+    expiresAt:  Date;
+    paidAt:     Date | null;
+    qrImage:    string | null;
+    secondsLeft: number;
+  }> {
+    const record = await this.qrModel.findOne({ qrId, clientId }).exec();
+    if (!record) {
+      throw BusinessException.resourceNotFound('PaymentQR', qrId);
+    }
+
+    // Lazily sync stale PENDING → EXPIRED
+    if (record.status === PaymentQrStatus.PENDING && record.expiresAt < new Date()) {
+      await this.qrModel.updateOne({ qrId }, { status: PaymentQrStatus.EXPIRED });
+      record.status = PaymentQrStatus.EXPIRED;
+    }
+
+    let qrImage:     string | null = null;
+    let secondsLeft: number        = 0;
+
+    if (record.status === PaymentQrStatus.PENDING) {
+      const cached = await this.redis.get(QR_KEY(qrId));
+      if (cached) {
+        // Re-render the QR image from the signed payload still in Redis
+        qrImage = await QRCode.toDataURL(cached, {
+          errorCorrectionLevel: 'H',
+          margin: 2,
+          width: 400,
+        });
+        secondsLeft = Math.max(
+          0,
+          Math.floor((record.expiresAt.getTime() - Date.now()) / 1000),
+        );
+      }
+    }
+
+    return {
+      qrId:        record.qrId,
+      orderId:     record.orderId,
+      amount:      record.amount,
+      currency:    record.currency,
+      status:      record.status,
+      expiresAt:   record.expiresAt,
+      paidAt:      record.paidAt ?? null,
+      qrImage,
+      secondsLeft,
+    };
+  }
+
+  /**
+   * Return the current active (PENDING) QR for an order, looked up by orderId.
+   * Re-renders the QR image from the Redis-cached payload.
+   * Returns null when there is no active QR (expired, paid, cancelled, or never generated).
+   */
+  async getActiveQrForOrder(orderId: string, clientId: string): Promise<{
+    qrId:       string;
+    orderId:    string;
+    amount:     number;
+    currency:   string;
+    status:     PaymentQrStatus;
+    expiresAt:  Date;
+    paidAt:     Date | null;
+    qrImage:    string | null;
+    secondsLeft: number;
+  } | null> {
+    const record = await this.qrModel
+      .findOne({ orderId, clientId, status: PaymentQrStatus.PENDING })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (!record) return null;
+
+    // Lazily sync stale PENDING → EXPIRED
+    if (record.expiresAt < new Date()) {
+      await this.qrModel.updateOne({ qrId: record.qrId }, { status: PaymentQrStatus.EXPIRED });
+      return null;
+    }
+
+    let qrImage:     string | null = null;
+    let secondsLeft: number        = 0;
+
+    const cached = await this.redis.get(QR_KEY(record.qrId));
+    if (cached) {
+      qrImage = await QRCode.toDataURL(cached, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 400,
+      });
+      secondsLeft = Math.max(
+        0,
+        Math.floor((record.expiresAt.getTime() - Date.now()) / 1000),
+      );
+    }
+
+    return {
+      qrId:        record.qrId,
+      orderId:     record.orderId,
+      amount:      record.amount,
+      currency:    record.currency,
+      status:      record.status,
+      expiresAt:   record.expiresAt,
+      paidAt:      record.paidAt ?? null,
+      qrImage,
+      secondsLeft,
+    };
+  }
+
   async getQrStatus(qrId: string, clientId: string) {
     const record = await this.qrModel.findOne({ qrId, clientId }).exec();
     if (!record) {
@@ -375,6 +520,57 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       status: record.status,
       expiresAt: record.expiresAt,
       paidAt: record.paidAt,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // QR History
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Return a paginated list of all QR codes created by this user.
+   * Before querying, bulk-sync any PENDING records whose TTL has passed → EXPIRED.
+   */
+  async getQrHistory(
+    clientId: string,
+    dto: GetQrHistoryDto,
+  ): Promise<{ data: object[]; total: number }> {
+    const skip  = dto.skip  ?? 0;
+    const limit = dto.limit ?? 20;
+
+    // Proactively mark all stale PENDING records as EXPIRED in one query
+    await this.qrModel.updateMany(
+      { clientId, status: PaymentQrStatus.PENDING, expiresAt: { $lt: new Date() } },
+      { status: PaymentQrStatus.EXPIRED },
+    );
+
+    // Build filter
+    const filter: Record<string, unknown> = { clientId };
+    if (dto.status)  filter.status  = dto.status;
+    if (dto.orderId) filter.orderId = dto.orderId;
+
+    const [records, total] = await Promise.all([
+      this.qrModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.qrModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data: records.map((r) => ({
+        qrId:      r.qrId,
+        orderId:   r.orderId,
+        amount:    r.amount,
+        currency:  r.currency,
+        status:    r.status,
+        expiresAt: r.expiresAt,
+        paidAt:    r.paidAt   ?? null,
+        createdAt: (r as { createdAt?: Date }).createdAt ?? null,
+      })),
+      total,
     };
   }
 

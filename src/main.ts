@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
+import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -17,6 +18,9 @@ async function bootstrap() {
 
   // Global exception filter for error handling
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Global logging interceptor
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   // Enable validation with custom error handling
   app.useGlobalPipes(
