@@ -1,9 +1,9 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
+import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
 import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
 
@@ -62,10 +62,7 @@ API requests are rate-limited to ensure fair usage and system stability.
       'https://github.com/your-org/project-management',
       'support@projectmanagement.com',
     )
-    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .addServer('http://localhost:3000', 'Local Development')
-    .addServer('https://api.staging.example.com', 'Staging Environment')
-    .addServer('https://api.example.com', 'Production Environment')
     .addTag('admin/users', 'User management - CRUD operations for system users')
     .addTag('admin/projects', 'Project management - Create and manage projects with team members')
     .addTag('admin/tasks', 'Task management - Create, assign, and track task progress')
