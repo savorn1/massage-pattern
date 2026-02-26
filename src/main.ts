@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { LogLevel, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,8 +7,20 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
 import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
 
+const LOG_LEVEL_MAP: Record<string, LogLevel[]> = {
+  error:   ['error'],
+  warn:    ['error', 'warn'],
+  log:     ['error', 'warn', 'log'],
+  debug:   ['error', 'warn', 'log', 'debug'],
+  verbose: ['error', 'warn', 'log', 'debug', 'verbose'],
+};
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Apply service log level from env (controls all Logger instances in services)
+  const logLevel = process.env.LOG_LEVEL ?? 'log';
+  app.useLogger(LOG_LEVEL_MAP[logLevel] ?? LOG_LEVEL_MAP['log']);
 
   // Enable CORS for WebSocket connections
   app.enableCors({
