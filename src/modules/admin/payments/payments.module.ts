@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { PaymentGatewayGuard } from './guards/payment-gateway.guard';
 import {
   PaymentQr,
   PaymentQrSchema,
@@ -16,7 +17,7 @@ import { Order, OrderSchema } from '@/modules/shared/entities';
     ]),
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService],
+  providers: [PaymentsService, PaymentGatewayGuard],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}
