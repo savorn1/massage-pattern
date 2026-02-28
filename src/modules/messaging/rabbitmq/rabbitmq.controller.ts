@@ -1,14 +1,15 @@
-import { Controller, Get, Post, Delete, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { BackpressureConfig, BackpressureService } from './backpressure.service';
+import { CircuitBreakerConfig, CircuitBreakerService } from './circuit-breaker.service';
+import { DlqConfig, DlqService } from './dlq.service';
+import { OutboxService } from './outbox.service';
 import { RabbitmqService } from './rabbitmq.service';
 import { SagaOrchestratorService } from './saga-orchestrator.service';
-import { DlqService, DlqConfig } from './dlq.service';
-import { OutboxService } from './outbox.service';
-import { CircuitBreakerService, CircuitBreakerConfig } from './circuit-breaker.service';
-import { BackpressureService, BackpressureConfig } from './backpressure.service';
 
 @ApiTags('RabbitMQ')
 @Controller('rabbitmq')
+// @UseGuards(JwtAuthGuard)
 export class RabbitmqController {
   constructor(
     private readonly rabbitmqService: RabbitmqService,
@@ -17,7 +18,7 @@ export class RabbitmqController {
     private readonly outboxService: OutboxService,
     private readonly cbService: CircuitBreakerService,
     private readonly bpService: BackpressureService,
-  ) {}
+  ) { }
 
   @Get()
   @ApiOperation({ summary: 'Get RabbitMQ info and status' })
@@ -178,7 +179,7 @@ export class RabbitmqController {
 
     for (const queue of queues) {
       await this.rabbitmqService.bindQueueToExchange(queue, exchange, 'task.*', 'topic');
-      await this.rabbitmqService.consume(queue, () => {});
+      await this.rabbitmqService.consume(queue, () => { });
     }
 
     const message = JSON.stringify({
@@ -217,7 +218,7 @@ export class RabbitmqController {
     // Setup: bind each queue with its exact routing key
     for (const q of queues) {
       await this.rabbitmqService.bindQueueToExchange(q.name, exchange, q.key, 'direct');
-      await this.rabbitmqService.consume(q.name, () => {});
+      await this.rabbitmqService.consume(q.name, () => { });
     }
 
     // Publish 3 messages with different routing keys
@@ -258,7 +259,7 @@ export class RabbitmqController {
     // Setup: bind all queues (routing key is ignored for fanout)
     for (const queue of queues) {
       await this.rabbitmqService.bindQueueToExchange(queue, exchange, '', 'fanout');
-      await this.rabbitmqService.consume(queue, () => {});
+      await this.rabbitmqService.consume(queue, () => { });
     }
 
     // Publish one message → ALL queues receive it
@@ -295,7 +296,7 @@ export class RabbitmqController {
     // Setup
     for (const q of queues) {
       await this.rabbitmqService.bindQueueToExchange(q.name, exchange, q.pattern, 'topic');
-      await this.rabbitmqService.consume(q.name, () => {});
+      await this.rabbitmqService.consume(q.name, () => { });
     }
 
     // Publish 4 messages with different routing keys
@@ -341,7 +342,7 @@ export class RabbitmqController {
     // Setup: bind with header matching rules
     for (const q of queues) {
       await this.rabbitmqService.bindQueueToExchange(q.name, exchange, '', 'headers', q.headers);
-      await this.rabbitmqService.consume(q.name, () => {});
+      await this.rabbitmqService.consume(q.name, () => { });
     }
 
     // Publish messages with different headers
