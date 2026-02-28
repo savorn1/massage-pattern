@@ -48,6 +48,6 @@ export class FeatureFlag {
 
 export const FeatureFlagSchema = SchemaFactory.createForClass(FeatureFlag);
 
-FeatureFlagSchema.index({ key: 1 }, { unique: true });
-FeatureFlagSchema.index({ category: 1 });
-FeatureFlagSchema.index({ enabled: 1 });
+// FeatureFlagSchema.index({ key: 1 }, { unique: true });
+// FeatureFlagSchema.index({ category: 1 });
+// FeatureFlagSchema.index({ enabled: 1 });
