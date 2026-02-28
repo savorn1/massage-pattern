@@ -1,39 +1,39 @@
+import { UserRole } from '@/common/constants/roles.constant';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
+  Patch,
   Post,
   Put,
-  Patch,
-  Delete,
-  Body,
-  Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiBody,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { MilestonesService } from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { UserRole } from '@/common/constants/roles.constant';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { MilestonesService } from './milestones.service';
 
 @ApiTags('admin/milestones')
 @ApiBearerAuth('JWT-auth')
 @Controller('admin/milestones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MilestonesController {
-  constructor(private readonly milestonesService: MilestonesService) {}
+  constructor(private readonly milestonesService: MilestonesService) { }
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -183,10 +183,7 @@ export class MilestonesController {
     @Body() updateMilestoneDto: UpdateMilestoneDto,
     @CurrentUser() currentUser: { userId: string },
   ) {
-    const milestone = await this.milestonesService.updateMilestone(id, {
-      ...updateMilestoneDto,
-      updatedBy: currentUser.userId,
-    });
+    const milestone = await this.milestonesService.updateMilestone(id, updateMilestoneDto);
 
     return {
       success: true,

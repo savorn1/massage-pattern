@@ -1,15 +1,15 @@
+import { MilestoneStatus } from '@/modules/shared/entities';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
   IsDateString,
+  IsEnum,
   IsNumber,
-  Min,
+  IsOptional,
+  IsString,
   Max,
   MaxLength,
+  Min,
 } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { MilestoneStatus } from '@/modules/shared/entities';
 
 export class UpdateMilestoneDto {
   @ApiPropertyOptional({ description: 'Milestone name', example: 'Phase 1 Complete', maxLength: 200 })
@@ -45,6 +45,4 @@ export class UpdateMilestoneDto {
   @Max(100)
   @IsOptional()
   progress?: number;
-
-  updatedBy?: string;
 }
