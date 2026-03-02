@@ -231,6 +231,38 @@ export class ChatService {
 
     const updated = await this.conversationModel.findById(conversationId).exec();
     if (!updated) throw new NotFoundException('Conversation not found.');
+
+    const conversationPayload: Record<string, unknown> = {
+      _id: (updated._id as Types.ObjectId).toString(),
+      type: updated.type,
+      participants: (updated.participants as Types.ObjectId[]).map((p) => p.toString()),
+      name: updated.name ?? null,
+      admins: (updated.admins as Types.ObjectId[]).map((a) => a.toString()),
+      blockedMembers: (updated.blockedMembers as Types.ObjectId[]).map((b) => b.toString()),
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
+
+    // Notify newly added members so the conversation appears in their list
+    for (const uid of newIds) {
+      this.wsGateway.broadcastToRoom(
+        `user:${uid.toString()}`,
+        'chat:conversation:new',
+        conversationPayload,
+      );
+    }
+
+    // Notify existing participants that the member list changed
+    const existingParticipants = (updated.participants as Types.ObjectId[]).filter(
+      (p) => !newIds.some((n) => n.equals(p)),
+    );
+    for (const uid of existingParticipants) {
+      this.wsGateway.broadcastToRoom(`user:${uid.toString()}`, 'chat:member:added', {
+        conversationId,
+        userIds: newIds.map((n) => n.toString()),
+      });
+    }
+
     return updated;
   }
 
