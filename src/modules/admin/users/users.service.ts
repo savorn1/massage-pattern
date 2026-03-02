@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '@/modules/shared/entities';
@@ -6,13 +6,14 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
 import { BusinessException } from '@/core/exceptions/business.exception';
+import { UserRole } from '@/common/constants/roles.constant';
 import * as bcrypt from 'bcrypt';
 
 /**
  * Service for managing users in the admin module
  */
 @Injectable()
-export class UsersService extends BaseRepository<UserDocument> {
+export class UsersService extends BaseRepository<UserDocument> implements OnModuleInit {
   private readonly logger = new Logger(UsersService.name);
   private readonly saltRounds = 10;
 
@@ -20,6 +21,20 @@ export class UsersService extends BaseRepository<UserDocument> {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {
     super(userModel);
+  }
+
+  async onModuleInit() {
+    const adminEmail = 'admin@admin.com';
+    const existing = await this.findOne({ email: adminEmail });
+    if (!existing) {
+      await this.createUser({
+        email: adminEmail,
+        password: 'admin123',
+        name: 'Admin',
+        role: UserRole.SUPER_ADMIN,
+      });
+      this.logger.log(`Default admin user created: ${adminEmail}`);
+    }
   }
 
   /**
