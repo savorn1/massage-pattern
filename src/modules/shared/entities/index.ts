@@ -125,3 +125,23 @@ export {
   PaymentQrStatus,
 } from './payment-qr.entity';
 
+// Chat entities
+export {
+  Conversation,
+  ConversationDocument,
+  ConversationSchema,
+  ConversationType,
+} from './conversation.entity';
+
+export {
+  Message,
+  MessageDocument,
+  MessageSchema,
+  MessageType,
+} from './message.entity';
+
+export {
+  UserConversation,
+  UserConversationDocument,
+  UserConversationSchema,
+} from './user-conversation.entity';

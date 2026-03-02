@@ -418,6 +418,54 @@ export class WebsocketGateway
     return { joined: room };
   }
 
+  // ── Chat real-time handlers ───────────────────────────────────────────────
+
+  /** Typing indicator — relayed to all OTHER members currently viewing the conversation */
+  @SubscribeMessage('chat:typing')
+  handleChatTyping(
+    @MessageBody() data: { conversationId: string; isTyping: boolean },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const session = this.connectedClients.get(client.id);
+    const authUserId = client.handshake.auth?.userId as string | undefined;
+
+    // client.to() excludes the sender automatically
+    client.to(`conversation:${data.conversationId}`).emit('chat:typing', {
+      userId: authUserId ?? client.id,
+      userName: session?.username ?? 'Someone',
+      isTyping: data.isTyping,
+      conversationId: data.conversationId,
+    });
+
+    return { ok: true };
+  }
+
+  /** Join a conversation room — required to receive typing indicators */
+  @SubscribeMessage('joinConversationRoom')
+  handleJoinConversationRoom(
+    @MessageBody() data: { conversationId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `conversation:${data.conversationId}`;
+    void client.join(room);
+    const session = this.connectedClients.get(client.id);
+    if (session) session.rooms.add(room);
+    return { joined: room };
+  }
+
+  /** Leave a conversation room */
+  @SubscribeMessage('leaveConversationRoom')
+  handleLeaveConversationRoom(
+    @MessageBody() data: { conversationId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `conversation:${data.conversationId}`;
+    void client.leave(room);
+    const session = this.connectedClients.get(client.id);
+    if (session) session.rooms.delete(room);
+    return { left: room };
+  }
+
   /** Emit a named event to all clients in a room (called by server-side listeners) */
   broadcastToRoom(room: string, event: string, data: unknown): void {
     this.server.to(room).emit(event, data);
