@@ -59,7 +59,7 @@ export class ChatController {
     return this.chatService.addParticipants(id, req.user.userId, userIds);
   }
 
-  /** Remove a participant from a group (or leave the group yourself) */
+  /** Remove a participant from a group (admin only) */
   @Delete('conversations/:id/participants/:userId')
   removeParticipant(
     @Req() req,
@@ -67,6 +67,32 @@ export class ChatController {
     @Param('userId') userId: string,
   ) {
     return this.chatService.removeParticipant(id, req.user.userId, userId);
+  }
+
+  /** Leave a group conversation (self-remove) */
+  @Delete('conversations/:id/leave')
+  leaveGroup(@Req() req, @Param('id') id: string) {
+    return this.chatService.removeParticipant(id, req.user.userId, req.user.userId);
+  }
+
+  /** Block a member from sending messages (admin only) */
+  @Post('conversations/:id/members/:userId/block')
+  blockMember(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.chatService.blockMember(id, req.user.userId, userId);
+  }
+
+  /** Unblock a member (admin only) */
+  @Post('conversations/:id/members/:userId/unblock')
+  unblockMember(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.chatService.unblockMember(id, req.user.userId, userId);
   }
 
   // ─── Messages ─────────────────────────────────────────────────────────────

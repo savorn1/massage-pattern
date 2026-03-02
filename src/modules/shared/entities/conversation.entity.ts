@@ -48,6 +48,9 @@ export class Conversation {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   admins: Types.ObjectId[];
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  blockedMembers: Types.ObjectId[];
+
   @Prop({ type: Object })
   lastMessage?: LastMessageSnapshot;
 

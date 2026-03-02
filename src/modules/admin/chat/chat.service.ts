@@ -255,12 +255,88 @@ export class ChatService {
     }
 
     const targetId = new Types.ObjectId(targetUserId);
+
+    // Notify all current participants before removing
+    this.emitToAllParticipants(
+      conversation.participants as Types.ObjectId[],
+      isSelf ? 'chat:member:left' : 'chat:member:removed',
+      { conversationId, userId: targetUserId },
+    );
+
     await this.conversationModel.findByIdAndUpdate(conversationId, {
-      $pull: { participants: targetId, admins: targetId },
+      $pull: { participants: targetId, admins: targetId, blockedMembers: targetId },
     });
 
     const updated = await this.conversationModel.findById(conversationId).exec();
     if (!updated) throw new NotFoundException('Conversation not found.');
+    return updated;
+  }
+
+  async blockMember(
+    conversationId: string,
+    currentUserId: string,
+    targetUserId: string,
+  ): Promise<ConversationDocument> {
+    const conversation = await this.getConversation(conversationId, currentUserId);
+
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Cannot block members in private chats.');
+    }
+
+    const isAdmin = conversation.admins.some((a) =>
+      a.equals(new Types.ObjectId(currentUserId)),
+    );
+    if (!isAdmin) throw new ForbiddenException('Only admins can block members.');
+
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('You cannot block yourself.');
+    }
+
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      $addToSet: { blockedMembers: new Types.ObjectId(targetUserId) },
+    });
+
+    const updated = await this.conversationModel.findById(conversationId).exec();
+    if (!updated) throw new NotFoundException('Conversation not found.');
+
+    this.emitToAllParticipants(
+      updated.participants as Types.ObjectId[],
+      'chat:member:blocked',
+      { conversationId, userId: targetUserId },
+    );
+
+    return updated;
+  }
+
+  async unblockMember(
+    conversationId: string,
+    currentUserId: string,
+    targetUserId: string,
+  ): Promise<ConversationDocument> {
+    const conversation = await this.getConversation(conversationId, currentUserId);
+
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Cannot unblock members in private chats.');
+    }
+
+    const isAdmin = conversation.admins.some((a) =>
+      a.equals(new Types.ObjectId(currentUserId)),
+    );
+    if (!isAdmin) throw new ForbiddenException('Only admins can unblock members.');
+
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      $pull: { blockedMembers: new Types.ObjectId(targetUserId) },
+    });
+
+    const updated = await this.conversationModel.findById(conversationId).exec();
+    if (!updated) throw new NotFoundException('Conversation not found.');
+
+    this.emitToAllParticipants(
+      updated.participants as Types.ObjectId[],
+      'chat:member:unblocked',
+      { conversationId, userId: targetUserId },
+    );
+
     return updated;
   }
 
@@ -272,6 +348,13 @@ export class ChatService {
     dto: SendMessageDto,
   ): Promise<MessageDocument> {
     const conversation = await this.getConversation(conversationId, senderId);
+
+    const isBlocked = (conversation.blockedMembers ?? []).some((b) =>
+      b.equals(new Types.ObjectId(senderId)),
+    );
+    if (isBlocked) {
+      throw new ForbiddenException('You have been blocked in this conversation.');
+    }
 
     const message = await this.messageModel.create({
       conversationId: conversation._id,
