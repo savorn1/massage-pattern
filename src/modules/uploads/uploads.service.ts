@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { File, FileDocument } from '@/modules/shared/entities/file.entity';
 import { StorageService } from './storage.service';
@@ -12,6 +13,7 @@ export class UploadsService {
     @InjectModel(File.name)
     private readonly fileModel: Model<FileDocument>,
     private readonly storageService: StorageService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ─── Upload ───────────────────────────────────────────────────────────────
@@ -115,9 +117,10 @@ export class UploadsService {
   // ─── Helper ───────────────────────────────────────────────────────────────
 
   private getFolderByMime(mimeType: string): string {
-    if (mimeType.startsWith('image/')) return 'images';
-    if (mimeType.startsWith('video/')) return 'videos';
-    if (mimeType === 'application/pdf') return 'pdfs';
-    return 'documents';
+    const f = this.configService.get('s3.folders');
+    if (mimeType.startsWith('image/')) return f.images;
+    if (mimeType.startsWith('video/')) return f.videos;
+    if (mimeType.startsWith('audio/')) return f.audios;
+    return f.docs;
   }
 }

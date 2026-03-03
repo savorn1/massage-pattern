@@ -47,7 +47,7 @@ export class Message {
   })
   type: MessageType;
 
-  @Prop({ required: true })
+  @Prop({ default: '' })
   content: string;
 
   @Prop({ type: [Object], default: [] })

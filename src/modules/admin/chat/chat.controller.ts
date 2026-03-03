@@ -8,8 +8,11 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
@@ -97,14 +100,16 @@ export class ChatController {
 
   // ─── Messages ─────────────────────────────────────────────────────────────
 
-  /** Send a message to a conversation */
+  /** Send a message to a conversation (multipart/form-data, up to 5 files × 20 MB) */
   @Post('conversations/:id/messages')
+  @UseInterceptors(FilesInterceptor('files', 5, { limits: { fileSize: 20 * 1024 * 1024 } }))
   sendMessage(
     @Req() req,
     @Param('id') id: string,
     @Body() dto: SendMessageDto,
+    @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
-    return this.chatService.sendMessage(id, req.user.userId, dto);
+    return this.chatService.sendMessage(id, req.user.userId, dto, files);
   }
 
   /** Get messages for a conversation (newest first, paginated) */

@@ -12,6 +12,7 @@ import {
 } from '@/modules/shared/entities';
 import { AuthModule } from '../auth/auth.module';
 import { WebsocketModule } from '@/modules/messaging/websocket/websocket.module';
+import { UploadsModule } from '@/modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { WebsocketModule } from '@/modules/messaging/websocket/websocket.module'
     ]),
     AuthModule,
     WebsocketModule,
+    UploadsModule,
   ],
   controllers: [ChatController],
   providers: [ChatService],

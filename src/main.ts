@@ -2,6 +2,7 @@ import { LogLevel, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
@@ -21,6 +22,10 @@ async function bootstrap() {
   // Apply service log level from env (controls all Logger instances in services)
   const logLevel = process.env.LOG_LEVEL ?? 'log';
   app.useLogger(LOG_LEVEL_MAP[logLevel] ?? LOG_LEVEL_MAP['log']);
+
+  // Increase body-parser limits to support file upload requests (multipart pre-processing)
+  app.use(json({ limit: '100mb' }));
+  app.use(urlencoded({ extended: true, limit: '100mb' }));
 
   // Enable CORS for WebSocket connections
   app.enableCors({

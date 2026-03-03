@@ -8,6 +8,7 @@ import {
   ListObjectsV2Command,
   CreateBucketCommand,
   HeadBucketCommand,
+  PutBucketPolicyCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -134,6 +135,37 @@ export class StorageService implements OnModuleInit {
 
   // ─── Bucket management ────────────────────────────────────────────────────
 
+  async createBucket(bucket: string, publicRead = false): Promise<{ created: boolean; alreadyExists: boolean }> {
+    let alreadyExists = false;
+
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
+      alreadyExists = true;
+      this.logger.log(`[Storage] Bucket "${bucket}" already exists`);
+    } catch {
+      await this.client.send(new CreateBucketCommand({ Bucket: bucket }));
+      this.logger.log(`[Storage] Bucket "${bucket}" created`);
+    }
+
+    if (publicRead) {
+      await this.client.send(new PutBucketPolicyCommand({
+        Bucket: bucket,
+        Policy: JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [{
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${bucket}/*`],
+          }],
+        }),
+      }));
+      this.logger.log(`[Storage] Bucket "${bucket}" public read policy applied`);
+    }
+
+    return { created: !alreadyExists, alreadyExists };
+  }
+
   private async ensureBucketExists(): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
@@ -145,6 +177,24 @@ export class StorageService implements OnModuleInit {
       } catch (err: unknown) {
         this.logger.error(`[Storage] Failed to create bucket: ${(err as Error).message}`);
       }
+    }
+
+    try {
+      await this.client.send(new PutBucketPolicyCommand({
+        Bucket: this.bucket,
+        Policy: JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [{
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${this.bucket}/*`],
+          }],
+        }),
+      }));
+      this.logger.log(`[Storage] Bucket "${this.bucket}" public read policy applied`);
+    } catch (err: unknown) {
+      this.logger.error(`[Storage] Failed to set bucket policy: ${(err as Error).message}`);
     }
   }
 

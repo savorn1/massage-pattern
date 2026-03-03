@@ -17,6 +17,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
+import { UploadsService } from '@/modules/uploads/uploads.service';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @Injectable()
@@ -32,6 +33,7 @@ export class ChatService {
     private readonly userConversationModel: Model<UserConversationDocument>,
 
     private readonly wsGateway: WebsocketGateway,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -111,14 +113,14 @@ export class ChatService {
     });
 
     // Seed user_conversations for all participants
-    const userConvDocs = participantIds.map((uid) => ({
+    const userConversationDocs = participantIds.map((uid) => ({
       userId: uid,
       conversationId: conversation._id,
       unreadCount: 0,
       joinedAt: now,
       muted: false,
     }));
-    await this.userConversationModel.insertMany(userConvDocs);
+    await this.userConversationModel.insertMany(userConversationDocs);
 
     // Notify other participants they've been added to a new conversation
     this.emitToParticipants(
@@ -140,11 +142,11 @@ export class ChatService {
   }
 
   async getUserConversations(userId: string): Promise<ConversationDocument[]> {
-    const userConvs = await this.userConversationModel
+    const userConversations = await this.userConversationModel
       .find({ userId: new Types.ObjectId(userId) })
       .lean();
 
-    const conversationIds = userConvs.map((uc) => uc.conversationId);
+    const conversationIds = userConversations.map((uc) => uc.conversationId);
 
     return this.conversationModel
       .find({ _id: { $in: conversationIds } })
@@ -378,6 +380,7 @@ export class ChatService {
     conversationId: string,
     senderId: string,
     dto: SendMessageDto,
+    files: Express.Multer.File[] = [],
   ): Promise<MessageDocument> {
     const conversation = await this.getConversation(conversationId, senderId);
 
@@ -388,21 +391,50 @@ export class ChatService {
       throw new ForbiddenException('You have been blocked in this conversation.');
     }
 
+    if (!dto.content?.trim() && files.length === 0) {
+      throw new BadRequestException('Message must have content or at least one file.');
+    }
+
+    // Upload files to MinIO and build attachment list
+    const attachments = await Promise.all(
+      files.map((file) =>
+        this.uploadsService
+          .uploadFile(file.buffer, file.originalname, file.mimetype, senderId)
+          .then((saved) => ({
+            url: saved.url,
+            originalName: saved.originalName,
+            mimeType: saved.mimeType,
+            size: saved.size,
+          })),
+      ),
+    );
+
+    // Determine message type: prefer explicit, else infer from attachments
+    let type = dto.type ?? MessageType.TEXT;
+    if (files.length > 0 && !dto.type) {
+      type = files.every((f) => f.mimetype.startsWith('image/'))
+        ? MessageType.IMAGE
+        : MessageType.FILE;
+    }
+
     const message = await this.messageModel.create({
       conversationId: conversation._id,
       senderId: new Types.ObjectId(senderId),
-      type: dto.type ?? MessageType.TEXT,
-      content: dto.content,
+      type,
+      content: dto.content?.trim() ?? '',
+      attachments,
       replyTo: dto.replyTo ? new Types.ObjectId(dto.replyTo) : undefined,
       readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
     });
 
     // Update lastMessage snapshot on the conversation
+    const previewContent = dto.content?.trim()
+      || (attachments.length === 1 ? attachments[0].originalName : `${attachments.length} files`);
     await this.conversationModel.findByIdAndUpdate(conversationId, {
       lastMessage: {
         messageId: message._id,
         senderId: message.senderId,
-        content: message.content,
+        content: previewContent,
         createdAt: message.createdAt,
       },
     });
@@ -423,6 +455,7 @@ export class ChatService {
       senderId: (message.senderId as Types.ObjectId).toString(),
       type: message.type,
       content: message.content,
+      attachments: message.attachments,
       replyTo: message.replyTo
         ? (message.replyTo as Types.ObjectId).toString()
         : null,
