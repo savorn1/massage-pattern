@@ -4,7 +4,7 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto } from './dto';
+import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto, UpdateUiSettingsDto } from './dto';
 
 interface JwtPayload {
   sub: string;
@@ -185,6 +185,23 @@ export class AuthService {
   }
 
   /**
+   * Update current user's UI settings
+   */
+  async updateUiSettings(userId: string, dto: UpdateUiSettingsDto) {
+    const user = await this.usersService.updateUser(userId, {
+      uiSettings: dto,
+    } as Partial<UserDocument>);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return {
+      success: true,
+      data: this.sanitizeUser(user),
+      message: 'UI settings updated successfully',
+    };
+  }
+
+  /**
    * Generate access and refresh tokens
    */
   private async generateTokens(user: UserDocument) {
@@ -273,6 +290,7 @@ export class AuthService {
       points: user.points ?? 0,
       avatar: user.avatar,
       coverImage: user.coverImage,
+      uiSettings: user.uiSettings,
     };
   }
 }

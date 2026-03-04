@@ -58,6 +58,16 @@ export class User extends BaseEntity {
 
   @Prop({ type: Object })
   metadata?: Record<string, unknown>;
+
+  @Prop({ type: Object })
+  uiSettings?: {
+    theme?: string;
+    density?: string;
+    radius?: string;
+    cardStyle?: string;
+    reduceMotion?: boolean;
+    sidebarCollapsed?: boolean;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

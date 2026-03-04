@@ -16,7 +16,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto } from './dto';
+import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto, UpdateUiSettingsDto } from './dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
@@ -117,6 +117,20 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(currentUser.userId, dto);
+  }
+
+  @Patch('me/ui-settings')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update current user UI settings' })
+  @ApiResponse({ status: 200, description: 'UI settings updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateUiSettings(
+    @CurrentUser() currentUser: { userId: string },
+    @Body() dto: UpdateUiSettingsDto,
+  ) {
+    return this.authService.updateUiSettings(currentUser.userId, dto);
   }
 
   @Post('logout')
