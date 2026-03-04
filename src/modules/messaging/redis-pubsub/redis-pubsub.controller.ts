@@ -1,18 +1,18 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  Sse,
+  Controller,
+  Get,
   MessageEvent,
   Param,
+  Post,
   Query,
+  Sse,
 } from '@nestjs/common';
-import { RedisPubsubService } from './redis-pubsub.service';
-import { PublishDto, SubscribeDto } from './dto/publish.dto';
+import { EventEmitter } from 'events';
 import { Observable, fromEvent } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { EventEmitter } from 'events';
+import { PublishDto, SubscribeDto } from './dto/publish.dto';
+import { RedisPubsubService } from './redis-pubsub.service';
 
 @Controller('redis-pubsub')
 export class RedisPubsubController {

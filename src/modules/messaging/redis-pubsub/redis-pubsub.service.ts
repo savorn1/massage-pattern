@@ -51,7 +51,8 @@ export class RedisPubsubService implements OnModuleInit, OnModuleDestroy {
 
     // Handle incoming messages
     this.subscriber.on('message', (channel: string, message: string) => {
-      this.logger.log(`Received message on channel ${channel}: ${message}`);
+      //this.logger.log(`Received message on channel ${channel}: ${message}`);
+      this.logger.log(`Received message on channel ${channel}`);
       const callbacks = this.subscribers.get(channel);
       if (callbacks) {
         callbacks.forEach((callback) => callback(message));
@@ -65,7 +66,8 @@ export class RedisPubsubService implements OnModuleInit, OnModuleDestroy {
   }
 
   async publish(channel: string, message: string): Promise<number> {
-    this.logger.log(`Publishing to ${channel}: ${message}`);
+    //this.logger.log(`Publishing to ${channel}: ${message}`);
+    this.logger.log(`Publishing to ${channel}`);
     return await this.publisher.publish(channel, message);
   }
 
