@@ -119,6 +119,17 @@ export class AuthController {
     return this.authService.changePassword(currentUser.userId, dto);
   }
 
+  @Patch('me/deactivate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Deactivate current user account' })
+  @ApiResponse({ status: 200, description: 'Account deactivated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deactivateAccount(@CurrentUser() currentUser: { userId: string }) {
+    return this.authService.deactivateAccount(currentUser.userId);
+  }
+
   @Patch('me/ui-settings')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)

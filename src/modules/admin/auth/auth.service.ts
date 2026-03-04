@@ -185,6 +185,19 @@ export class AuthService {
   }
 
   /**
+   * Deactivate the current user's own account
+   */
+  async deactivateAccount(userId: string) {
+    const user = await this.usersService.updateUser(userId, {
+      isActive: false,
+    } as Partial<UserDocument>);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return { success: true, message: 'Account deactivated' };
+  }
+
+  /**
    * Update current user's UI settings
    */
   async updateUiSettings(userId: string, dto: UpdateUiSettingsDto) {
