@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import * as mongoose from 'mongoose';
+import { baseEntityPlugin } from './base/base-entity.plugin';
+
+// Register plugin globally — applies to every schema compiled in this process.
+// Must run before any MongooseModule.forFeature() calls register their schemas.
+mongoose.plugin(baseEntityPlugin);
 
 @Module({
   imports: [

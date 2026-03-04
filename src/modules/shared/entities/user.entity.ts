@@ -50,6 +50,12 @@ export class User extends BaseEntity {
   @Prop({ default: 0 })
   points: number;
 
+  @Prop()
+  avatar?: string;
+
+  @Prop()
+  coverImage?: string;
+
   @Prop({ type: Object })
   metadata?: Record<string, unknown>;
 }

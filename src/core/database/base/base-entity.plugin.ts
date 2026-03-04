@@ -1,48 +1,18 @@
 import { Schema } from 'mongoose';
 
 /**
- * Mongoose plugin to add base entity fields and behavior
- * Automatically adds audit trail fields and soft delete functionality
+ * Mongoose plugin that adds auto-timestamp hooks, soft-delete instance methods,
+ * and findActive/findDeleted static methods to every schema.
+ *
+ * Fields (createdAt, updatedAt, isDeleted, etc.) are declared via @Prop() in
+ * BaseEntity — this plugin adds the *behavior* on top.
+ *
+ * Registered globally in DatabaseModule so it applies to every schema.
  */
 export function baseEntityPlugin(schema: Schema): void {
-  // Add base entity fields
-  schema.add({
-    createdAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true, // Cannot be modified after creation
-    },
-    updatedAt: {
-      type: Date,
-      default: Date.now,
-    },
-    createdBy: {
-      type: String,
-      immutable: true, // Cannot be modified after creation
-    },
-    updatedBy: {
-      type: String,
-    },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true, // Index for efficient queries
-    },
-    deletedAt: {
-      type: Date,
-    },
-    deletedBy: {
-      type: String,
-    },
-  });
-
-  // Pre-save hook to update timestamp
-  schema.pre('save', function (next) {
-    this.updatedAt = new Date();
-    next();
-  });
-
-  // Pre-update hook to update timestamp
+  // ─── Auto-update updatedAt ──────────────────────────────────────────────
+  // `timestamps: true` on each @Schema handles save() / insertMany().
+  // These hooks cover the remaining Mongoose query operations.
   schema.pre('findOneAndUpdate', function (next) {
     this.set({ updatedAt: new Date() });
     next();
@@ -58,7 +28,8 @@ export function baseEntityPlugin(schema: Schema): void {
     next();
   });
 
-  // Add instance methods
+  // ─── Soft-delete instance methods ──────────────────────────────────────
+
   schema.methods.softDelete = function (
     this: {
       isDeleted: boolean;
@@ -86,7 +57,8 @@ export function baseEntityPlugin(schema: Schema): void {
     return this.save();
   };
 
-  // Add static methods for common queries
+  // ─── Static query helpers ───────────────────────────────────────────────
+
   schema.statics.findActive = function (
     this: {
       find: (filter: Record<string, unknown>) => unknown;

@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -15,7 +16,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto } from './dto';
+import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto } from './dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
@@ -88,6 +89,34 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@CurrentUser() currentUser: { userId: string }) {
     return this.authService.getProfile(currentUser.userId);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @CurrentUser() currentUser: { userId: string },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(currentUser.userId, dto);
+  }
+
+  @Patch('me/password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Current password is incorrect' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async changePassword(
+    @CurrentUser() currentUser: { userId: string },
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(currentUser.userId, dto);
   }
 
   @Post('logout')

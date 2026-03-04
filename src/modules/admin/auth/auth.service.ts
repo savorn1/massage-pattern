@@ -1,10 +1,10 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { UsersService } from '../users/users.service';
-import { LoginDto, RegisterDto } from './dto';
-import { UserDocument } from '@/modules/shared/entities';
 import { UserRole } from '@/common/constants/roles.constant';
+import { UserDocument } from '@/modules/shared/entities';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
+import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto } from './dto';
 
 interface JwtPayload {
   sub: string;
@@ -20,7 +20,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Validate user credentials
@@ -148,6 +148,43 @@ export class AuthService {
   }
 
   /**
+   * Update current user's own profile (name / email)
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.usersService.updateUser(userId, dto);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return {
+      success: true,
+      data: this.sanitizeUser(user),
+      message: 'Profile updated successfully',
+    };
+  }
+
+  /**
+   * Change current user's password
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await this.usersService.verifyPassword(user, dto.currentPassword);
+    if (!isValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    await this.usersService.updateUser(userId, { password: dto.newPassword });
+
+    return {
+      success: true,
+      message: 'Password changed successfully',
+    };
+  }
+
+  /**
    * Generate access and refresh tokens
    */
   private async generateTokens(user: UserDocument) {
@@ -234,6 +271,8 @@ export class AuthService {
       isEmailVerified: user.isEmailVerified,
       lastLogin: user.lastLogin,
       points: user.points ?? 0,
+      avatar: user.avatar,
+      coverImage: user.coverImage,
     };
   }
 }
