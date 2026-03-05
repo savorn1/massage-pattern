@@ -28,10 +28,17 @@ export class RegisterDto {
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 
-  @ApiProperty({
-    description: 'User name',
-    example: 'John Doe',
-  })
+  @ApiProperty({ description: 'First name', example: 'John' })
+  @IsString()
+  @IsNotEmpty({ message: 'First name is required' })
+  firstName: string;
+
+  @ApiProperty({ description: 'Last name', example: 'Doe' })
+  @IsString()
+  @IsNotEmpty({ message: 'Last name is required' })
+  lastName: string;
+
+  @ApiProperty({ description: 'Username / display name', example: 'johndoe' })
   @IsString()
   @IsNotEmpty({ message: 'Name is required' })
   name: string;

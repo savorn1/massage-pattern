@@ -16,6 +16,12 @@ export class User extends BaseEntity {
   @Prop({ required: true })
   password: string;
 
+  @Prop()
+  firstName?: string;
+
+  @Prop()
+  lastName?: string;
+
   @Prop({ required: true })
   name: string;
 

@@ -87,6 +87,8 @@ export class AuthService {
     const createUserData = {
       email: registerDto.email,
       password: registerDto.password,
+      firstName: registerDto.firstName,
+      lastName: registerDto.lastName,
       name: registerDto.name,
       role: registerDto.role || UserRole.ADMIN,
     };
