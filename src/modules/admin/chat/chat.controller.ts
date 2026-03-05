@@ -22,6 +22,14 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
+  // ─── Presence ─────────────────────────────────────────────────────────────
+
+  /** Returns the list of currently online userIds */
+  @Get('presence')
+  getOnlineUsers() {
+    return this.chatService.getOnlineUserIds();
+  }
+
   // ─── Conversations ────────────────────────────────────────────────────────
 
   /** Create a new private or group conversation */

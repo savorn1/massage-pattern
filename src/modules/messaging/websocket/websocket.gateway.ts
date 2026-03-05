@@ -18,6 +18,7 @@ import Redis from 'ioredis';
 
 interface ClientSession {
   username: string;
+  userId?: string;
   rooms: Set<string>;
   lastSeen: Date;
   reconnectionTimeout?: NodeJS.Timeout;
@@ -39,6 +40,8 @@ export class WebsocketGateway
 
   private logger: Logger = new Logger('WebsocketGateway');
   private connectedClients = new Map<string, ClientSession>();
+  /** userId → Set of active socketIds (supports multiple tabs/devices) */
+  private userSocketMap = new Map<string, Set<string>>();
   private reconnectionTimeout: number;
 
   constructor(private readonly configService: ConfigService) {
@@ -109,11 +112,24 @@ export class WebsocketGateway
         });
       } else {
         // New connection
+        const authUserId = client.handshake.auth?.userId as string | undefined;
         this.connectedClients.set(client.id, {
           username,
+          userId: authUserId,
           rooms: new Set(),
           lastSeen: new Date(),
         });
+
+        // Track userId → socketId for presence
+        if (authUserId) {
+          const sockets = this.userSocketMap.get(authUserId) ?? new Set<string>();
+          const wasOffline = sockets.size === 0;
+          sockets.add(client.id);
+          this.userSocketMap.set(authUserId, sockets);
+          if (wasOffline) {
+            this.server.emit('user:status', { userId: authUserId, online: true });
+          }
+        }
 
         this.logger.log(`Client connected: ${client.id} (${username})`);
 
@@ -200,6 +216,18 @@ export class WebsocketGateway
             });
 
             this.connectedClients.delete(client.id);
+
+            // Remove from presence map; emit offline if no more sockets
+            if (clientInfo.userId) {
+              const sockets = this.userSocketMap.get(clientInfo.userId);
+              if (sockets) {
+                sockets.delete(client.id);
+                if (sockets.size === 0) {
+                  this.userSocketMap.delete(clientInfo.userId);
+                  this.server.emit('user:status', { userId: clientInfo.userId, online: false });
+                }
+              }
+            }
 
             // Notify all clients about final disconnection
             this.server.emit('userDisconnected', {
@@ -470,6 +498,11 @@ export class WebsocketGateway
   broadcastToRoom(room: string, event: string, data: unknown): void {
     this.server.to(room).emit(event, data);
     this.logger.debug(`Broadcast → room "${room}" event "${event}"`);
+  }
+
+  /** Returns the list of userId strings currently connected */
+  getOnlineUserIds(): string[] {
+    return Array.from(this.userSocketMap.keys());
   }
 
   private getRoomMembers(

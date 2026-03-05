@@ -41,6 +41,12 @@ export class ChatService {
     private readonly usersService: UsersService,
   ) {}
 
+  // ─── Presence ─────────────────────────────────────────────────────────────
+
+  getOnlineUserIds(): string[] {
+    return this.wsGateway.getOnlineUserIds();
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   /** Emit an event to every participant's personal room (except the sender) */
