@@ -141,17 +141,26 @@ export class ChatService {
     return conversation;
   }
 
-  async getUserConversations(userId: string): Promise<ConversationDocument[]> {
+  async getUserConversations(userId: string) {
     const userConversations = await this.userConversationModel
       .find({ userId: new Types.ObjectId(userId) })
       .lean();
 
+    const unreadMap = new Map<string, number>(
+      userConversations.map((uc) => [uc.conversationId.toString(), uc.unreadCount ?? 0]),
+    );
+
     const conversationIds = userConversations.map((uc) => uc.conversationId);
 
-    return this.conversationModel
+    const conversations = await this.conversationModel
       .find({ _id: { $in: conversationIds } })
       .sort({ updatedAt: -1 })
-      .exec();
+      .lean();
+
+    return conversations.map((conv) => ({
+      ...conv,
+      unreadCount: unreadMap.get((conv._id as Types.ObjectId).toString()) ?? 0,
+    }));
   }
 
   async getConversation(
