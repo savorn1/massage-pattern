@@ -222,12 +222,14 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Cache-aside: results are cached in Redis for TASK_LIST_TTL seconds.
    * Any mutation (create / update / delete) calls delPattern to bust these keys.
    */
-  async getTasksByProject(projectId: string, skip = 0, limit = 10) {
-    const key = `tasks:project:${projectId}:${skip}:${limit}`;
+  async getTasksByProject(projectId: string, skip = 0, limit = 10, status?: TaskStatus) {
+    const key = `tasks:project:${projectId}:${status || 'all'}:${skip}:${limit}`;
+    const filter: Record<string, unknown> = { projectId: new Types.ObjectId(projectId) };
+    if (status) filter.status = status;
     return this.cacheService.getOrSet(
       key,
       () => this.findWithPagination(
-        { projectId: new Types.ObjectId(projectId) },
+        filter,
         { skip, limit },
         { order: 1, createdAt: -1 },
       ),

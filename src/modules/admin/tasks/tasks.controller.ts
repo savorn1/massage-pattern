@@ -101,12 +101,14 @@ export class TasksController {
   @ApiParam({ name: 'projectId', description: 'Project ID' })
   @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by task status' })
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getByProject(
     @Param('projectId') projectId: string,
     @Query('skip') skip?: string,
     @Query('limit') limit?: string,
+    @Query('status') status?: string,
   ) {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 10;
@@ -115,6 +117,7 @@ export class TasksController {
       projectId,
       skipNum,
       limitNum,
+      status as TaskStatus | undefined,
     );
 
     return {
