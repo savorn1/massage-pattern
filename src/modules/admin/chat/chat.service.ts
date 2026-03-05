@@ -18,6 +18,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 import { UploadsService } from '@/modules/uploads/uploads.service';
+import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
+import { UsersService } from '@/modules/admin/users/users.service';
+import { NotificationType } from '@/modules/shared/entities';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @Injectable()
@@ -34,6 +37,8 @@ export class ChatService {
 
     private readonly wsGateway: WebsocketGateway,
     private readonly uploadsService: UploadsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -137,6 +142,27 @@ export class ChatService {
         updatedAt: conversation.updatedAt,
       },
     );
+
+    // Send in-app notifications for group creation
+    if (dto.type === ConversationType.GROUP) {
+      const actor = await this.usersService.findById(currentUserId);
+      const actorName = actor?.name ?? 'Someone';
+      const convId = (conversation._id as Types.ObjectId).toString();
+
+      for (const uid of participantIds) {
+        if (uid.toString() === currentUserId) continue;
+        const recipientId = uid.toString();
+        const created = await this.notificationsService.create({
+          recipientId,
+          actorId: currentUserId,
+          conversationId: convId,
+          conversationName: conversation.name,
+          type: NotificationType.CHAT_GROUP_CREATED,
+          message: `${actorName} added you to the group "${conversation.name ?? 'Unnamed group'}"`,
+        });
+        this.wsGateway.broadcastToRoom(`user:${recipientId}`, 'notification:new', created);
+      }
+    }
 
     return conversation;
   }
@@ -272,6 +298,24 @@ export class ChatService {
         conversationId,
         userIds: newIds.map((n) => n.toString()),
       });
+    }
+
+    // Send in-app notifications to newly added members
+    const actor = await this.usersService.findById(currentUserId);
+    const actorName = actor?.name ?? 'Someone';
+    const groupName = updated.name ?? 'Unnamed group';
+
+    for (const uid of newIds) {
+      const recipientId = uid.toString();
+      const created = await this.notificationsService.create({
+        recipientId,
+        actorId: currentUserId,
+        conversationId,
+        conversationName: updated.name,
+        type: NotificationType.CHAT_MEMBER_ADDED,
+        message: `${actorName} added you to the group "${groupName}"`,
+      });
+      this.wsGateway.broadcastToRoom(`user:${recipientId}`, 'notification:new', created);
     }
 
     return updated;

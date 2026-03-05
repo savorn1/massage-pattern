@@ -12,6 +12,8 @@ export interface CreateNotificationDto {
   actorId?: string;
   taskId?: string;
   taskTitle?: string;
+  conversationId?: string;
+  conversationName?: string;
   type: NotificationType;
   message: string;
 }
@@ -31,6 +33,8 @@ export class NotificationsService {
       actorId: dto.actorId ? new Types.ObjectId(dto.actorId) : undefined,
       taskId: dto.taskId ? new Types.ObjectId(dto.taskId) : undefined,
       taskTitle: dto.taskTitle,
+      conversationId: dto.conversationId ? new Types.ObjectId(dto.conversationId) : undefined,
+      conversationName: dto.conversationName,
       type: dto.type,
       message: dto.message,
       isRead: false,

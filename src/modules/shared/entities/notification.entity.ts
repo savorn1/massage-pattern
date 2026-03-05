@@ -4,9 +4,11 @@ import { Document, Types } from 'mongoose';
 export type NotificationDocument = Notification & Document;
 
 export enum NotificationType {
-  MENTIONED       = 'mentioned',
-  ASSIGNED        = 'assigned',
-  TASK_COMPLETED  = 'task_completed',
+  MENTIONED          = 'mentioned',
+  ASSIGNED           = 'assigned',
+  TASK_COMPLETED     = 'task_completed',
+  CHAT_GROUP_CREATED = 'chat_group_created',
+  CHAT_MEMBER_ADDED  = 'chat_member_added',
 }
 
 @Schema({ collection: 'notifications', timestamps: true })
@@ -22,6 +24,12 @@ export class Notification {
 
   @Prop()
   taskTitle?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  conversationId?: Types.ObjectId;
+
+  @Prop()
+  conversationName?: string;
 
   @Prop({ type: String, enum: Object.values(NotificationType), required: true })
   type: NotificationType;

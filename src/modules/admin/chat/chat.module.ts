@@ -11,6 +11,8 @@ import {
   UserConversationSchema,
 } from '@/modules/shared/entities';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '@/modules/messaging/websocket/websocket.module';
 import { UploadsModule } from '@/modules/uploads/uploads.module';
 
@@ -22,6 +24,8 @@ import { UploadsModule } from '@/modules/uploads/uploads.module';
       { name: UserConversation.name, schema: UserConversationSchema },
     ]),
     AuthModule,
+    NotificationsModule,
+    UsersModule,
     WebsocketModule,
     UploadsModule,
   ],
