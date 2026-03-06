@@ -142,6 +142,16 @@ export class ChatController {
     return { ok: true };
   }
 
+  /** Edit message content (sender only) */
+  @Patch('messages/:messageId')
+  editMessage(
+    @Req() req,
+    @Param('messageId') messageId: string,
+    @Body('content') content: string,
+  ) {
+    return this.chatService.editMessage(messageId, req.user.userId, content);
+  }
+
   /** Soft-delete a message (sender only) */
   @Delete('messages/:messageId')
   deleteMessage(@Req() req, @Param('messageId') messageId: string) {

@@ -585,6 +585,44 @@ export class ChatService {
     );
   }
 
+  async editMessage(
+    messageId: string,
+    userId: string,
+    content: string,
+  ): Promise<MessageDocument> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message) throw new NotFoundException('Message not found.');
+    if (!message.senderId.equals(new Types.ObjectId(userId))) {
+      throw new ForbiddenException('You can only edit your own messages.');
+    }
+    if (message.isDeleted) {
+      throw new BadRequestException('Cannot edit a deleted message.');
+    }
+
+    const updated = await this.messageModel.findByIdAndUpdate(
+      messageId,
+      { content: content.trim(), editedAt: new Date() },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Message not found.');
+
+    const conversation = await this.conversationModel.findById(updated.conversationId);
+    if (conversation) {
+      this.emitToAllParticipants(
+        conversation.participants as Types.ObjectId[],
+        'chat:message:edited',
+        {
+          messageId: (updated._id as Types.ObjectId).toString(),
+          conversationId: (updated.conversationId as Types.ObjectId).toString(),
+          content: updated.content,
+          editedAt: updated.editedAt,
+        },
+      );
+    }
+
+    return updated;
+  }
+
   async deleteMessage(
     messageId: string,
     userId: string,

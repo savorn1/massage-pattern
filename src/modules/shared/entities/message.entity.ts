@@ -66,6 +66,9 @@ export class Message {
   @Prop()
   deletedAt?: Date;
 
+  @Prop()
+  editedAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
