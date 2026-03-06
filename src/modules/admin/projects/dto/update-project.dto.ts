@@ -28,6 +28,11 @@ export class UpdateProjectDto {
   @IsOptional()
   priority?: ProjectPriority;
 
+  @ApiPropertyOptional({ description: 'Project cover image URL', example: 'https://...' })
+  @IsString()
+  @IsOptional()
+  coverImage?: string;
+
   @ApiPropertyOptional({ description: 'Project start date', example: '2024-01-15' })
   @IsDateString()
   @IsOptional()

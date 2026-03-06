@@ -29,6 +29,9 @@ export class Project {
   @Prop()
   description?: string;
 
+  @Prop()
+  coverImage?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   ownerId: Types.ObjectId;
 
