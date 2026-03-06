@@ -1,3 +1,6 @@
+import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
+import { UsersService } from '@/modules/admin/users/users.service';
+import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 import {
   Conversation,
   ConversationDocument,
@@ -5,9 +8,11 @@ import {
   Message,
   MessageDocument,
   MessageType,
+  NotificationType,
   UserConversation,
   UserConversationDocument,
 } from '@/modules/shared/entities';
+import { UploadsService } from '@/modules/uploads/uploads.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,11 +21,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
-import { UploadsService } from '@/modules/uploads/uploads.service';
-import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
-import { UsersService } from '@/modules/admin/users/users.service';
-import { NotificationType } from '@/modules/shared/entities';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @Injectable()
@@ -39,7 +39,7 @@ export class ChatService {
     private readonly uploadsService: UploadsService,
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   // ─── Presence ─────────────────────────────────────────────────────────────
 
@@ -657,5 +657,125 @@ export class ChatService {
     }
 
     return deleted;
+  }
+
+  // ── Reactions ──────────────────────────────────────────────────────────────
+
+  async toggleReaction(
+    messageId: string,
+    userId: string,
+    emoji: string,
+  ): Promise<MessageDocument> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message) throw new NotFoundException('Message not found.');
+    if (message.isDeleted) throw new BadRequestException('Cannot react to a deleted message.');
+
+    const userObjId = new Types.ObjectId(userId);
+    const reactions = (message.reactions ?? []) as Array<{ emoji: string; userId: Types.ObjectId }>;
+    const existing = reactions.findIndex(
+      (r) => r.emoji === emoji && r.userId.equals(userObjId),
+    );
+
+    let updated: MessageDocument | null;
+    if (existing !== -1) {
+      // Remove reaction
+      updated = await this.messageModel.findByIdAndUpdate(
+        messageId,
+        { $pull: { reactions: { emoji, userId: userObjId } } },
+        { new: true },
+      );
+    } else {
+      // Add reaction
+      updated = await this.messageModel.findByIdAndUpdate(
+        messageId,
+        { $push: { reactions: { emoji, userId: userObjId } } },
+        { new: true },
+      );
+    }
+    if (!updated) throw new NotFoundException('Message not found.');
+
+    const conversation = await this.conversationModel.findById(updated.conversationId);
+    if (conversation) {
+      this.emitToAllParticipants(
+        conversation.participants as Types.ObjectId[],
+        'chat:message:reaction',
+        {
+          messageId: (updated._id as Types.ObjectId).toString(),
+          conversationId: (updated.conversationId as Types.ObjectId).toString(),
+          reactions: (updated.reactions ?? []).map((r: any) => ({
+            emoji: r.emoji,
+            userId: r.userId.toString(),
+          })),
+        },
+      );
+    }
+    return updated;
+  }
+
+  // ── Pinned messages ────────────────────────────────────────────────────────
+
+  async pinMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ): Promise<ConversationDocument> {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) throw new NotFoundException('Conversation not found.');
+
+    const message = await this.messageModel.findById(messageId);
+    if (!message || message.isDeleted) throw new NotFoundException('Message not found.');
+
+    const already = (conversation.pinnedMessages ?? []).some(
+      (p: any) => p.messageId.toString() === messageId,
+    );
+    if (already) return conversation as ConversationDocument;
+
+    const pinEntry = {
+      messageId: new Types.ObjectId(messageId),
+      pinnedBy: new Types.ObjectId(userId),
+      pinnedAt: new Date(),
+      content: message.content,
+    };
+
+    const updated = await this.conversationModel.findByIdAndUpdate(
+      conversationId,
+      { $push: { pinnedMessages: pinEntry } },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Conversation not found.');
+
+    this.emitToAllParticipants(
+      updated.participants as Types.ObjectId[],
+      'chat:message:pinned',
+      {
+        conversationId,
+        pinnedMessage: {
+          messageId,
+          pinnedBy: userId,
+          pinnedAt: pinEntry.pinnedAt,
+          content: pinEntry.content,
+        },
+      },
+    );
+    return updated as ConversationDocument;
+  }
+
+  async unpinMessage(
+    conversationId: string,
+    messageId: string,
+  ): Promise<ConversationDocument> {
+    const updated = await this.conversationModel.findByIdAndUpdate(
+      conversationId,
+      { $pull: { pinnedMessages: { messageId: new Types.ObjectId(messageId) } } },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Conversation not found.');
+
+    this.emitToAllParticipants(
+      updated.participants as Types.ObjectId[],
+      'chat:message:unpinned',
+      { conversationId, messageId },
+    );
+    return updated as ConversationDocument;
   }
 }

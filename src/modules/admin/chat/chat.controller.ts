@@ -157,4 +157,33 @@ export class ChatController {
   deleteMessage(@Req() req, @Param('messageId') messageId: string) {
     return this.chatService.deleteMessage(messageId, req.user.userId);
   }
+
+  /** Toggle emoji reaction on a message */
+  @Post('messages/:messageId/reactions')
+  toggleReaction(
+    @Req() req,
+    @Param('messageId') messageId: string,
+    @Body('emoji') emoji: string,
+  ) {
+    return this.chatService.toggleReaction(messageId, req.user.userId, emoji);
+  }
+
+  /** Pin a message in a conversation */
+  @Post('conversations/:id/pin/:messageId')
+  pinMessage(
+    @Req() req,
+    @Param('id') conversationId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.chatService.pinMessage(conversationId, messageId, req.user.userId);
+  }
+
+  /** Unpin a message from a conversation */
+  @Delete('conversations/:id/pin/:messageId')
+  unpinMessage(
+    @Param('id') conversationId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.chatService.unpinMessage(conversationId, messageId);
+  }
 }
