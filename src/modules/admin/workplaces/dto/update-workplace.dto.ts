@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
 import { WorkplacePlan, WorkplaceStatus } from '@/modules/shared/entities';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString, IsUrl, MaxLength, ValidateIf } from 'class-validator';
 
 export class UpdateWorkplaceDto {
   @ApiPropertyOptional({ description: 'Workplace name', example: 'Acme Corp' })
@@ -24,4 +24,10 @@ export class UpdateWorkplaceDto {
   @IsEnum(WorkplaceStatus)
   @IsOptional()
   status?: WorkplaceStatus;
+
+  @ApiPropertyOptional({ description: 'Workplace cover image URL', example: 'https://...' })
+  @ValidateIf(o => o.coverImage !== undefined && o.coverImage !== '')
+  @IsUrl({ require_tld: false })
+  @IsOptional()
+  coverImage?: string;
 }

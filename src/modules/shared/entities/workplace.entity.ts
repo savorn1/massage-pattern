@@ -22,6 +22,10 @@ export class Workplace {
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   slug: string;
 
+  /** Optional hero/cover banner image URL */
+  @Prop()
+  coverImage?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   ownerId: Types.ObjectId;
 
