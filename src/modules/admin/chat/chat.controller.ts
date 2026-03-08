@@ -186,4 +186,51 @@ export class ChatController {
   ) {
     return this.chatService.unpinMessage(conversationId, messageId);
   }
+
+  /** Mute or unmute a conversation for the current user */
+  @Post('conversations/:id/mute')
+  async muteConversation(
+    @Req() req,
+    @Param('id') id: string,
+    @Body('mute') mute: boolean,
+  ) {
+    await this.chatService.muteConversation(id, req.user.userId, mute);
+    return { ok: true, muted: mute };
+  }
+
+  /** Get the thread (root message + all direct replies) for a message */
+  @Get('conversations/:id/messages/:messageId/thread')
+  getThreadMessages(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.chatService.getThreadMessages(id, messageId, req.user.userId);
+  }
+
+  /** Star a message */
+  @Post('messages/:messageId/star')
+  async starMessage(@Req() req, @Param('messageId') messageId: string) {
+    await this.chatService.starMessage(req.user.userId, messageId);
+    return { ok: true };
+  }
+
+  /** Unstar a message */
+  @Delete('messages/:messageId/star')
+  async unstarMessage(@Req() req, @Param('messageId') messageId: string) {
+    await this.chatService.unstarMessage(req.user.userId, messageId);
+    return { ok: true };
+  }
+
+  /** Get all starred messages for the current user */
+  @Get('starred')
+  getStarredMessages(@Req() req) {
+    return this.chatService.getStarredMessages(req.user.userId);
+  }
+
+  /** Fetch OG/meta link preview for a URL */
+  @Get('link-preview')
+  getLinkPreview(@Query('url') url: string) {
+    return this.chatService.getLinkPreview(url);
+  }
 }

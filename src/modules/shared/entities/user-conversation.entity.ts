@@ -24,6 +24,9 @@ export class UserConversation {
   @Prop({ default: false })
   muted: boolean;
 
+  @Prop({ type: [Types.ObjectId], ref: 'Message', default: [] })
+  starredMessageIds: Types.ObjectId[];
+
   createdAt: Date;
   updatedAt: Date;
 }

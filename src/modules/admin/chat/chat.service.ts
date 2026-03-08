@@ -1,3 +1,6 @@
+import * as http from 'http';
+import * as https from 'https';
+import { URL } from 'url';
 import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
 import { UsersService } from '@/modules/admin/users/users.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
@@ -178,8 +181,11 @@ export class ChatService {
       .find({ userId: new Types.ObjectId(userId) })
       .lean();
 
-    const unreadMap = new Map<string, number>(
-      userConversations.map((uc) => [uc.conversationId.toString(), uc.unreadCount ?? 0]),
+    const ucMap = new Map<string, { unreadCount: number; muted: boolean; lastReadMessageId?: Types.ObjectId }>(
+      userConversations.map((uc) => [
+        uc.conversationId.toString(),
+        { unreadCount: uc.unreadCount ?? 0, muted: uc.muted ?? false, lastReadMessageId: uc.lastReadMessageId },
+      ]),
     );
 
     const conversationIds = userConversations.map((uc) => uc.conversationId);
@@ -189,10 +195,179 @@ export class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
-    return conversations.map((conv) => ({
-      ...conv,
-      unreadCount: unreadMap.get((conv._id as Types.ObjectId).toString()) ?? 0,
+    return conversations.map((conv) => {
+      const uc = ucMap.get((conv._id as Types.ObjectId).toString());
+      return {
+        ...conv,
+        unreadCount: uc?.unreadCount ?? 0,
+        muted: uc?.muted ?? false,
+        lastReadMessageId: uc?.lastReadMessageId?.toString() ?? null,
+      };
+    });
+  }
+
+  // ─── Starred messages ──────────────────────────────────────────────────────
+
+  async starMessage(userId: string, messageId: string): Promise<void> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message || message.isDeleted) throw new NotFoundException('Message not found.');
+
+    await this.userConversationModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        conversationId: message.conversationId,
+      },
+      { $addToSet: { starredMessageIds: new Types.ObjectId(messageId) } },
+    );
+  }
+
+  async unstarMessage(userId: string, messageId: string): Promise<void> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message) throw new NotFoundException('Message not found.');
+
+    await this.userConversationModel.updateOne(
+      {
+        userId: new Types.ObjectId(userId),
+        conversationId: message.conversationId,
+      },
+      { $pull: { starredMessageIds: new Types.ObjectId(messageId) } },
+    );
+  }
+
+  async getStarredMessages(userId: string): Promise<{ message: MessageDocument; conversationId: string }[]> {
+    const userConversations = await this.userConversationModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        'starredMessageIds.0': { $exists: true },
+      })
+      .lean();
+
+    const allStarredIds = userConversations.flatMap((uc) =>
+      (uc.starredMessageIds ?? []).map((id) => ({
+        id,
+        conversationId: uc.conversationId.toString(),
+      })),
+    );
+
+    if (allStarredIds.length === 0) return [];
+
+    const messages = await this.messageModel
+      .find({ _id: { $in: allStarredIds.map((s) => s.id) }, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    const convMap = new Map(allStarredIds.map((s) => [s.id.toString(), s.conversationId]));
+
+    return messages.map((msg) => ({
+      message: msg,
+      conversationId: convMap.get((msg._id as Types.ObjectId).toString()) ?? '',
     }));
+  }
+
+  async getStarredMessageIds(userId: string, conversationId: string): Promise<string[]> {
+    const uc = await this.userConversationModel
+      .findOne({ userId: new Types.ObjectId(userId), conversationId: new Types.ObjectId(conversationId) })
+      .lean();
+    return (uc?.starredMessageIds ?? []).map((id) => id.toString());
+  }
+
+  // ─── Link preview ──────────────────────────────────────────────────────────
+
+  async getLinkPreview(rawUrl: string): Promise<{
+    url: string;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    siteName: string | null;
+  }> {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new BadRequestException('Only http/https URLs are supported.');
+      }
+    } catch {
+      throw new BadRequestException('Invalid URL.');
+    }
+
+    const html = await this.fetchHtml(rawUrl);
+
+    const og = (prop: string) =>
+      html.match(new RegExp(`<meta[^>]+property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ??
+      html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'))?.[1] ??
+      null;
+
+    const title =
+      og('title') ??
+      html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ??
+      null;
+
+    return {
+      url: rawUrl,
+      title,
+      description: og('description') ??
+        html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? null,
+      image: og('image') ?? null,
+      siteName: og('site_name') ?? parsed.hostname,
+    };
+  }
+
+  private fetchHtml(url: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const client = url.startsWith('https') ? https : http;
+      const req = client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LinkPreviewBot/1.0)' } }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          this.fetchHtml(res.headers.location).then(resolve).catch(reject);
+          return;
+        }
+        let data = '';
+        res.on('data', (chunk: string) => {
+          data += chunk;
+          if (data.length > 100_000) { req.destroy(); resolve(data); }
+        });
+        res.on('end', () => resolve(data));
+        res.on('error', reject);
+      });
+      req.setTimeout(5000, () => { req.destroy(); reject(new Error('Timeout')); });
+      req.on('error', reject);
+    });
+  }
+
+  async muteConversation(
+    conversationId: string,
+    userId: string,
+    mute: boolean,
+  ): Promise<void> {
+    await this.getConversation(conversationId, userId);
+    await this.userConversationModel.updateOne(
+      { userId: new Types.ObjectId(userId), conversationId: new Types.ObjectId(conversationId) },
+      { muted: mute },
+    );
+  }
+
+  async getThreadMessages(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ): Promise<{ root: MessageDocument | null; replies: MessageDocument[] }> {
+    await this.getConversation(conversationId, userId);
+
+    const [root, replies] = await Promise.all([
+      this.messageModel.findOne({
+        _id: new Types.ObjectId(messageId),
+        conversationId: new Types.ObjectId(conversationId),
+      }).exec(),
+      this.messageModel
+        .find({
+          conversationId: new Types.ObjectId(conversationId),
+          replyTo: new Types.ObjectId(messageId),
+          isDeleted: false,
+        })
+        .sort({ createdAt: 1 })
+        .exec(),
+    ]);
+
+    return { root, replies };
   }
 
   async getConversation(
@@ -564,7 +739,7 @@ export class ChatService {
     userId: string,
     messageId: string,
   ): Promise<void> {
-    await this.getConversation(conversationId, userId);
+    const conversation = await this.getConversation(conversationId, userId);
 
     const userObjId = new Types.ObjectId(userId);
     const messageObjId = new Types.ObjectId(messageId);
@@ -582,6 +757,19 @@ export class ChatService {
     await this.userConversationModel.updateOne(
       { userId: userObjId, conversationId: new Types.ObjectId(conversationId) },
       { lastReadMessageId: messageObjId, unreadCount: 0 },
+    );
+
+    // Notify other participants (especially the sender) that this message was read
+    this.emitToParticipants(
+      conversation.participants as Types.ObjectId[],
+      userId,
+      'chat:message:readBy',
+      {
+        conversationId,
+        messageId,
+        userId,
+        readAt: now.toISOString(),
+      },
     );
   }
 
