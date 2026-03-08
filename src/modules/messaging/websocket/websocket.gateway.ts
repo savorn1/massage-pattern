@@ -43,6 +43,8 @@ export class WebsocketGateway
   /** userId → Set of active socketIds (supports multiple tabs/devices) */
   private userSocketMap = new Map<string, Set<string>>();
   private reconnectionTimeout: number;
+  /** userId → custom status { emoji, text } */
+  private customStatusMap = new Map<string, { emoji: string; text: string }>();
 
   constructor(private readonly configService: ConfigService) {
     // Get reconnection timeout from env, default to 30 seconds
@@ -492,6 +494,28 @@ export class WebsocketGateway
     const session = this.connectedClients.get(client.id);
     if (session) session.rooms.delete(room);
     return { left: room };
+  }
+
+  /** Set a custom presence status and broadcast to everyone online */
+  @SubscribeMessage('user:setStatus')
+  handleSetStatus(
+    @MessageBody() data: { emoji: string; text: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const session = this.connectedClients.get(client.id);
+    const userId = session?.userId;
+    if (!userId) return { ok: false };
+
+    const status = { emoji: data.emoji ?? '', text: data.text ?? '' };
+    this.customStatusMap.set(userId, status);
+    // Broadcast to all connected clients
+    this.server.emit('user:customStatus', { userId, ...status });
+    return { ok: true };
+  }
+
+  /** Return the current custom-status map so clients can seed on connect */
+  getCustomStatuses(): Record<string, { emoji: string; text: string }> {
+    return Object.fromEntries(this.customStatusMap);
   }
 
   /** Emit a named event to all clients in a room (called by server-side listeners) */

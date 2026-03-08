@@ -1,6 +1,3 @@
-import * as http from 'http';
-import * as https from 'https';
-import { URL } from 'url';
 import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
 import { UsersService } from '@/modules/admin/users/users.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
@@ -23,7 +20,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import * as http from 'http';
+import * as https from 'https';
 import { Model, Types } from 'mongoose';
+import { URL } from 'url';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @Injectable()
@@ -57,7 +57,7 @@ export class ChatService {
     participants: Types.ObjectId[],
     excludeSenderId: string,
     event: string,
-    payload: Record<string, unknown>,
+    payload: unknown,
   ): void {
     const senderObjId = new Types.ObjectId(excludeSenderId);
     for (const participantId of participants) {
@@ -75,7 +75,7 @@ export class ChatService {
   private emitToAllParticipants(
     participants: Types.ObjectId[],
     event: string,
-    payload: Record<string, unknown>,
+    payload: unknown,
   ): void {
     for (const participantId of participants) {
       this.wsGateway.broadcastToRoom(
@@ -177,14 +177,23 @@ export class ChatService {
   }
 
   async getUserConversations(userId: string) {
+    // Only non-archived conversations
     const userConversations = await this.userConversationModel
-      .find({ userId: new Types.ObjectId(userId) })
+      .find({ userId: new Types.ObjectId(userId), archived: { $ne: true } })
       .lean();
 
-    const ucMap = new Map<string, { unreadCount: number; muted: boolean; lastReadMessageId?: Types.ObjectId }>(
+    const ucMap = new Map<
+      string,
+      { unreadCount: number; muted: boolean; lastReadMessageId?: Types.ObjectId; archived: boolean }
+    >(
       userConversations.map((uc) => [
         uc.conversationId.toString(),
-        { unreadCount: uc.unreadCount ?? 0, muted: uc.muted ?? false, lastReadMessageId: uc.lastReadMessageId },
+        {
+          unreadCount: uc.unreadCount ?? 0,
+          muted: uc.muted ?? false,
+          lastReadMessageId: uc.lastReadMessageId,
+          archived: uc.archived ?? false,
+        },
       ]),
     );
 
@@ -201,9 +210,39 @@ export class ChatService {
         ...conv,
         unreadCount: uc?.unreadCount ?? 0,
         muted: uc?.muted ?? false,
+        archived: uc?.archived ?? false,
         lastReadMessageId: uc?.lastReadMessageId?.toString() ?? null,
       };
     });
+  }
+
+  async getArchivedConversations(userId: string) {
+    const userConversations = await this.userConversationModel
+      .find({ userId: new Types.ObjectId(userId), archived: true })
+      .lean();
+
+    const conversationIds = userConversations.map((uc) => uc.conversationId);
+
+    const conversations = await this.conversationModel
+      .find({ _id: { $in: conversationIds } })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    return conversations.map((conv) => ({
+      ...conv,
+      archived: true,
+      unreadCount: 0,
+      muted: userConversations.find((uc) => uc.conversationId.toString() === (conv._id as Types.ObjectId).toString())?.muted ?? false,
+      lastReadMessageId: null,
+    }));
+  }
+
+  async archiveConversation(userId: string, conversationId: string, archive: boolean): Promise<void> {
+    await this.userConversationModel.updateOne(
+      { userId: new Types.ObjectId(userId), conversationId: new Types.ObjectId(conversationId) },
+      { $set: { archived: archive } },
+      { upsert: true },
+    );
   }
 
   // ─── Starred messages ──────────────────────────────────────────────────────
@@ -341,7 +380,8 @@ export class ChatService {
     await this.getConversation(conversationId, userId);
     await this.userConversationModel.updateOne(
       { userId: new Types.ObjectId(userId), conversationId: new Types.ObjectId(conversationId) },
-      { muted: mute },
+      { $set: { muted: mute } },
+      { upsert: true },
     );
   }
 
@@ -651,6 +691,13 @@ export class ChatService {
         : MessageType.FILE;
     }
 
+    // Compute expiresAt if conversation has disappearing messages enabled
+    const dm = conversation.disappearingMessages as { enabled?: boolean; ttl?: number } | undefined;
+    const expiresAt =
+      dm?.enabled && dm.ttl
+        ? new Date(Date.now() + dm.ttl * 1000)
+        : undefined;
+
     const message = await this.messageModel.create({
       conversationId: conversation._id,
       senderId: new Types.ObjectId(senderId),
@@ -659,6 +706,7 @@ export class ChatService {
       attachments,
       replyTo: dto.replyTo ? new Types.ObjectId(dto.replyTo) : undefined,
       readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
+      ...(expiresAt ? { expiresAt } : {}),
     });
 
     // Update lastMessage snapshot on the conversation
@@ -756,7 +804,8 @@ export class ChatService {
 
     await this.userConversationModel.updateOne(
       { userId: userObjId, conversationId: new Types.ObjectId(conversationId) },
-      { lastReadMessageId: messageObjId, unreadCount: 0 },
+      { $set: { lastReadMessageId: messageObjId, unreadCount: 0 } },
+      { upsert: true },
     );
 
     // Notify other participants (especially the sender) that this message was read
@@ -946,6 +995,150 @@ export class ChatService {
       },
     );
     return updated as ConversationDocument;
+  }
+
+  /** Full-text search across all conversations the user belongs to. */
+  async searchMessages(
+    userId: string,
+    query: string,
+    limit = 30,
+  ): Promise<{ message: MessageDocument; conversationId: string }[]> {
+    if (!query?.trim()) return [];
+
+    // Get conversation IDs the user participates in
+    const userConvs = await this.userConversationModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .select('conversationId')
+      .lean();
+    const convIds = userConvs.map((uc) => uc.conversationId);
+
+    const messages = await this.messageModel
+      .find({
+        conversationId: { $in: convIds },
+        isDeleted: false,
+        content: { $regex: query.trim(), $options: 'i' },
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return messages.map((m) => ({
+      message: m as unknown as MessageDocument,
+      conversationId: (m.conversationId as Types.ObjectId).toString(),
+    }));
+  }
+
+  // ─── Disappearing messages ──────────────────────────────────────────────────
+
+  async setDisappearingMessages(
+    conversationId: string,
+    userId: string,
+    enabled: boolean,
+    ttl: number,
+  ): Promise<ConversationDocument> {
+    const conv = await this.getConversation(conversationId, userId);
+    const updated = await this.conversationModel.findByIdAndUpdate(
+      conv._id,
+      { $set: { disappearingMessages: { enabled, ttl } } },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Conversation not found.');
+    this.emitToAllParticipants(
+      updated.participants as Types.ObjectId[],
+      'chat:conversation:disappearing',
+      { conversationId, enabled, ttl },
+    );
+    return updated as ConversationDocument;
+  }
+
+  // ─── Polls ──────────────────────────────────────────────────────────────────
+
+  async createPoll(
+    conversationId: string,
+    senderId: string,
+    question: string,
+    options: string[],
+  ): Promise<MessageDocument> {
+    const conversation = await this.getConversation(conversationId, senderId);
+
+    const dm = conversation.disappearingMessages as { enabled?: boolean; ttl?: number } | undefined;
+    const expiresAt = dm?.enabled && dm.ttl ? new Date(Date.now() + dm.ttl * 1000) : undefined;
+
+    const message = await this.messageModel.create({
+      conversationId: conversation._id,
+      senderId: new Types.ObjectId(senderId),
+      type: 'poll',
+      content: question,
+      attachments: [],
+      readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
+      poll: { question, options: options.map((text) => ({ text, votes: [] })) },
+      ...(expiresAt ? { expiresAt } : {}),
+    });
+
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      lastMessage: {
+        messageId: message._id,
+        senderId: message.senderId,
+        content: `📊 ${question}`,
+        createdAt: message.createdAt,
+      },
+    });
+
+    await this.userConversationModel.updateMany(
+      { conversationId: conversation._id, userId: { $ne: new Types.ObjectId(senderId) } },
+      { $inc: { unreadCount: 1 } },
+    );
+
+    this.emitToAllParticipants(
+      conversation.participants as Types.ObjectId[],
+      'chat:message:new',
+      message.toObject(),
+    );
+
+    return message as MessageDocument;
+  }
+
+  async votePoll(
+    messageId: string,
+    userId: string,
+    optionIndex: number,
+  ): Promise<MessageDocument> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message || message.isDeleted) throw new NotFoundException('Message not found.');
+    if (message.type !== 'poll' || !message.poll) throw new BadRequestException('Not a poll message.');
+
+    const options = message.poll.options as Array<{ text: string; votes: Types.ObjectId[] }>;
+    if (optionIndex < 0 || optionIndex >= options.length) {
+      throw new BadRequestException('Invalid option index.');
+    }
+
+    const uid = new Types.ObjectId(userId);
+
+    // Remove previous vote from all options, then add to chosen
+    const updatedOptions = options.map((opt, i) => ({
+      text: opt.text,
+      votes: opt.votes
+        .filter((v) => !v.equals(uid))
+        .concat(i === optionIndex ? [uid] : []),
+    }));
+
+    const updated = await this.messageModel.findByIdAndUpdate(
+      messageId,
+      { $set: { 'poll.options': updatedOptions } },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Message not found.');
+
+    const conversation = await this.conversationModel.findById(message.conversationId);
+    if (conversation) {
+      this.emitToAllParticipants(
+        conversation.participants as Types.ObjectId[],
+        'chat:poll:updated',
+        { messageId, poll: updated.poll },
+      );
+    }
+
+    return updated as MessageDocument;
   }
 
   async unpinMessage(

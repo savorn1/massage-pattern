@@ -27,6 +27,9 @@ export class UserConversation {
   @Prop({ type: [Types.ObjectId], ref: 'Message', default: [] })
   starredMessageIds: Types.ObjectId[];
 
+  @Prop({ default: false })
+  archived: boolean;
+
   createdAt: Date;
   updatedAt: Date;
 }

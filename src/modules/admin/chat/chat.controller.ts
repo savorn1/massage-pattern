@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import {
   Body,
   Controller,
@@ -15,12 +16,11 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
 import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   // ─── Presence ─────────────────────────────────────────────────────────────
 
@@ -42,6 +42,23 @@ export class ChatController {
   @Get('conversations')
   getUserConversations(@Req() req) {
     return this.chatService.getUserConversations(req.user.userId);
+  }
+
+  // ─── Archiving ────────────────────────────────────────────────────────────
+
+  /** Get archived conversations for the authenticated user */
+  @Get('conversations/archived')
+  getArchivedConversations(@Req() req) {
+    return this.chatService.getArchivedConversations(req.user.userId);
+  }
+
+  @Patch('conversations/:id/archive')
+  archiveConversation(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { archive: boolean },
+  ) {
+    return this.chatService.archiveConversation(req.user.userId, id, body.archive);
   }
 
   /** Get a single conversation by id */
@@ -232,5 +249,46 @@ export class ChatController {
   @Get('link-preview')
   getLinkPreview(@Query('url') url: string) {
     return this.chatService.getLinkPreview(url);
+  }
+
+  /** Search messages across all user conversations */
+  @Get('messages/search')
+  searchMessages(
+    @Req() req,
+    @Query('q') q: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.chatService.searchMessages(req.user.userId, q, limit ? +limit : 30);
+  }
+
+  // ─── Disappearing messages ────────────────────────────────────────────────
+
+  @Patch('conversations/:id/disappearing')
+  setDisappearingMessages(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { enabled: boolean; ttl: number },
+  ) {
+    return this.chatService.setDisappearingMessages(id, req.user.userId, body.enabled, body.ttl);
+  }
+
+  // ─── Polls ────────────────────────────────────────────────────────────────
+
+  @Post('conversations/:id/poll')
+  createPoll(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() body: { question: string; options: string[] },
+  ) {
+    return this.chatService.createPoll(id, req.user.userId, body.question, body.options);
+  }
+
+  @Post('messages/:messageId/poll/vote')
+  votePoll(
+    @Req() req,
+    @Param('messageId') messageId: string,
+    @Body() body: { optionIndex: number },
+  ) {
+    return this.chatService.votePoll(messageId, req.user.userId, body.optionIndex);
   }
 }

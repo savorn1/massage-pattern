@@ -36,6 +36,15 @@ export class LastMessageSnapshot {
   createdAt: Date;
 }
 
+export class DisappearingMessages {
+  @Prop({ default: false })
+  enabled: boolean;
+
+  /** TTL in seconds — 3600 (1h) | 86400 (24h) | 604800 (7d) */
+  @Prop({ default: 86400 })
+  ttl: number;
+}
+
 @Schema({ collection: 'conversations', timestamps: true })
 export class Conversation {
   @Prop({
@@ -70,6 +79,9 @@ export class Conversation {
 
   @Prop({ type: [Object], default: [] })
   pinnedMessages: PinnedMessage[];
+
+  @Prop({ type: Object })
+  disappearingMessages?: DisappearingMessages;
 
   createdAt: Date;
   updatedAt: Date;
