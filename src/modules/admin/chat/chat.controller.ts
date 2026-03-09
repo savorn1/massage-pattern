@@ -103,6 +103,7 @@ export class ChatController {
     return this.chatService.removeParticipant(id, req.user.userId, req.user.userId);
   }
 
+
   /** Block a member from sending messages (admin only) */
   @Post('conversations/:id/members/:userId/block')
   blockMember(

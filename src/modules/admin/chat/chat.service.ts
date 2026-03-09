@@ -1112,6 +1112,7 @@ export class ChatService {
       throw new BadRequestException('Invalid option index.');
     }
 
+
     const uid = new Types.ObjectId(userId);
 
     // Remove previous vote from all options, then add to chosen
