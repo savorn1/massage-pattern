@@ -783,6 +783,43 @@ export class ChatService {
     return { data, total };
   }
 
+  async getMessagesAround(
+    conversationId: string,
+    userId: string,
+    messageId: string,
+    limit = 50,
+  ): Promise<{ data: MessageDocument[]; total: number }> {
+    await this.getConversation(conversationId, userId);
+
+    const conversationObjId = new Types.ObjectId(conversationId);
+    const anchor = await this.messageModel.findById(messageId);
+    if (!anchor) throw new NotFoundException('Message not found.');
+
+    const half = Math.floor(limit / 2);
+
+    // Count messages newer than the anchor (to know how many "before" we need)
+    const newerCount = await this.messageModel.countDocuments({
+      conversationId: conversationObjId,
+      isDeleted: false,
+      createdAt: { $gt: anchor.createdAt },
+    });
+
+    // Fetch `limit` messages ending around the anchor
+    const skip = Math.max(0, newerCount - half);
+
+    const [data, total] = await Promise.all([
+      this.messageModel
+        .find({ conversationId: conversationObjId, isDeleted: false })
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.messageModel.countDocuments({ conversationId: conversationObjId, isDeleted: false }),
+    ]);
+
+    return { data, total };
+  }
+
   async markAsRead(
     conversationId: string,
     userId: string,

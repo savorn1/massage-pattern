@@ -156,6 +156,17 @@ export class ChatController {
     return this.chatService.sendMessage(id, req.user.userId, dto, files);
   }
 
+  /** Get a context window of messages around a specific message */
+  @Get('conversations/:id/messages/around/:messageId')
+  getMessagesAround(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Query('limit') limit = 50,
+  ) {
+    return this.chatService.getMessagesAround(id, req.user.userId, messageId, +limit);
+  }
+
   /** Get messages for a conversation (newest first, paginated) */
   @Get('conversations/:id/messages')
   getMessages(
