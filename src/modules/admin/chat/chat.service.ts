@@ -763,21 +763,38 @@ export class ChatService {
     userId: string,
     page = 1,
     limit = 50,
+    before?: string,
+    after?: string,
   ): Promise<{ data: MessageDocument[]; total: number }> {
     await this.getConversation(conversationId, userId);
 
+    const convObjId = new Types.ObjectId(conversationId);
+    const baseQuery: any = { conversationId: convObjId, isDeleted: false };
+
+    if (before) {
+      // Cursor: messages older than `before` date, newest-first then reversed → ascending slice
+      const query = { ...baseQuery, createdAt: { $lt: new Date(before) } };
+      const [data, total] = await Promise.all([
+        this.messageModel.find(query).sort({ createdAt: -1 }).limit(limit).exec(),
+        this.messageModel.countDocuments(query),
+      ]);
+      return { data: data.reverse(), total };
+    }
+
+    if (after) {
+      // Cursor: messages newer than `after` date in ascending order
+      const query = { ...baseQuery, createdAt: { $gt: new Date(after) } };
+      const [data, total] = await Promise.all([
+        this.messageModel.find(query).sort({ createdAt: 1 }).limit(limit).exec(),
+        this.messageModel.countDocuments(query),
+      ]);
+      return { data, total };
+    }
+
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      this.messageModel
-        .find({ conversationId: new Types.ObjectId(conversationId), isDeleted: false })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.messageModel.countDocuments({
-        conversationId: new Types.ObjectId(conversationId),
-        isDeleted: false,
-      }),
+      this.messageModel.find(baseQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      this.messageModel.countDocuments(baseQuery),
     ]);
 
     return { data, total };
@@ -810,14 +827,16 @@ export class ChatService {
     const [data, total] = await Promise.all([
       this.messageModel
         .find({ conversationId: conversationObjId, isDeleted: false })
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
       this.messageModel.countDocuments({ conversationId: conversationObjId, isDeleted: false }),
     ]);
 
-    return { data, total };
+    const hasNewer = skip > 0;
+    const hasOlder = skip + data.length < total;
+    return { data: data.reverse(), total, hasNewer, hasOlder };
   }
 
   async markAsRead(

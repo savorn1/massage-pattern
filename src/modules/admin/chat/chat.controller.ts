@@ -167,15 +167,17 @@ export class ChatController {
     return this.chatService.getMessagesAround(id, req.user.userId, messageId, +limit);
   }
 
-  /** Get messages for a conversation (newest first, paginated) */
+  /** Get messages for a conversation (newest first, paginated; or cursor via before/after) */
   @Get('conversations/:id/messages')
   getMessages(
     @Req() req,
     @Param('id') id: string,
     @Query('page') page = 1,
     @Query('limit') limit = 50,
+    @Query('before') before?: string,
+    @Query('after') after?: string,
   ) {
-    return this.chatService.getMessages(id, req.user.userId, +page, +limit);
+    return this.chatService.getMessages(id, req.user.userId, +page, +limit, before, after);
   }
 
   /** Mark a message as read and reset unread count */
