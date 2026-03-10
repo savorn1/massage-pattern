@@ -822,6 +822,39 @@ export class ChatService {
     );
   }
 
+  async markAsDelivered(
+    conversationId: string,
+    userId: string,
+    messageId: string,
+  ): Promise<void> {
+    const conversation = await this.getConversation(conversationId, userId);
+
+    const userObjId = new Types.ObjectId(userId);
+    const messageObjId = new Types.ObjectId(messageId);
+    const now = new Date();
+
+    await this.messageModel.updateOne(
+      {
+        _id: messageObjId,
+        conversationId: new Types.ObjectId(conversationId),
+        'deliveredTo.userId': { $ne: userObjId },
+      },
+      { $push: { deliveredTo: { userId: userObjId, deliveredAt: now } } },
+    );
+
+    this.emitToParticipants(
+      conversation.participants as Types.ObjectId[],
+      userId,
+      'chat:message:delivered',
+      {
+        conversationId,
+        messageId,
+        userId,
+        deliveredAt: now.toISOString(),
+      },
+    );
+  }
+
   async editMessage(
     messageId: string,
     userId: string,

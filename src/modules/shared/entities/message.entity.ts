@@ -49,6 +49,14 @@ export class MessageReadReceipt {
   readAt: Date;
 }
 
+export class MessageDeliveryReceipt {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
+  @Prop({ required: true })
+  deliveredAt: Date;
+}
+
 export class MessageReaction {
   @Prop({ required: true })
   emoji: string;
@@ -84,6 +92,9 @@ export class Message {
 
   @Prop({ type: [Object], default: [] })
   readBy: MessageReadReceipt[];
+
+  @Prop({ type: [Object], default: [] })
+  deliveredTo: MessageDeliveryReceipt[];
 
   @Prop({ type: [Object], default: [] })
   reactions: MessageReaction[];

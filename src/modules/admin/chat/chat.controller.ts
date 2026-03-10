@@ -160,6 +160,17 @@ export class ChatController {
     return { ok: true };
   }
 
+  /** Mark a message as delivered (client receipt acknowledgement) */
+  @Post('conversations/:id/messages/:messageId/delivered')
+  async markAsDelivered(
+    @Req() req,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    await this.chatService.markAsDelivered(id, req.user.userId, messageId);
+    return { ok: true };
+  }
+
   /** Edit message content (sender only) */
   @Patch('messages/:messageId')
   editMessage(
