@@ -1129,6 +1129,13 @@ export class ChatService {
         $push: { participants: userObjId },
       });
       conversation.participants.push(userObjId);
+      await this.userConversationModel.create({
+        userId: userObjId,
+        conversationId: conversation._id,
+        unreadCount: 0,
+        joinedAt: new Date(),
+        muted: false,
+      });
     }
     return { alreadyMember, conversation };
   }
