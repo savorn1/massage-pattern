@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
-import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
+import { CreateConversationDto, ForwardMessageDto, GetMessagesQueryDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
@@ -172,12 +172,9 @@ export class ChatController {
   getMessages(
     @Req() req,
     @Param('id') id: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 50,
-    @Query('before') before?: string,
-    @Query('after') after?: string,
+    @Query() query: GetMessagesQueryDto,
   ) {
-    return this.chatService.getMessages(id, req.user.userId, +page, +limit, before, after);
+    return this.chatService.getMessages(id, req.user.userId, query.page, query.limit, query.before, query.after);
   }
 
   /** Mark a message as read and reset unread count */
@@ -333,5 +330,25 @@ export class ChatController {
     @Body() body: { optionIndex: number },
   ) {
     return this.chatService.votePoll(messageId, req.user.userId, body.optionIndex);
+  }
+
+  // ─── Forwarding ───────────────────────────────────────────────────────────
+
+  /** Forward a message to another conversation */
+  @Post('messages/:messageId/forward')
+  forwardMessage(
+    @Req() req,
+    @Param('messageId') messageId: string,
+    @Body() dto: ForwardMessageDto,
+  ) {
+    return this.chatService.forwardMessage(messageId, req.user.userId, dto.targetConversationId);
+  }
+
+  // ─── Mentions ─────────────────────────────────────────────────────────────
+
+  /** Get all messages where the current user was mentioned */
+  @Get('mentions')
+  getMentions(@Req() req, @Query('limit') limit?: string) {
+    return this.chatService.getMentions(req.user.userId, limit ? +limit : 50);
   }
 }

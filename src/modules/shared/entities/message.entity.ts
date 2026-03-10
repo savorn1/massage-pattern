@@ -65,6 +65,25 @@ export class MessageReaction {
   userId: Types.ObjectId;
 }
 
+export class MessageEditHistoryEntry {
+  @Prop({ required: true })
+  content: string;
+
+  @Prop({ required: true })
+  editedAt: Date;
+}
+
+export class ForwardedFrom {
+  @Prop({ type: Types.ObjectId, ref: 'Message', required: true })
+  messageId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true })
+  conversationId: Types.ObjectId;
+
+  @Prop({ required: true })
+  senderName: string;
+}
+
 @Schema({ collection: 'messages', timestamps: true })
 export class Message {
   @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true })
@@ -116,6 +135,18 @@ export class Message {
   @Prop({ type: Object })
   poll?: Poll;
 
+  /** Edit history — previous versions of the message content */
+  @Prop({ type: [Object], default: [] })
+  editHistory: MessageEditHistoryEntry[];
+
+  /** Forwarded-from metadata — set when this message is a forward */
+  @Prop({ type: Object })
+  forwardedFrom?: ForwardedFrom;
+
+  /** Mentioned user IDs parsed from @[name](userId) patterns */
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  mentions: Types.ObjectId[];
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -129,4 +160,5 @@ MessageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, sparse: true });
 MessageSchema.index({ conversationId: 1, isDeleted: 1 });
 MessageSchema.index({ senderId: 1 });
 MessageSchema.index({ 'readBy.userId': 1 });
+MessageSchema.index({ mentions: 1 }, { sparse: true });
 

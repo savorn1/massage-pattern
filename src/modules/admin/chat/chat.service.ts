@@ -23,9 +23,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
 import * as http from 'http';
 import * as https from 'https';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import { URL } from 'url';
-import { CreateConversationDto, SendMessageDto, UpdateGroupDto } from './dto';
+import { CreateConversationDto, MessagesAroundDto, SendMessageDto, UpdateGroupDto } from './dto';
 
 @Injectable()
 export class ChatService {
@@ -699,15 +699,24 @@ export class ChatService {
         ? new Date(Date.now() + dm.ttl * 1000)
         : undefined;
 
+    // Extract mentioned user IDs from @[name](userId) patterns
+    const mentionRegex = /@\[[^\]]+\]\(([a-f0-9]{24})\)/g;
+    const rawContent = dto.content?.trim() ?? '';
+    const mentions: Types.ObjectId[] = [];
+    for (const m of rawContent.matchAll(mentionRegex)) {
+      try { mentions.push(new Types.ObjectId(m[1])); } catch { /* skip invalid ids */ }
+    }
+
     const message = await this.messageModel.create({
       conversationId: conversation._id,
       senderId: new Types.ObjectId(senderId),
       type,
-      content: dto.content?.trim() ?? '',
+      content: rawContent,
       attachments,
       replyTo: dto.replyTo ? new Types.ObjectId(dto.replyTo) : undefined,
       readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
       ...(expiresAt ? { expiresAt } : {}),
+      ...(mentions.length > 0 ? { mentions } : {}),
     });
 
     // Update lastMessage snapshot on the conversation
@@ -767,37 +776,15 @@ export class ChatService {
     after?: string,
   ): Promise<{ data: MessageDocument[]; total: number }> {
     await this.getConversation(conversationId, userId);
-
-    const convObjId = new Types.ObjectId(conversationId);
-    const baseQuery: any = { conversationId: convObjId, isDeleted: false };
+    const base = this.conversationFilter(conversationId);
 
     if (before) {
-      // Cursor: messages older than `before` date, newest-first then reversed → ascending slice
-      const query = { ...baseQuery, createdAt: { $lt: new Date(before) } };
-      const [data, total] = await Promise.all([
-        this.messageModel.find(query).sort({ createdAt: -1 }).limit(limit).exec(),
-        this.messageModel.countDocuments(query),
-      ]);
-      return { data: data.reverse(), total };
+      return this.fetchMessages({ ...base, createdAt: { $lt: new Date(before) } }, -1, 0, limit);
     }
-
     if (after) {
-      // Cursor: messages newer than `after` date in ascending order
-      const query = { ...baseQuery, createdAt: { $gt: new Date(after) } };
-      const [data, total] = await Promise.all([
-        this.messageModel.find(query).sort({ createdAt: 1 }).limit(limit).exec(),
-        this.messageModel.countDocuments(query),
-      ]);
-      return { data, total };
+      return this.fetchMessages({ ...base, createdAt: { $gt: new Date(after) } }, 1, 0, limit);
     }
-
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      this.messageModel.find(baseQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
-      this.messageModel.countDocuments(baseQuery),
-    ]);
-
-    return { data, total };
+    return this.fetchMessages(base, -1, (page - 1) * limit, limit);
   }
 
   async getMessagesAround(
@@ -805,38 +792,47 @@ export class ChatService {
     userId: string,
     messageId: string,
     limit = 50,
-  ): Promise<{ data: MessageDocument[]; total: number }> {
+  ): Promise<MessagesAroundDto> {
     await this.getConversation(conversationId, userId);
+    const base = this.conversationFilter(conversationId);
 
-    const conversationObjId = new Types.ObjectId(conversationId);
     const anchor = await this.messageModel.findById(messageId);
     if (!anchor) throw new NotFoundException('Message not found.');
 
-    const half = Math.floor(limit / 2);
-
-    // Count messages newer than the anchor (to know how many "before" we need)
+    // Sort descending so skip(newerCount - half) positions the window around the anchor
     const newerCount = await this.messageModel.countDocuments({
-      conversationId: conversationObjId,
-      isDeleted: false,
+      ...base,
       createdAt: { $gt: anchor.createdAt },
     });
+    const skip = Math.max(0, newerCount - Math.floor(limit / 2));
 
-    // Fetch `limit` messages ending around the anchor
-    const skip = Math.max(0, newerCount - half);
+    const { data, total } = await this.fetchMessages(base, -1, skip, limit);
+    return { data, total, hasNewer: skip > 0, hasOlder: skip + data.length < total };
+  }
 
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  /** Base Mongoose filter for all message queries in a conversation. */
+  private conversationFilter(conversationId: string): FilterQuery<MessageDocument> {
+    return { conversationId: new Types.ObjectId(conversationId), isDeleted: false };
+  }
+
+  /**
+   * Fetch messages + total count in parallel.
+   * sort = 1  → ascending (oldest first), returned as-is.
+   * sort = -1 → descending query, result reversed to ascending before returning.
+   */
+  private async fetchMessages(
+    filter: FilterQuery<MessageDocument>,
+    sort: 1 | -1,
+    skip: number,
+    limit: number,
+  ): Promise<{ data: MessageDocument[]; total: number }> {
     const [data, total] = await Promise.all([
-      this.messageModel
-        .find({ conversationId: conversationObjId, isDeleted: false })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.messageModel.countDocuments({ conversationId: conversationObjId, isDeleted: false }),
+      this.messageModel.find(filter).sort({ createdAt: sort }).skip(skip).limit(limit).exec(),
+      this.messageModel.countDocuments(filter),
     ]);
-
-    const hasNewer = skip > 0;
-    const hasOlder = skip + data.length < total;
-    return { data: data.reverse(), total, hasNewer, hasOlder };
+    return { data: sort === -1 ? data.reverse() : data, total };
   }
 
   async markAsRead(
@@ -928,7 +924,10 @@ export class ChatService {
 
     const updated = await this.messageModel.findByIdAndUpdate(
       messageId,
-      { content: content.trim(), editedAt: new Date() },
+      {
+        $push: { editHistory: { content: message.content, editedAt: new Date() } },
+        $set: { content: content.trim(), editedAt: new Date() },
+      },
       { new: true },
     );
     if (!updated) throw new NotFoundException('Message not found.');
@@ -943,6 +942,10 @@ export class ChatService {
           conversationId: (updated.conversationId as Types.ObjectId).toString(),
           content: updated.content,
           editedAt: updated.editedAt,
+          editHistory: (updated.editHistory ?? []).map((e: any) => ({
+            content: e.content,
+            editedAt: e.editedAt,
+          })),
         },
       );
     }
@@ -984,6 +987,118 @@ export class ChatService {
     }
 
     return deleted;
+  }
+
+  async forwardMessage(
+    messageId: string,
+    senderId: string,
+    targetConversationId: string,
+  ): Promise<MessageDocument> {
+    const original = await this.messageModel.findById(messageId);
+    if (!original || original.isDeleted) {
+      throw new NotFoundException('Message not found.');
+    }
+
+    const targetConversation = await this.getConversation(targetConversationId, senderId);
+
+    // Resolve sender display name
+    const senderUser = await this.usersService.findById(senderId).catch(() => null);
+    const senderName = (senderUser as any)?.name ?? 'Unknown';
+
+    const dm = targetConversation.disappearingMessages as { enabled?: boolean; ttl?: number } | undefined;
+    const expiresAt =
+      dm?.enabled && dm.ttl ? new Date(Date.now() + dm.ttl * 1000) : undefined;
+
+    const forwarded = await this.messageModel.create({
+      conversationId: targetConversation._id,
+      senderId: new Types.ObjectId(senderId),
+      type: original.type,
+      content: original.content,
+      attachments: original.attachments,
+      forwardedFrom: {
+        messageId: original._id,
+        conversationId: original.conversationId,
+        senderName,
+      },
+      readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
+      ...(expiresAt ? { expiresAt } : {}),
+    });
+
+    // Update lastMessage on target conversation
+    const previewContent = original.content || (original.attachments?.length ? original.attachments[0].originalName : 'Forwarded message');
+    await this.conversationModel.findByIdAndUpdate(targetConversationId, {
+      lastMessage: {
+        messageId: forwarded._id,
+        senderId: forwarded.senderId,
+        content: `↪ ${previewContent}`,
+        createdAt: forwarded.createdAt,
+      },
+    });
+
+    await this.userConversationModel.updateMany(
+      {
+        conversationId: targetConversation._id,
+        userId: { $ne: new Types.ObjectId(senderId) },
+      },
+      { $inc: { unreadCount: 1 } },
+    );
+
+    const payload: Record<string, unknown> = {
+      _id: (forwarded._id as Types.ObjectId).toString(),
+      conversationId: (forwarded.conversationId as Types.ObjectId).toString(),
+      senderId: (forwarded.senderId as Types.ObjectId).toString(),
+      type: forwarded.type,
+      content: forwarded.content,
+      attachments: forwarded.attachments,
+      replyTo: null,
+      readBy: forwarded.readBy,
+      isDeleted: forwarded.isDeleted,
+      forwardedFrom: {
+        messageId: (original._id as Types.ObjectId).toString(),
+        conversationId: (original.conversationId as Types.ObjectId).toString(),
+        senderName,
+      },
+      createdAt: forwarded.createdAt,
+      updatedAt: forwarded.updatedAt,
+    };
+
+    this.emitToParticipants(
+      targetConversation.participants as Types.ObjectId[],
+      senderId,
+      'chat:message:new',
+      payload,
+    );
+
+    return forwarded;
+  }
+
+  async getMentions(
+    userId: string,
+    limit = 50,
+  ): Promise<{ message: MessageDocument; conversationId: string }[]> {
+    const userObjId = new Types.ObjectId(userId);
+
+    // Only search in conversations the user belongs to
+    const userConvs = await this.userConversationModel
+      .find({ userId: userObjId })
+      .select('conversationId')
+      .lean();
+    const convIds = userConvs.map((uc) => uc.conversationId);
+
+    const messages = await this.messageModel
+      .find({
+        conversationId: { $in: convIds },
+        mentions: userObjId,
+        isDeleted: false,
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return messages.map((m) => ({
+      message: m as unknown as MessageDocument,
+      conversationId: (m.conversationId as Types.ObjectId).toString(),
+    }));
   }
 
   // ── Reactions ──────────────────────────────────────────────────────────────
