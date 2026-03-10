@@ -83,6 +83,10 @@ export class Conversation {
   @Prop({ type: Object })
   disappearingMessages?: DisappearingMessages;
 
+  /** Shareable invite token for group conversations */
+  @Prop({ sparse: true })
+  inviteToken?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

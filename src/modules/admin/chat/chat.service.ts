@@ -20,6 +20,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import * as crypto from 'crypto';
 import * as http from 'http';
 import * as https from 'https';
 import { Model, Types } from 'mongoose';
@@ -1082,6 +1083,54 @@ export class ChatService {
       { conversationId, enabled, ttl },
     );
     return updated as ConversationDocument;
+  }
+
+  // ─── Invite links ────────────────────────────────────────────────────────────
+
+  async getInviteLink(
+    conversationId: string,
+    userId: string,
+  ): Promise<{ token: string }> {
+    const conversation = await this.getConversation(conversationId, userId);
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Invite links are only available for group conversations.');
+    }
+    if (conversation.inviteToken) return { token: conversation.inviteToken };
+    const token = crypto.randomBytes(20).toString('hex');
+    await this.conversationModel.findByIdAndUpdate(conversation._id, { $set: { inviteToken: token } });
+    return { token };
+  }
+
+  async resetInviteLink(
+    conversationId: string,
+    userId: string,
+  ): Promise<{ token: string }> {
+    const conversation = await this.getConversation(conversationId, userId);
+    if (conversation.type !== ConversationType.GROUP) {
+      throw new BadRequestException('Invite links are only available for group conversations.');
+    }
+    const token = crypto.randomBytes(20).toString('hex');
+    await this.conversationModel.findByIdAndUpdate(conversation._id, { $set: { inviteToken: token } });
+    return { token };
+  }
+
+  async joinViaInviteToken(
+    token: string,
+    userId: string,
+  ): Promise<{ alreadyMember: boolean; conversation: ConversationDocument }> {
+    const conversation = await this.conversationModel.findOne({ inviteToken: token });
+    if (!conversation) throw new NotFoundException('Invite link is invalid or has been reset.');
+    const userObjId = new Types.ObjectId(userId);
+    const alreadyMember = conversation.participants.some((p) =>
+      (p as Types.ObjectId).equals(userObjId),
+    );
+    if (!alreadyMember) {
+      await this.conversationModel.findByIdAndUpdate(conversation._id, {
+        $push: { participants: userObjId },
+      });
+      conversation.participants.push(userObjId);
+    }
+    return { alreadyMember, conversation };
   }
 
   // ─── Polls ──────────────────────────────────────────────────────────────────

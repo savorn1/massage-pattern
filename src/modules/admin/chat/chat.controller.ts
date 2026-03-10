@@ -44,6 +44,12 @@ export class ChatController {
     return this.chatService.getUserConversations(req.user.userId);
   }
 
+  /** Join a group conversation via invite token */
+  @Post('conversations/join/:token')
+  joinViaInviteToken(@Req() req, @Param('token') token: string) {
+    return this.chatService.joinViaInviteToken(token, req.user.userId);
+  }
+
   // ─── Archiving ────────────────────────────────────────────────────────────
 
   /** Get archived conversations for the authenticated user */
@@ -59,6 +65,18 @@ export class ChatController {
     @Body() body: { archive: boolean },
   ) {
     return this.chatService.archiveConversation(req.user.userId, id, body.archive);
+  }
+
+  /** Get (or generate) the invite link token for a group conversation */
+  @Get('conversations/:id/invite-link')
+  getInviteLink(@Req() req, @Param('id') id: string) {
+    return this.chatService.getInviteLink(id, req.user.userId);
+  }
+
+  /** Reset the invite link token for a group conversation */
+  @Post('conversations/:id/invite-link/reset')
+  resetInviteLink(@Req() req, @Param('id') id: string) {
+    return this.chatService.resetInviteLink(id, req.user.userId);
   }
 
   /** Get a single conversation by id */
