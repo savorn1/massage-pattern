@@ -4,11 +4,13 @@ import { Document, Types } from 'mongoose';
 export type NotificationDocument = Notification & Document;
 
 export enum NotificationType {
-  MENTIONED          = 'mentioned',
-  ASSIGNED           = 'assigned',
-  TASK_COMPLETED     = 'task_completed',
-  CHAT_GROUP_CREATED = 'chat_group_created',
-  CHAT_MEMBER_ADDED  = 'chat_member_added',
+  MENTIONED               = 'mentioned',
+  ASSIGNED                = 'assigned',
+  TASK_COMPLETED          = 'task_completed',
+  CHAT_GROUP_CREATED      = 'chat_group_created',
+  CHAT_MEMBER_ADDED       = 'chat_member_added',
+  CHAT_MESSAGE_REMINDER   = 'chat_message_reminder',
+  CHAT_SCHEDULED_SENT     = 'chat_scheduled_sent',
 }
 
 @Schema({ collection: 'notifications', timestamps: true })

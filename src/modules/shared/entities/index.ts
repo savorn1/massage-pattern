@@ -145,3 +145,23 @@ export {
   UserConversationDocument,
   UserConversationSchema,
 } from './user-conversation.entity';
+
+export {
+  ScheduledMessage,
+  ScheduledMessageDocument,
+  ScheduledMessageSchema,
+  ScheduledMessageStatus,
+} from './scheduled-message.entity';
+
+export {
+  MessageReminder,
+  MessageReminderDocument,
+  MessageReminderSchema,
+  MessageReminderStatus,
+} from './message-reminder.entity';
+
+export {
+  SavedReply,
+  SavedReplyDocument,
+  SavedReplySchema,
+} from './saved-reply.entity';

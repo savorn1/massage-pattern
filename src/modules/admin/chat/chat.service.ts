@@ -8,13 +8,23 @@ import {
   Message,
   MessageDocument,
   MessageType,
+  MessageReminder,
+  MessageReminderDocument,
+  MessageReminderStatus,
   NotificationType,
+  SavedReply,
+  SavedReplyDocument,
+  ScheduledMessage,
+  ScheduledMessageDocument,
+  ScheduledMessageStatus,
   UserConversation,
   UserConversationDocument,
 } from '@/modules/shared/entities';
 import { UploadsService } from '@/modules/uploads/uploads.service';
+import { BullmqService } from '@/modules/workers/bullmq/bullmq.service';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -25,7 +35,16 @@ import * as http from 'http';
 import * as https from 'https';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { URL } from 'url';
-import { CreateConversationDto, MessagesAroundDto, SendMessageDto, UpdateGroupDto } from './dto';
+import {
+  CreateConversationDto,
+  CreateSavedReplyDto,
+  MessagesAroundDto,
+  ScheduleMessageDto,
+  SendMessageDto,
+  SetReminderDto,
+  UpdateGroupDto,
+  UpdateSavedReplyDto,
+} from './dto';
 
 @Injectable()
 export class ChatService {
@@ -39,10 +58,20 @@ export class ChatService {
     @InjectModel(UserConversation.name)
     private readonly userConversationModel: Model<UserConversationDocument>,
 
+    @InjectModel(ScheduledMessage.name)
+    private readonly scheduledMessageModel: Model<ScheduledMessageDocument>,
+
+    @InjectModel(MessageReminder.name)
+    private readonly messageReminderModel: Model<MessageReminderDocument>,
+
+    @InjectModel(SavedReply.name)
+    private readonly savedReplyModel: Model<SavedReplyDocument>,
+
     private readonly wsGateway: WebsocketGateway,
     private readonly uploadsService: UploadsService,
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
+    private readonly bullmqService: BullmqService,
   ) { }
 
   // ─── Presence ─────────────────────────────────────────────────────────────
@@ -1434,5 +1463,255 @@ export class ChatService {
       { conversationId, messageId },
     );
     return updated as ConversationDocument;
+  }
+
+  // ─── Scheduled Messages ───────────────────────────────────────────────────
+
+  async scheduleMessage(
+    conversationId: string,
+    senderId: string,
+    dto: ScheduleMessageDto,
+  ): Promise<ScheduledMessageDocument> {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) throw new NotFoundException('Conversation not found.');
+
+    const senderOid = new Types.ObjectId(senderId);
+    const isMember = conversation.participants.some((p) => p.equals(senderOid));
+    if (!isMember) throw new ForbiddenException('Not a participant.');
+
+    const scheduledFor = new Date(dto.scheduledFor);
+    if (scheduledFor <= new Date()) {
+      throw new BadRequestException('scheduledFor must be in the future.');
+    }
+
+    const doc = await this.scheduledMessageModel.create({
+      conversationId: new Types.ObjectId(conversationId),
+      senderId: senderOid,
+      content: dto.content,
+      type: dto.type ?? MessageType.TEXT,
+      replyTo: dto.replyTo ? new Types.ObjectId(dto.replyTo) : undefined,
+      scheduledFor,
+      status: ScheduledMessageStatus.PENDING,
+    });
+
+    const delayMs = scheduledFor.getTime() - Date.now();
+    const job = await this.bullmqService.addDelayedJob(
+      'scheduled-messages',
+      'send-scheduled-message',
+      { scheduledMessageId: (doc as any)._id.toString() },
+      delayMs,
+    );
+
+    await this.scheduledMessageModel.findByIdAndUpdate(
+      (doc as any)._id,
+      { jobId: job.id },
+    );
+
+    return doc as ScheduledMessageDocument;
+  }
+
+  async getScheduledMessages(userId: string): Promise<ScheduledMessageDocument[]> {
+    return this.scheduledMessageModel
+      .find({ senderId: new Types.ObjectId(userId), status: ScheduledMessageStatus.PENDING })
+      .sort({ scheduledFor: 1 })
+      .exec() as Promise<ScheduledMessageDocument[]>;
+  }
+
+  async cancelScheduledMessage(id: string, userId: string): Promise<void> {
+    const doc = await this.scheduledMessageModel.findById(id);
+    if (!doc) throw new NotFoundException('Scheduled message not found.');
+    if (!doc.senderId.equals(new Types.ObjectId(userId))) {
+      throw new ForbiddenException('Only the sender can cancel a scheduled message.');
+    }
+    if (doc.status !== ScheduledMessageStatus.PENDING) {
+      throw new BadRequestException('Only pending scheduled messages can be cancelled.');
+    }
+
+    if (doc.jobId) {
+      await this.bullmqService.removeJob('scheduled-messages', doc.jobId);
+    }
+
+    await this.scheduledMessageModel.findByIdAndUpdate(id, {
+      status: ScheduledMessageStatus.CANCELLED,
+    });
+  }
+
+  /** Called by the BullMQ worker when the scheduled time arrives */
+  async sendScheduledMessage(scheduledMessageId: string): Promise<void> {
+    const doc = await this.scheduledMessageModel.findById(scheduledMessageId);
+    if (!doc || doc.status !== ScheduledMessageStatus.PENDING) return;
+
+    try {
+      const sendDto: SendMessageDto = {
+        content: doc.content,
+        type: doc.type,
+        replyTo: doc.replyTo?.toString(),
+      };
+      await this.sendMessage(
+        doc.conversationId.toString(),
+        doc.senderId.toString(),
+        sendDto,
+        [],
+      );
+      await this.scheduledMessageModel.findByIdAndUpdate(scheduledMessageId, {
+        status: ScheduledMessageStatus.SENT,
+      });
+    } catch {
+      await this.scheduledMessageModel.findByIdAndUpdate(scheduledMessageId, {
+        status: ScheduledMessageStatus.FAILED,
+      });
+    }
+  }
+
+  // ─── Message Reminders ────────────────────────────────────────────────────
+
+  async setReminder(
+    messageId: string,
+    userId: string,
+    dto: SetReminderDto,
+  ): Promise<MessageReminderDocument> {
+    const message = await this.messageModel.findById(messageId);
+    if (!message) throw new NotFoundException('Message not found.');
+
+    const remindAt = new Date(dto.remindAt);
+    if (remindAt <= new Date()) {
+      throw new BadRequestException('remindAt must be in the future.');
+    }
+
+    const doc = await this.messageReminderModel.create({
+      userId: new Types.ObjectId(userId),
+      messageId: new Types.ObjectId(messageId),
+      conversationId: message.conversationId,
+      remindAt,
+      note: dto.note,
+      messageContent: message.content?.slice(0, 200),
+      status: MessageReminderStatus.PENDING,
+    });
+
+    const delayMs = remindAt.getTime() - Date.now();
+    const job = await this.bullmqService.addDelayedJob(
+      'message-reminders',
+      'fire-message-reminder',
+      { reminderId: (doc as any)._id.toString() },
+      delayMs,
+    );
+
+    await this.messageReminderModel.findByIdAndUpdate(
+      (doc as any)._id,
+      { jobId: job.id },
+    );
+
+    return doc as MessageReminderDocument;
+  }
+
+  async getReminders(userId: string): Promise<MessageReminderDocument[]> {
+    return this.messageReminderModel
+      .find({ userId: new Types.ObjectId(userId), status: MessageReminderStatus.PENDING })
+      .sort({ remindAt: 1 })
+      .exec() as Promise<MessageReminderDocument[]>;
+  }
+
+  async cancelReminder(id: string, userId: string): Promise<void> {
+    const doc = await this.messageReminderModel.findById(id);
+    if (!doc) throw new NotFoundException('Reminder not found.');
+    if (!doc.userId.equals(new Types.ObjectId(userId))) {
+      throw new ForbiddenException('Only the owner can cancel a reminder.');
+    }
+    if (doc.status !== MessageReminderStatus.PENDING) {
+      throw new BadRequestException('Only pending reminders can be cancelled.');
+    }
+
+    if (doc.jobId) {
+      await this.bullmqService.removeJob('message-reminders', doc.jobId);
+    }
+
+    await this.messageReminderModel.findByIdAndUpdate(id, {
+      status: MessageReminderStatus.CANCELLED,
+    });
+  }
+
+  /** Called by the BullMQ worker when the reminder time arrives */
+  async fireReminder(reminderId: string): Promise<void> {
+    const doc = await this.messageReminderModel.findById(reminderId);
+    if (!doc || doc.status !== MessageReminderStatus.PENDING) return;
+
+    const notification = await this.notificationsService.create({
+      recipientId: doc.userId.toString(),
+      conversationId: doc.conversationId.toString(),
+      type: NotificationType.CHAT_MESSAGE_REMINDER,
+      message: doc.note
+        ? `Reminder: "${doc.note}"`
+        : `Reminder for message: "${(doc.messageContent ?? '').slice(0, 60)}"`,
+    });
+    
+
+    this.wsGateway.broadcastToRoom(`user:${doc.userId.toString()}`, 'notification:new', notification);
+
+    await this.messageReminderModel.findByIdAndUpdate(reminderId, {
+      status: MessageReminderStatus.SENT,
+    });
+  }
+
+  // ─── Saved Replies ────────────────────────────────────────────────────────
+
+  async createSavedReply(
+    userId: string,
+    dto: CreateSavedReplyDto,
+  ): Promise<SavedReplyDocument> {
+    const existing = await this.savedReplyModel.findOne({
+      userId: new Types.ObjectId(userId),
+      shortcut: dto.shortcut,
+    });
+    if (existing) {
+      throw new ConflictException(`Shortcut "/${dto.shortcut}" already exists.`);
+    }
+
+    return this.savedReplyModel.create({
+      userId: new Types.ObjectId(userId),
+      title: dto.title,
+      shortcut: dto.shortcut,
+      content: dto.content,
+    }) as Promise<SavedReplyDocument>;
+  }
+
+  async getSavedReplies(userId: string): Promise<SavedReplyDocument[]> {
+    return this.savedReplyModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ shortcut: 1 })
+      .exec() as Promise<SavedReplyDocument[]>;
+  }
+
+  async updateSavedReply(
+    id: string,
+    userId: string,
+    dto: UpdateSavedReplyDto,
+  ): Promise<SavedReplyDocument> {
+    const doc = await this.savedReplyModel.findOne({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(userId),
+    });
+    if (!doc) throw new NotFoundException('Saved reply not found.');
+
+    if (dto.shortcut && dto.shortcut !== doc.shortcut) {
+      const conflict = await this.savedReplyModel.findOne({
+        userId: new Types.ObjectId(userId),
+        shortcut: dto.shortcut,
+      });
+      if (conflict) {
+        throw new ConflictException(`Shortcut "/${dto.shortcut}" already exists.`);
+      }
+    }
+
+    const updated = await this.savedReplyModel.findByIdAndUpdate(id, dto, { new: true });
+    return updated as SavedReplyDocument;
+  }
+
+  async deleteSavedReply(id: string, userId: string): Promise<void> {
+    const doc = await this.savedReplyModel.findOne({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(userId),
+    });
+    if (!doc) throw new NotFoundException('Saved reply not found.');
+    await this.savedReplyModel.findByIdAndDelete(id);
   }
 }

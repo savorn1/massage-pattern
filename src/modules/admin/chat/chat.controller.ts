@@ -15,7 +15,17 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
-import { CreateConversationDto, ForwardMessageDto, GetMessagesQueryDto, SendMessageDto, UpdateGroupDto } from './dto';
+import {
+  CreateConversationDto,
+  CreateSavedReplyDto,
+  ForwardMessageDto,
+  GetMessagesQueryDto,
+  ScheduleMessageDto,
+  SendMessageDto,
+  SetReminderDto,
+  UpdateGroupDto,
+  UpdateSavedReplyDto,
+} from './dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
@@ -350,5 +360,83 @@ export class ChatController {
   @Get('mentions')
   getMentions(@Req() req, @Query('limit') limit?: string) {
     return this.chatService.getMentions(req.user.userId, limit ? +limit : 50);
+  }
+
+  // ─── Scheduled Messages ───────────────────────────────────────────────────
+
+  /** Schedule a message to be sent at a future time */
+  @Post('conversations/:id/messages/schedule')
+  scheduleMessage(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: ScheduleMessageDto,
+  ) {
+    return this.chatService.scheduleMessage(id, req.user.userId, dto);
+  }
+
+  /** List all pending scheduled messages for the current user */
+  @Get('scheduled')
+  getScheduledMessages(@Req() req) {
+    return this.chatService.getScheduledMessages(req.user.userId);
+  }
+
+  /** Cancel a pending scheduled message */
+  @Delete('scheduled/:id')
+  cancelScheduledMessage(@Req() req, @Param('id') id: string) {
+    return this.chatService.cancelScheduledMessage(id, req.user.userId);
+  }
+
+  // ─── Message Reminders ────────────────────────────────────────────────────
+
+  /** Set a reminder for a message */
+  @Post('messages/:messageId/remind')
+  setReminder(
+    @Req() req,
+    @Param('messageId') messageId: string,
+    @Body() dto: SetReminderDto,
+  ) {
+    return this.chatService.setReminder(messageId, req.user.userId, dto);
+  }
+
+  /** List all pending reminders for the current user */
+  @Get('reminders')
+  getReminders(@Req() req) {
+    return this.chatService.getReminders(req.user.userId);
+  }
+
+  /** Cancel a pending reminder */
+  @Delete('reminders/:id')
+  cancelReminder(@Req() req, @Param('id') id: string) {
+    return this.chatService.cancelReminder(id, req.user.userId);
+  }
+
+  // ─── Saved Replies ────────────────────────────────────────────────────────
+
+  /** Create a new saved reply template */
+  @Post('saved-replies')
+  createSavedReply(@Req() req, @Body() dto: CreateSavedReplyDto) {
+    return this.chatService.createSavedReply(req.user.userId, dto);
+  }
+
+  /** List all saved replies for the current user */
+  @Get('saved-replies')
+  getSavedReplies(@Req() req) {
+    return this.chatService.getSavedReplies(req.user.userId);
+  }
+
+  /** Update an existing saved reply */
+  @Patch('saved-replies/:id')
+  updateSavedReply(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateSavedReplyDto,
+  ) {
+    return this.chatService.updateSavedReply(id, req.user.userId, dto);
+  }
+
+  /** Delete a saved reply */
+  @Delete('saved-replies/:id')
+  deleteSavedReply(@Req() req, @Param('id') id: string) {
+    return this.chatService.deleteSavedReply(id, req.user.userId);
   }
 }
