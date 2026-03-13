@@ -318,18 +318,18 @@ export class ChatController {
   createPoll(
     @Req() req,
     @Param('id') id: string,
-    @Body() body: { question: string; options: string[] },
+    @Body() body: { question: string; options: string[]; allowMultiple?: boolean },
   ) {
-    return this.chatService.createPoll(id, req.user.userId, body.question, body.options);
+    return this.chatService.createPoll(id, req.user.userId, body.question, body.options, !!body.allowMultiple);
   }
 
   @Post('messages/:messageId/poll/vote')
   votePoll(
     @Req() req,
     @Param('messageId') messageId: string,
-    @Body() body: { optionIndex: number },
+    @Body() body: { optionIndexes: number[] },
   ) {
-    return this.chatService.votePoll(messageId, req.user.userId, body.optionIndex);
+    return this.chatService.votePoll(messageId, req.user.userId, body.optionIndexes);
   }
 
   // ─── Forwarding ───────────────────────────────────────────────────────────

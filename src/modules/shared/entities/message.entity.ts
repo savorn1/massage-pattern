@@ -23,6 +23,10 @@ export class Poll {
   @Prop({ required: true })
   question: string;
 
+  /** Telegram-like setting: allow selecting multiple answers */
+  @Prop({ type: Boolean, default: false })
+  allowMultiple: boolean;
+
   @Prop({ type: [Object], default: [] })
   options: PollOption[];
 }
@@ -161,4 +165,5 @@ MessageSchema.index({ conversationId: 1, isDeleted: 1 });
 MessageSchema.index({ senderId: 1 });
 MessageSchema.index({ 'readBy.userId': 1 });
 MessageSchema.index({ mentions: 1 }, { sparse: true });
+
 

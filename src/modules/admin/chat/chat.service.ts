@@ -1318,6 +1318,7 @@ export class ChatService {
     senderId: string,
     question: string,
     options: string[],
+    allowMultiple = false,
   ): Promise<MessageDocument> {
     const conversation = await this.getConversation(conversationId, senderId);
 
@@ -1331,7 +1332,7 @@ export class ChatService {
       content: question,
       attachments: [],
       readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
-      poll: { question, options: options.map((text) => ({ text, votes: [] })) },
+      poll: { question, allowMultiple: !!allowMultiple, options: options.map((text) => ({ text, votes: [] })) },
       ...(expiresAt ? { expiresAt } : {}),
     });
 
@@ -1361,26 +1362,40 @@ export class ChatService {
   async votePoll(
     messageId: string,
     userId: string,
-    optionIndex: number,
+    optionIndexes: number[],
   ): Promise<MessageDocument> {
     const message = await this.messageModel.findById(messageId);
     if (!message || message.isDeleted) throw new NotFoundException('Message not found.');
     if (message.type !== 'poll' || !message.poll) throw new BadRequestException('Not a poll message.');
 
     const options = message.poll.options as Array<{ text: string; votes: Types.ObjectId[] }>;
-    if (optionIndex < 0 || optionIndex >= options.length) {
+
+    if (!Array.isArray(optionIndexes) || optionIndexes.length === 0) {
+      throw new BadRequestException('optionIndexes must be a non-empty array.');
+    }
+    const unique = [...new Set(optionIndexes)];
+    if (unique.some((i) => typeof i !== 'number' || i < 0 || i >= options.length)) {
       throw new BadRequestException('Invalid option index.');
     }
-
+    const allowMultiple = !!(message.poll as any).allowMultiple;
+    if (!allowMultiple && unique.length !== 1) {
+      throw new BadRequestException('This poll allows only one answer.');
+    }
 
     const uid = new Types.ObjectId(userId);
 
-    // Remove previous vote from all options, then add to chosen
+    // Telegram-like rule: cannot change vote once voted.
+    const alreadyVoted = options.some((opt) => (opt.votes ?? []).some((v) => v.equals(uid)));
+    if (alreadyVoted) {
+      throw new BadRequestException('You have already voted in this poll.');
+    }
+
+    // Add vote(s) to selected options (no previous vote removal)
     const updatedOptions = options.map((opt, i) => ({
       text: opt.text,
-      votes: opt.votes
-        .filter((v) => !v.equals(uid))
-        .concat(i === optionIndex ? [uid] : []),
+      votes: unique.includes(i)
+        ? [...(opt.votes ?? []), uid]
+        : (opt.votes ?? []),
     }));
 
     const updated = await this.messageModel.findByIdAndUpdate(
