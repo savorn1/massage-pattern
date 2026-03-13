@@ -60,7 +60,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
     if (file) {
       const uploaded = await this.uploadsService.uploadFile(
         file.buffer,
-        file.originalname,
+        Buffer.from(file.originalname, 'latin1').toString('utf8'),
         file.mimetype,
         userId,
         taskId,

@@ -674,7 +674,7 @@ export class ChatService {
     const attachments = await Promise.all(
       files.map((file) =>
         this.uploadsService
-          .uploadFile(file.buffer, file.originalname, file.mimetype, senderId)
+          .uploadFile(file.buffer, Buffer.from(file.originalname, 'latin1').toString('utf8'), file.mimetype, senderId)
           .then((saved) => ({
             url: saved.url,
             originalName: saved.originalName,

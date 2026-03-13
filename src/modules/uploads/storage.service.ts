@@ -83,7 +83,10 @@ export class StorageService implements OnModuleInit {
         ContentType: mimeType,
         ContentLength: buffer.length,
         Metadata: {
-          originalName,
+          // S3 metadata values must be US-ASCII. Percent-encode the filename
+          // so non-ASCII characters (Khmer, CJK, emoji, etc.) don't break
+          // the HMAC signature calculation.
+          originalName: encodeURIComponent(originalName),
           uploadedAt: new Date().toISOString(),
         },
       }),

@@ -35,9 +35,10 @@ export class UploadsController {
     if (!file) throw new BadRequestException('No file provided');
     if (!uploaderId) throw new BadRequestException('uploaderId is required');
 
+    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const saved = await this.uploadsService.uploadFile(
       file.buffer,
-      file.originalname,
+      originalName,
       file.mimetype,
       uploaderId,
       taskId,
@@ -46,7 +47,7 @@ export class UploadsController {
     return {
       success: true,
       data: saved,
-      message: `File "${file.originalname}" uploaded successfully`,
+      message: `File "${originalName}" uploaded successfully`,
     };
   }
 
@@ -66,7 +67,7 @@ export class UploadsController {
 
     const results = await Promise.all(
       files.map((f) =>
-        this.uploadsService.uploadFile(f.buffer, f.originalname, f.mimetype, uploaderId, taskId),
+        this.uploadsService.uploadFile(f.buffer, Buffer.from(f.originalname, 'latin1').toString('utf8'), f.mimetype, uploaderId, taskId),
       ),
     );
 
