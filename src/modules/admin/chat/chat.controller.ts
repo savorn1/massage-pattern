@@ -23,6 +23,7 @@ import {
   ScheduleMessageDto,
   SendMessageDto,
   SetReminderDto,
+  SetStandaloneReminderDto,
   UpdateGroupDto,
   UpdateSavedReplyDto,
 } from './dto';
@@ -408,6 +409,12 @@ export class ChatController {
   @Delete('reminders/:id')
   cancelReminder(@Req() req, @Param('id') id: string) {
     return this.chatService.cancelReminder(id, req.user.userId);
+  }
+
+  /** Create a standalone reminder (not tied to a message — via /remind slash command) */
+  @Post('reminders/standalone')
+  setStandaloneReminder(@Req() req, @Body() dto: SetStandaloneReminderDto) {
+    return this.chatService.setStandaloneReminder(req.user.userId, dto);
   }
 
   // ─── Saved Replies ────────────────────────────────────────────────────────

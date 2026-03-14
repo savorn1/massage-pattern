@@ -14,11 +14,12 @@ export class MessageReminder {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Message', required: true })
-  messageId: Types.ObjectId;
+  /** Null for standalone reminders (created via /remind slash command) */
+  @Prop({ type: Types.ObjectId, ref: 'Message' })
+  messageId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true })
-  conversationId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  conversationId?: Types.ObjectId;
 
   /** When to fire the reminder */
   @Prop({ required: true })

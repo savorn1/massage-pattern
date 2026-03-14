@@ -6,6 +6,7 @@ export type ConversationDocument = Conversation & Document;
 export enum ConversationType {
   PRIVATE = 'private',
   GROUP = 'group',
+  BROADCAST = 'broadcast',
 }
 
 export class PinnedMessage {

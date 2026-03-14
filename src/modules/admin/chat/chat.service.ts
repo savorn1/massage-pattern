@@ -7,10 +7,10 @@ import {
   ConversationType,
   Message,
   MessageDocument,
-  MessageType,
   MessageReminder,
   MessageReminderDocument,
   MessageReminderStatus,
+  MessageType,
   NotificationType,
   SavedReply,
   SavedReplyDocument,
@@ -42,6 +42,7 @@ import {
   ScheduleMessageDto,
   SendMessageDto,
   SetReminderDto,
+  SetStandaloneReminderDto,
   UpdateGroupDto,
   UpdateSavedReplyDto,
 } from './dto';
@@ -147,11 +148,11 @@ export class ChatService {
       name: dto.name,
       avatar: dto.avatar,
       createdBy:
-        dto.type === ConversationType.GROUP
+        dto.type === ConversationType.GROUP || dto.type === ConversationType.BROADCAST
           ? new Types.ObjectId(currentUserId)
           : undefined,
       admins:
-        dto.type === ConversationType.GROUP
+        dto.type === ConversationType.GROUP || dto.type === ConversationType.BROADCAST
           ? [new Types.ObjectId(currentUserId)]
           : [],
     });
@@ -182,8 +183,8 @@ export class ChatService {
       },
     );
 
-    // Send in-app notifications for group creation
-    if (dto.type === ConversationType.GROUP) {
+    // Send in-app notifications for group/broadcast creation
+    if (dto.type === ConversationType.GROUP || dto.type === ConversationType.BROADCAST) {
       const actor = await this.usersService.findById(currentUserId);
       const actorName = actor?.name ?? 'Someone';
       const convId = (conversation._id as Types.ObjectId).toString();
@@ -447,6 +448,9 @@ export class ChatService {
     const conversation = await this.conversationModel.findById(conversationId);
     if (!conversation) throw new NotFoundException('Conversation not found.');
 
+
+    console.log("UserId ======>", userId)
+
     const isMember = conversation.participants.some((p) =>
       p.equals(new Types.ObjectId(userId)),
     );
@@ -693,6 +697,16 @@ export class ChatService {
     );
     if (isBlocked) {
       throw new ForbiddenException('You have been blocked in this conversation.');
+    }
+
+    // Broadcast channels: only admins can post
+    if (conversation.type === ConversationType.BROADCAST) {
+      const isAdmin = (conversation.admins ?? []).some((a) =>
+        a.equals(new Types.ObjectId(senderId)),
+      );
+      if (!isAdmin) {
+        throw new ForbiddenException('Only admins can post in announcement channels.');
+      }
     }
 
     if (!dto.content?.trim() && files.length === 0) {
@@ -1630,6 +1644,35 @@ export class ChatService {
     });
   }
 
+  /** Create a standalone reminder (not tied to a specific message — via /remind slash command) */
+  async setStandaloneReminder(
+    userId: string,
+    dto: SetStandaloneReminderDto,
+  ): Promise<MessageReminderDocument> {
+    const remindAt = new Date(dto.remindAt);
+    if (remindAt <= new Date()) {
+      throw new BadRequestException('remindAt must be in the future.');
+    }
+
+    const doc = await this.messageReminderModel.create({
+      userId: new Types.ObjectId(userId),
+      remindAt,
+      note: dto.note,
+      status: MessageReminderStatus.PENDING,
+    });
+
+    const delayMs = remindAt.getTime() - Date.now();
+    const job = await this.bullmqService.addDelayedJob(
+      'message-reminders',
+      'fire-message-reminder',
+      { reminderId: (doc._id as Types.ObjectId).toString() },
+      delayMs,
+    );
+    await this.messageReminderModel.findByIdAndUpdate(doc._id, { jobId: job.id });
+
+    return doc;
+  }
+
   /** Called by the BullMQ worker when the reminder time arrives */
   async fireReminder(reminderId: string): Promise<void> {
     const doc = await this.messageReminderModel.findById(reminderId);
@@ -1637,13 +1680,13 @@ export class ChatService {
 
     const notification = await this.notificationsService.create({
       recipientId: doc.userId.toString(),
-      conversationId: doc.conversationId.toString(),
+      conversationId: doc.conversationId?.toString(),
       type: NotificationType.CHAT_MESSAGE_REMINDER,
       message: doc.note
         ? `Reminder: "${doc.note}"`
         : `Reminder for message: "${(doc.messageContent ?? '').slice(0, 60)}"`,
     });
-    
+
 
     this.wsGateway.broadcastToRoom(`user:${doc.userId.toString()}`, 'notification:new', notification);
 

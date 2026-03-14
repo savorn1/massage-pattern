@@ -9,6 +9,7 @@ export enum MessageType {
   FILE = 'file',
   SYSTEM = 'system',
   POLL = 'poll',
+  VOICE = 'voice',
 }
 
 export class PollOption {

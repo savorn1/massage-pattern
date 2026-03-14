@@ -7,3 +7,4 @@ export { UpdateGroupDto } from './update-group.dto';
 export { ScheduleMessageDto } from './schedule-message.dto';
 export { SetReminderDto } from './set-reminder.dto';
 export { CreateSavedReplyDto, UpdateSavedReplyDto } from './saved-reply.dto';
+export { SetStandaloneReminderDto } from './set-standalone-reminder.dto';
