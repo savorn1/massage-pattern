@@ -157,11 +157,34 @@ export class ChatService {
         );
       }
 
-      const existing = await this.conversationModel.findOne({
-        type: ConversationType.PRIVATE,
-        participants: { $all: participantIds, $size: 2 },
-      });
-      if (existing) return existing;
+      // Find existing private conversation shared by both users via ConversationMember
+      const [convIds1, convIds2] = await Promise.all([
+        this.conversationMemberModel
+          .find({ userId: participantIds[0] })
+          .distinct('conversationId'),
+        this.conversationMemberModel
+          .find({ userId: participantIds[1] })
+          .distinct('conversationId'),
+      ]);
+      const sharedConvIds = convIds1.filter((id) =>
+        convIds2.some((id2) => id2.equals(id)),
+      );
+      if (sharedConvIds.length > 0) {
+        const existing = await this.conversationModel
+          .findOne({ _id: { $in: sharedConvIds }, type: ConversationType.PRIVATE })
+          .lean();
+        if (existing) {
+          const members = await this.conversationMemberModel
+            .find({ conversationId: existing._id })
+            .lean();
+          return {
+            ...existing,
+            participants: members.map((m) => m.userId.toString()),
+            admins: members.filter((m) => m.role === 'admin').map((m) => m.userId.toString()),
+            blockedMembers: members.filter((m) => m.isBlocked).map((m) => m.userId.toString()),
+          } as unknown as ConversationDocument;
+        }
+      }
     }
 
     const now = new Date();
@@ -236,7 +259,12 @@ export class ChatService {
       }
     }
 
-    return conversation;
+    return {
+      ...(conversation.toObject ? conversation.toObject() : conversation),
+      participants: participantIds.map((p) => p.toString()),
+      admins: adminIds,
+      blockedMembers: [],
+    } as unknown as ConversationDocument;
   }
 
   async getUserConversations(userId: string) {
