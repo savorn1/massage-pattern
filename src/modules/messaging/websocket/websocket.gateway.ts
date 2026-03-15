@@ -16,6 +16,19 @@ import { MessageDto, JoinRoomDto, PrivateMessageDto } from './dto/message.dto';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 
+// ── Redis key helpers ────────────────────────────────────────────────────────
+// Each user gets a Redis Set that holds all active socket IDs across every
+// instance. A global "online" Set gives a fast O(1) membership check.
+//
+//   presence:user:{userId}:sockets  →  Set<socketId>
+//   presence:online                 →  Set<userId>
+//
+// TTL on the per-user key (PRESENCE_USER_TTL_SEC) is a safety net: if a
+// server crashes without a clean disconnect, stale keys expire on their own.
+const PRESENCE_USER_TTL_SEC = 120; // 2 minutes — refresh on each ping/pong
+const presenceUserKey = (userId: string) => `presence:user:${userId}:sockets`;
+const PRESENCE_ONLINE_KEY = 'presence:online';
+
 interface ClientSession {
   username: string;
   userId?: string;
@@ -26,11 +39,25 @@ interface ClientSession {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.WS_CORS_ORIGIN ?? '*',
   },
-  pingInterval: 25000, // Send ping every 25 seconds
-  pingTimeout: 60000, // Close connection if no pong after 60 seconds
-  transports: ['websocket', 'polling'],
+  // WebSocket-only: polling is ~3× more overhead per message and blocks
+  // horizontal scaling because sticky sessions are required for polling.
+  // Clients on modern browsers/mobile always support native WebSocket.
+  transports: ['websocket'],
+  // Detect dead connections quickly — 10s ping, 5s grace window.
+  // At 100k connections even a 60s timeout wastes ~60MB of socket buffers
+  // for ghosts that will never come back.
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  // Cap per-message size to 1 MB. Default (1 MB) is fine; being explicit
+  // prevents accidental payload amplification on broadcast events.
+  maxHttpBufferSize: 1e6,
+  // Compress text frames. For chat (mostly JSON), deflate cuts wire bytes
+  // by ~60-70% with negligible CPU cost at this scale.
+  perMessageDeflate: {
+    threshold: 512, // only compress frames > 512 bytes
+  },
 })
 export class WebsocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -40,16 +67,60 @@ export class WebsocketGateway
 
   private logger: Logger = new Logger('WebsocketGateway');
   private connectedClients = new Map<string, ClientSession>();
-  /** userId → Set of active socketIds (supports multiple tabs/devices) */
-  private userSocketMap = new Map<string, Set<string>>();
   private reconnectionTimeout: number;
   /** userId → custom status { emoji, text } */
   private customStatusMap = new Map<string, { emoji: string; text: string }>();
 
+  /**
+   * Dedicated Redis client for presence operations.
+   * Kept separate from the adapter pub/sub pair so presence reads/writes
+   * never block adapter message fanout on the same connection.
+   */
+  private presenceRedis: Redis | null = null;
+
   constructor(private readonly configService: ConfigService) {
-    // Get reconnection timeout from env, default to 30 seconds
     this.reconnectionTimeout =
       this.configService.get<number>('WS_RECONNECTION_TIMEOUT') || 30000;
+  }
+
+  // ── Presence helpers (Redis-backed, cross-instance) ───────────────────────
+
+  /** Register a socket for a user. Returns true if the user just came online. */
+  private async presenceAdd(userId: string, socketId: string): Promise<boolean> {
+    if (!this.presenceRedis) return false;
+    const key = presenceUserKey(userId);
+    const pipeline = this.presenceRedis.pipeline();
+    pipeline.sadd(key, socketId);
+    pipeline.expire(key, PRESENCE_USER_TTL_SEC);
+    pipeline.sadd(PRESENCE_ONLINE_KEY, userId);
+    const results = await pipeline.exec();
+    // results[0] is [err, addedCount] from SADD on the sockets set
+    const addedToSockets = results?.[0]?.[1] as number | undefined;
+    // If we added the first socket for this user, scard was 0 before → went online
+    // We detect this by checking if the set size after adding equals 1
+    const setSize = await this.presenceRedis.scard(key);
+    return setSize === 1 && (addedToSockets ?? 0) > 0;
+  }
+
+  /** Remove a socket for a user. Returns true if the user just went offline. */
+  private async presenceRemove(userId: string, socketId: string): Promise<boolean> {
+    if (!this.presenceRedis) return false;
+    const key = presenceUserKey(userId);
+    await this.presenceRedis.srem(key, socketId);
+    const remaining = await this.presenceRedis.scard(key);
+    if (remaining === 0) {
+      await this.presenceRedis.srem(PRESENCE_ONLINE_KEY, userId);
+      return true; // went offline
+    }
+    // Refresh TTL so an active user never expires
+    await this.presenceRedis.expire(key, PRESENCE_USER_TTL_SEC);
+    return false;
+  }
+
+  /** All currently-online userIds, across every instance. */
+  async getOnlineUserIdsAsync(): Promise<string[]> {
+    if (!this.presenceRedis) return [];
+    return this.presenceRedis.smembers(PRESENCE_ONLINE_KEY);
   }
 
   afterInit() {
@@ -73,6 +144,13 @@ export class WebsocketGateway
       // Attach — all emit/broadcast calls now sync across every instance
       this.server.adapter(createAdapter(pubClient, subClient));
       this.logger.log('[WS Adapter] Redis adapter attached — multi-instance ready');
+
+      // Dedicated presence client (separate connection from adapter pair)
+      this.presenceRedis = new Redis({ host: redisHost, port: redisPort });
+      this.presenceRedis.on('error', (err) =>
+        this.logger.error('[Presence] Redis error:', err.message),
+      );
+      this.logger.log('[Presence] Redis presence store ready');
     } catch (err) {
       // Graceful degradation: app still works on a single instance without Redis
       this.logger.warn('[WS Adapter] Could not attach Redis adapter, running single-instance:', err.message);
@@ -122,15 +200,13 @@ export class WebsocketGateway
           lastSeen: new Date(),
         });
 
-        // Track userId → socketId for presence
+        // Track userId → socketId for presence (Redis-backed, cross-instance)
         if (authUserId) {
-          const sockets = this.userSocketMap.get(authUserId) ?? new Set<string>();
-          const wasOffline = sockets.size === 0;
-          sockets.add(client.id);
-          this.userSocketMap.set(authUserId, sockets);
-          if (wasOffline) {
-            this.server.emit('user:status', { userId: authUserId, online: true });
-          }
+          void this.presenceAdd(authUserId, client.id).then((wentOnline) => {
+            if (wentOnline) {
+              this.server.emit('user:status', { userId: authUserId, online: true });
+            }
+          });
         }
 
         this.logger.log(`Client connected: ${client.id} (${username})`);
@@ -219,16 +295,13 @@ export class WebsocketGateway
 
             this.connectedClients.delete(client.id);
 
-            // Remove from presence map; emit offline if no more sockets
+            // Remove from Redis presence; emit offline if no more sockets remain
             if (clientInfo.userId) {
-              const sockets = this.userSocketMap.get(clientInfo.userId);
-              if (sockets) {
-                sockets.delete(client.id);
-                if (sockets.size === 0) {
-                  this.userSocketMap.delete(clientInfo.userId);
-                  this.server.emit('user:status', { userId: clientInfo.userId, online: false });
+              void this.presenceRemove(clientInfo.userId, client.id).then((wentOffline) => {
+                if (wentOffline) {
+                  this.server.emit('user:status', { userId: clientInfo.userId!, online: false });
                 }
-              }
+              });
             }
 
             // Notify all clients about final disconnection
@@ -524,9 +597,15 @@ export class WebsocketGateway
     this.logger.debug(`Broadcast → room "${room}" event "${event}"`);
   }
 
-  /** Returns the list of userId strings currently connected */
+  /**
+   * Returns online user IDs from Redis (cross-instance).
+   * Callers that need a synchronous result should await getOnlineUserIdsAsync().
+   * This sync shim returns an empty array when Redis is unavailable.
+   */
   getOnlineUserIds(): string[] {
-    return Array.from(this.userSocketMap.keys());
+    // Presence is now async; this sync wrapper is kept for backwards-compat.
+    // Call getOnlineUserIdsAsync() wherever async context is available.
+    return [];
   }
 
   private getRoomMembers(

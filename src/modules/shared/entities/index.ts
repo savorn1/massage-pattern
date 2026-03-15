@@ -165,3 +165,22 @@ export {
   SavedReplyDocument,
   SavedReplySchema,
 } from './saved-reply.entity';
+
+export {
+  ConversationMember,
+  ConversationMemberDocument,
+  ConversationMemberSchema,
+  ConversationMemberRole,
+} from './conversation-member.entity';
+
+export {
+  MessageReceipt,
+  MessageReceiptDocument,
+  MessageReceiptSchema,
+} from './message-receipt.entity';
+
+export {
+  MessageReaction,
+  MessageReactionDocument,
+  MessageReactionSchema,
+} from './message-reaction.entity';

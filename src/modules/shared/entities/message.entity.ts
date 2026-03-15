@@ -46,30 +46,6 @@ export class MessageAttachment {
   size?: number;
 }
 
-export class MessageReadReceipt {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
-
-  @Prop({ required: true })
-  readAt: Date;
-}
-
-export class MessageDeliveryReceipt {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
-
-  @Prop({ required: true })
-  deliveredAt: Date;
-}
-
-export class MessageReaction {
-  @Prop({ required: true })
-  emoji: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
-}
-
 export class MessageEditHistoryEntry {
   @Prop({ required: true })
   content: string;
@@ -114,15 +90,6 @@ export class Message {
   @Prop({ type: Types.ObjectId, ref: 'Message' })
   replyTo?: Types.ObjectId;
 
-  @Prop({ type: [Object], default: [] })
-  readBy: MessageReadReceipt[];
-
-  @Prop({ type: [Object], default: [] })
-  deliveredTo: MessageDeliveryReceipt[];
-
-  @Prop({ type: [Object], default: [] })
-  reactions: MessageReaction[];
-
   @Prop({ default: false })
   isDeleted: boolean;
 
@@ -164,7 +131,6 @@ MessageSchema.index({ conversationId: 1, createdAt: -1 });
 MessageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, sparse: true });
 MessageSchema.index({ conversationId: 1, isDeleted: 1 });
 MessageSchema.index({ senderId: 1 });
-MessageSchema.index({ 'readBy.userId': 1 });
 MessageSchema.index({ mentions: 1 }, { sparse: true });
 
 

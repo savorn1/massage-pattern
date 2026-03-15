@@ -4,9 +4,15 @@ import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gatewa
 import {
   Conversation,
   ConversationDocument,
+  ConversationMember,
+  ConversationMemberDocument,
   ConversationType,
   Message,
   MessageDocument,
+  MessageReaction,
+  MessageReactionDocument,
+  MessageReceipt,
+  MessageReceiptDocument,
   MessageReminder,
   MessageReminderDocument,
   MessageReminderStatus,
@@ -68,6 +74,15 @@ export class ChatService {
     @InjectModel(SavedReply.name)
     private readonly savedReplyModel: Model<SavedReplyDocument>,
 
+    @InjectModel(ConversationMember.name)
+    private readonly conversationMemberModel: Model<ConversationMemberDocument>,
+
+    @InjectModel(MessageReceipt.name)
+    private readonly messageReceiptModel: Model<MessageReceiptDocument>,
+
+    @InjectModel(MessageReaction.name)
+    private readonly messageReactionModel: Model<MessageReactionDocument>,
+
     private readonly wsGateway: WebsocketGateway,
     private readonly uploadsService: UploadsService,
     private readonly notificationsService: NotificationsService,
@@ -77,11 +92,19 @@ export class ChatService {
 
   // ─── Presence ─────────────────────────────────────────────────────────────
 
-  getOnlineUserIds(): string[] {
-    return this.wsGateway.getOnlineUserIds();
+  getOnlineUserIds(): Promise<string[]> {
+    return this.wsGateway.getOnlineUserIdsAsync();
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  private async getMemberIds(conversationId: string): Promise<Types.ObjectId[]> {
+    const members = await this.conversationMemberModel
+      .find({ conversationId: new Types.ObjectId(conversationId) })
+      .select('userId')
+      .lean();
+    return members.map((m) => m.userId);
+  }
 
   /** Emit an event to every participant's personal room (except the sender) */
   private emitToParticipants(
@@ -144,18 +167,23 @@ export class ChatService {
     const now = new Date();
     const conversation = await this.conversationModel.create({
       type: dto.type,
-      participants: participantIds,
       name: dto.name,
       avatar: dto.avatar,
       createdBy:
         dto.type === ConversationType.GROUP || dto.type === ConversationType.BROADCAST
           ? new Types.ObjectId(currentUserId)
           : undefined,
-      admins:
-        dto.type === ConversationType.GROUP || dto.type === ConversationType.BROADCAST
-          ? [new Types.ObjectId(currentUserId)]
-          : [],
     });
+
+    // Seed conversation_members for all participants
+    const memberDocs = participantIds.map((uid) => ({
+      conversationId: conversation._id,
+      userId: uid,
+      role: uid.toString() === currentUserId ? 'admin' : 'member',
+      joinedAt: now,
+      isBlocked: false,
+    }));
+    await this.conversationMemberModel.insertMany(memberDocs, { ordered: false });
 
     // Seed user_conversations for all participants
     const userConversationDocs = participantIds.map((uid) => ({
@@ -167,6 +195,10 @@ export class ChatService {
     }));
     await this.userConversationModel.insertMany(userConversationDocs);
 
+    const adminIds = participantIds
+      .filter((uid) => uid.toString() === currentUserId)
+      .map((uid) => uid.toString());
+
     // Notify other participants they've been added to a new conversation
     this.emitToParticipants(
       participantIds,
@@ -177,7 +209,7 @@ export class ChatService {
         type: conversation.type,
         participants: participantIds.map((p) => p.toString()),
         name: conversation.name ?? null,
-        admins: (conversation.admins as Types.ObjectId[]).map((a) => a.toString()),
+        admins: adminIds,
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
       },
@@ -235,10 +267,25 @@ export class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
+    const allMembers = await this.conversationMemberModel
+      .find({ conversationId: { $in: conversationIds } })
+      .lean();
+
+    const membersByConv = new Map<string, typeof allMembers>();
+    for (const m of allMembers) {
+      const key = m.conversationId.toString();
+      if (!membersByConv.has(key)) membersByConv.set(key, []);
+      membersByConv.get(key)!.push(m);
+    }
+
     return conversations.map((conv) => {
       const uc = ucMap.get((conv._id as Types.ObjectId).toString());
+      const members = membersByConv.get((conv._id as Types.ObjectId).toString()) ?? [];
       return {
         ...conv,
+        participants: members.map((m) => m.userId.toString()),
+        admins: members.filter((m) => m.role === 'admin').map((m) => m.userId.toString()),
+        blockedMembers: members.filter((m) => m.isBlocked).map((m) => m.userId.toString()),
         unreadCount: uc?.unreadCount ?? 0,
         muted: uc?.muted ?? false,
         archived: uc?.archived ?? false,
@@ -259,13 +306,30 @@ export class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
-    return conversations.map((conv) => ({
-      ...conv,
-      archived: true,
-      unreadCount: 0,
-      muted: userConversations.find((uc) => uc.conversationId.toString() === (conv._id as Types.ObjectId).toString())?.muted ?? false,
-      lastReadMessageId: null,
-    }));
+    const allMembers = await this.conversationMemberModel
+      .find({ conversationId: { $in: conversationIds } })
+      .lean();
+
+    const membersByConv = new Map<string, typeof allMembers>();
+    for (const m of allMembers) {
+      const key = m.conversationId.toString();
+      if (!membersByConv.has(key)) membersByConv.set(key, []);
+      membersByConv.get(key)!.push(m);
+    }
+
+    return conversations.map((conv) => {
+      const members = membersByConv.get((conv._id as Types.ObjectId).toString()) ?? [];
+      return {
+        ...conv,
+        participants: members.map((m) => m.userId.toString()),
+        admins: members.filter((m) => m.role === 'admin').map((m) => m.userId.toString()),
+        blockedMembers: members.filter((m) => m.isBlocked).map((m) => m.userId.toString()),
+        archived: true,
+        unreadCount: 0,
+        muted: userConversations.find((uc) => uc.conversationId.toString() === (conv._id as Types.ObjectId).toString())?.muted ?? false,
+        lastReadMessageId: null,
+      };
+    });
   }
 
   async archiveConversation(userId: string, conversationId: string, archive: boolean): Promise<void> {
@@ -448,13 +512,11 @@ export class ChatService {
     const conversation = await this.conversationModel.findById(conversationId);
     if (!conversation) throw new NotFoundException('Conversation not found.');
 
-
-    console.log("UserId ======>", userId)
-
-    const isMember = conversation.participants.some((p) =>
-      p.equals(new Types.ObjectId(userId)),
-    );
-    if (!isMember) throw new ForbiddenException('Access denied.');
+    const member = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(userId),
+    });
+    if (!member) throw new ForbiddenException('Access denied.');
 
     return conversation;
   }
@@ -470,16 +532,28 @@ export class ChatService {
       throw new BadRequestException('Only group conversations can be updated.');
     }
 
-    const isAdmin = conversation.admins.some((a) =>
-      a.equals(new Types.ObjectId(currentUserId)),
-    );
-    if (!isAdmin) throw new ForbiddenException('Only admins can update the group.');
+    const callerMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(currentUserId),
+    });
+    if (callerMember?.role !== 'admin') throw new ForbiddenException('Only admins can update the group.');
 
     const update: Partial<Conversation> = {};
     if (dto.name !== undefined) update.name = dto.name;
     if (dto.avatar !== undefined) update.avatar = dto.avatar;
-    if (dto.admins !== undefined)
-      update.admins = dto.admins.map((id) => new Types.ObjectId(id));
+
+    if (dto.admins !== undefined) {
+      const adminIds = dto.admins.map((id) => new Types.ObjectId(id));
+      // Reset all to member then set selected ones as admin
+      await this.conversationMemberModel.updateMany(
+        { conversationId: new Types.ObjectId(conversationId) },
+        { $set: { role: 'member' } },
+      );
+      await this.conversationMemberModel.updateMany(
+        { conversationId: new Types.ObjectId(conversationId), userId: { $in: adminIds } },
+        { $set: { role: 'admin' } },
+      );
+    }
 
     const updated = await this.conversationModel
       .findByIdAndUpdate(conversationId, update, { new: true })
@@ -499,38 +573,50 @@ export class ChatService {
       throw new BadRequestException('Cannot add participants to private chats.');
     }
 
-    const isAdmin = conversation.admins.some((a) =>
-      a.equals(new Types.ObjectId(currentUserId)),
-    );
-    if (!isAdmin)
+    const callerMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(currentUserId),
+    });
+    if (callerMember?.role !== 'admin')
       throw new ForbiddenException('Only admins can add participants.');
 
     const newIds = userIds.map((id) => new Types.ObjectId(id));
     const now = new Date();
 
-    await this.conversationModel.findByIdAndUpdate(conversationId, {
-      $addToSet: { participants: { $each: newIds } },
-    });
+    // Upsert ConversationMember records for new participants
+    const memberOps = newIds.map((uid) => ({
+      updateOne: {
+        filter: { conversationId: conversation._id, userId: uid },
+        update: { $setOnInsert: { role: 'member', joinedAt: now, isBlocked: false } },
+        upsert: true,
+      },
+    }));
+    await this.conversationMemberModel.bulkWrite(memberOps);
 
-    const ops = newIds.map((uid) => ({
+    // Upsert UserConversation records for new participants
+    const ucOps = newIds.map((uid) => ({
       updateOne: {
         filter: { userId: uid, conversationId: conversation._id },
         update: { $setOnInsert: { unreadCount: 0, joinedAt: now, muted: false } },
         upsert: true,
       },
     }));
-    await this.userConversationModel.bulkWrite(ops);
+    await this.userConversationModel.bulkWrite(ucOps);
 
     const updated = await this.conversationModel.findById(conversationId).exec();
     if (!updated) throw new NotFoundException('Conversation not found.');
 
-    const conversationPayload: Record<string, unknown> = {
+    const updatedMembers = await this.conversationMemberModel
+      .find({ conversationId: new Types.ObjectId(conversationId) })
+      .lean();
+
+    const conversationPayload = {
       _id: (updated._id as Types.ObjectId).toString(),
       type: updated.type,
-      participants: (updated.participants as Types.ObjectId[]).map((p) => p.toString()),
+      participants: updatedMembers.map((m) => m.userId.toString()),
+      admins: updatedMembers.filter((m) => m.role === 'admin').map((m) => m.userId.toString()),
+      blockedMembers: updatedMembers.filter((m) => m.isBlocked).map((m) => m.userId.toString()),
       name: updated.name ?? null,
-      admins: (updated.admins as Types.ObjectId[]).map((a) => a.toString()),
-      blockedMembers: (updated.blockedMembers as Types.ObjectId[]).map((b) => b.toString()),
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };
@@ -545,9 +631,9 @@ export class ChatService {
     }
 
     // Notify existing participants that the member list changed
-    const existingParticipants = (updated.participants as Types.ObjectId[]).filter(
-      (p) => !newIds.some((n) => n.equals(p)),
-    );
+    const existingParticipants = updatedMembers
+      .map((m) => m.userId)
+      .filter((uid) => !newIds.some((n) => n.equals(uid)));
     for (const uid of existingParticipants) {
       this.wsGateway.broadcastToRoom(`user:${uid.toString()}`, 'chat:member:added', {
         conversationId,
@@ -587,26 +673,31 @@ export class ChatService {
       throw new BadRequestException('Cannot remove participants from private chats.');
     }
 
-    const isAdmin = conversation.admins.some((a) =>
-      a.equals(new Types.ObjectId(currentUserId)),
-    );
+    const callerMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(currentUserId),
+    });
     const isSelf = currentUserId === targetUserId;
 
-    if (!isAdmin && !isSelf) {
+    if (callerMember?.role !== 'admin' && !isSelf) {
       throw new ForbiddenException('Only admins can remove other participants.');
     }
 
     const targetId = new Types.ObjectId(targetUserId);
 
+    // Fetch member IDs before removing so we can notify everyone
+    const memberIds = await this.getMemberIds(conversationId);
+
     // Notify all current participants before removing
     this.emitToAllParticipants(
-      conversation.participants as Types.ObjectId[],
+      memberIds,
       isSelf ? 'chat:member:left' : 'chat:member:removed',
       { conversationId, userId: targetUserId },
     );
 
-    await this.conversationModel.findByIdAndUpdate(conversationId, {
-      $pull: { participants: targetId, admins: targetId, blockedMembers: targetId },
+    await this.conversationMemberModel.deleteOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: targetId,
     });
 
     const updated = await this.conversationModel.findById(conversationId).exec();
@@ -625,24 +716,27 @@ export class ChatService {
       throw new BadRequestException('Cannot block members in private chats.');
     }
 
-    const isAdmin = conversation.admins.some((a) =>
-      a.equals(new Types.ObjectId(currentUserId)),
-    );
-    if (!isAdmin) throw new ForbiddenException('Only admins can block members.');
+    const callerMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(currentUserId),
+    });
+    if (callerMember?.role !== 'admin') throw new ForbiddenException('Only admins can block members.');
 
     if (currentUserId === targetUserId) {
       throw new BadRequestException('You cannot block yourself.');
     }
 
-    await this.conversationModel.findByIdAndUpdate(conversationId, {
-      $addToSet: { blockedMembers: new Types.ObjectId(targetUserId) },
-    });
+    await this.conversationMemberModel.updateOne(
+      { conversationId: new Types.ObjectId(conversationId), userId: new Types.ObjectId(targetUserId) },
+      { $set: { isBlocked: true } },
+    );
 
     const updated = await this.conversationModel.findById(conversationId).exec();
     if (!updated) throw new NotFoundException('Conversation not found.');
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      updated.participants as Types.ObjectId[],
+      memberIds,
       'chat:member:blocked',
       { conversationId, userId: targetUserId },
     );
@@ -661,20 +755,23 @@ export class ChatService {
       throw new BadRequestException('Cannot unblock members in private chats.');
     }
 
-    const isAdmin = conversation.admins.some((a) =>
-      a.equals(new Types.ObjectId(currentUserId)),
-    );
-    if (!isAdmin) throw new ForbiddenException('Only admins can unblock members.');
-
-    await this.conversationModel.findByIdAndUpdate(conversationId, {
-      $pull: { blockedMembers: new Types.ObjectId(targetUserId) },
+    const callerMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(currentUserId),
     });
+    if (callerMember?.role !== 'admin') throw new ForbiddenException('Only admins can unblock members.');
+
+    await this.conversationMemberModel.updateOne(
+      { conversationId: new Types.ObjectId(conversationId), userId: new Types.ObjectId(targetUserId) },
+      { $set: { isBlocked: false } },
+    );
 
     const updated = await this.conversationModel.findById(conversationId).exec();
     if (!updated) throw new NotFoundException('Conversation not found.');
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      updated.participants as Types.ObjectId[],
+      memberIds,
       'chat:member:unblocked',
       { conversationId, userId: targetUserId },
     );
@@ -692,19 +789,18 @@ export class ChatService {
   ): Promise<MessageDocument> {
     const conversation = await this.getConversation(conversationId, senderId);
 
-    const isBlocked = (conversation.blockedMembers ?? []).some((b) =>
-      b.equals(new Types.ObjectId(senderId)),
-    );
-    if (isBlocked) {
+    const senderMember = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: new Types.ObjectId(senderId),
+    });
+
+    if (senderMember?.isBlocked) {
       throw new ForbiddenException('You have been blocked in this conversation.');
     }
 
     // Broadcast channels: only admins can post
     if (conversation.type === ConversationType.BROADCAST) {
-      const isAdmin = (conversation.admins ?? []).some((a) =>
-        a.equals(new Types.ObjectId(senderId)),
-      );
-      if (!isAdmin) {
+      if (senderMember?.role !== 'admin') {
         throw new ForbiddenException('Only admins can post in announcement channels.');
       }
     }
@@ -757,9 +853,17 @@ export class ChatService {
       content: rawContent,
       attachments,
       replyTo: dto.replyTo ? new Types.ObjectId(dto.replyTo) : undefined,
-      readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
       ...(expiresAt ? { expiresAt } : {}),
       ...(mentions.length > 0 ? { mentions } : {}),
+    });
+
+    // Create a read + delivered receipt for the sender
+    await this.messageReceiptModel.create({
+      messageId: message._id,
+      conversationId: conversation._id,
+      userId: new Types.ObjectId(senderId),
+      readAt: new Date(),
+      deliveredAt: new Date(),
     });
 
     // Update lastMessage snapshot on the conversation
@@ -794,14 +898,14 @@ export class ChatService {
       replyTo: message.replyTo
         ? (message.replyTo as Types.ObjectId).toString()
         : null,
-      readBy: message.readBy,
       isDeleted: message.isDeleted,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
     };
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToParticipants(
-      conversation.participants as Types.ObjectId[],
+      memberIds,
       senderId,
       'chat:message:new',
       payload,
@@ -817,16 +921,36 @@ export class ChatService {
     limit = 50,
     before?: string,
     after?: string,
-  ): Promise<{ data: MessageDocument[]; total: number }> {
+  ): Promise<{ data: MessageDocument[]; total: number; hasMore?: boolean }> {
     await this.getConversation(conversationId, userId);
     const base = this.conversationFilter(conversationId);
 
+    // Cursor-based path: fetch limit+1 rows to detect hasMore, skip countDocuments.
+    // countDocuments on a large collection is O(n) and doubles DB round-trips;
+    // callers using cursors don't need a total page count.
     if (before) {
-      return this.fetchMessages({ ...base, createdAt: { $lt: new Date(before) } }, -1, 0, limit);
+      const rows = await this.messageModel
+        .find({ ...base, createdAt: { $lt: new Date(before) } })
+        .sort({ createdAt: -1 })
+        .limit(limit + 1)
+        .exec();
+      const hasMore = rows.length > limit;
+      const data = rows.slice(0, limit).reverse();
+      return { data, total: -1, hasMore };
     }
     if (after) {
-      return this.fetchMessages({ ...base, createdAt: { $gt: new Date(after) } }, 1, 0, limit);
+      const rows = await this.messageModel
+        .find({ ...base, createdAt: { $gt: new Date(after) } })
+        .sort({ createdAt: 1 })
+        .limit(limit + 1)
+        .exec();
+      const hasMore = rows.length > limit;
+      const data = rows.slice(0, limit);
+      return { data, total: -1, hasMore };
     }
+
+    // Page-based path (initial load): countDocuments is acceptable here because
+    // it only runs once per conversation open, not on every scroll event.
     return this.fetchMessages(base, -1, (page - 1) * limit, limit);
   }
 
@@ -842,15 +966,26 @@ export class ChatService {
     const anchor = await this.messageModel.findById(messageId);
     if (!anchor) throw new NotFoundException('Message not found.');
 
-    // Sort descending so skip(newerCount - half) positions the window around the anchor
-    const newerCount = await this.messageModel.countDocuments({
-      ...base,
-      createdAt: { $gt: anchor.createdAt },
-    });
-    const skip = Math.max(0, newerCount - Math.floor(limit / 2));
+    // Fetch half-window of older and newer messages around the anchor using
+    // two targeted range queries — avoids skip() and countDocuments entirely.
+    const half = Math.floor(limit / 2);
+    const [older, newer] = await Promise.all([
+      this.messageModel
+        .find({ ...base, createdAt: { $lte: anchor.createdAt } })
+        .sort({ createdAt: -1 })
+        .limit(half + 1) // +1 to detect hasOlder
+        .exec(),
+      this.messageModel
+        .find({ ...base, createdAt: { $gt: anchor.createdAt } })
+        .sort({ createdAt: 1 })
+        .limit(half + 1) // +1 to detect hasNewer
+        .exec(),
+    ]);
 
-    const { data, total } = await this.fetchMessages(base, -1, skip, limit);
-    return { data, total, hasNewer: skip > 0, hasOlder: skip + data.length < total };
+    const hasOlder = older.length > half;
+    const hasNewer = newer.length > half;
+    const data = [...older.slice(0, half).reverse(), ...newer.slice(0, half)];
+    return { data, total: data.length, hasNewer, hasOlder };
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -883,19 +1018,16 @@ export class ChatService {
     userId: string,
     messageId: string,
   ): Promise<void> {
-    const conversation = await this.getConversation(conversationId, userId);
+    await this.getConversation(conversationId, userId);
 
     const userObjId = new Types.ObjectId(userId);
     const messageObjId = new Types.ObjectId(messageId);
     const now = new Date();
 
-    await this.messageModel.updateOne(
-      {
-        _id: messageObjId,
-        conversationId: new Types.ObjectId(conversationId),
-        'readBy.userId': { $ne: userObjId },
-      },
-      { $push: { readBy: { userId: userObjId, readAt: now } } },
+    await this.messageReceiptModel.updateOne(
+      { messageId: messageObjId, userId: userObjId },
+      { $set: { readAt: now, conversationId: new Types.ObjectId(conversationId) } },
+      { upsert: true },
     );
 
     await this.userConversationModel.updateOne(
@@ -905,8 +1037,9 @@ export class ChatService {
     );
 
     // Notify other participants (especially the sender) that this message was read
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToParticipants(
-      conversation.participants as Types.ObjectId[],
+      memberIds,
       userId,
       'chat:message:readBy',
       {
@@ -923,23 +1056,21 @@ export class ChatService {
     userId: string,
     messageId: string,
   ): Promise<void> {
-    const conversation = await this.getConversation(conversationId, userId);
+    await this.getConversation(conversationId, userId);
 
     const userObjId = new Types.ObjectId(userId);
     const messageObjId = new Types.ObjectId(messageId);
     const now = new Date();
 
-    await this.messageModel.updateOne(
-      {
-        _id: messageObjId,
-        conversationId: new Types.ObjectId(conversationId),
-        'deliveredTo.userId': { $ne: userObjId },
-      },
-      { $push: { deliveredTo: { userId: userObjId, deliveredAt: now } } },
+    await this.messageReceiptModel.updateOne(
+      { messageId: messageObjId, userId: userObjId },
+      { $set: { deliveredAt: now, conversationId: new Types.ObjectId(conversationId) } },
+      { upsert: true },
     );
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToParticipants(
-      conversation.participants as Types.ObjectId[],
+      memberIds,
       userId,
       'chat:message:delivered',
       {
@@ -975,23 +1106,21 @@ export class ChatService {
     );
     if (!updated) throw new NotFoundException('Message not found.');
 
-    const conversation = await this.conversationModel.findById(updated.conversationId);
-    if (conversation) {
-      this.emitToAllParticipants(
-        conversation.participants as Types.ObjectId[],
-        'chat:message:edited',
-        {
-          messageId: (updated._id as Types.ObjectId).toString(),
-          conversationId: (updated.conversationId as Types.ObjectId).toString(),
-          content: updated.content,
-          editedAt: updated.editedAt,
-          editHistory: (updated.editHistory ?? []).map((e: any) => ({
-            content: e.content,
-            editedAt: e.editedAt,
-          })),
-        },
-      );
-    }
+    const memberIds = await this.getMemberIds((updated.conversationId as Types.ObjectId).toString());
+    this.emitToAllParticipants(
+      memberIds,
+      'chat:message:edited',
+      {
+        messageId: (updated._id as Types.ObjectId).toString(),
+        conversationId: (updated.conversationId as Types.ObjectId).toString(),
+        content: updated.content,
+        editedAt: updated.editedAt,
+        editHistory: (updated.editHistory ?? []).map((e: any) => ({
+          content: e.content,
+          editedAt: e.editedAt,
+        })),
+      },
+    );
 
     return updated;
   }
@@ -1015,19 +1144,15 @@ export class ChatService {
     if (!deleted) throw new NotFoundException('Message not found.');
 
     // ── Real-time: notify all participants of deletion ────────────────────
-    const conversation = await this.conversationModel.findById(
-      deleted.conversationId,
+    const memberIds = await this.getMemberIds((deleted.conversationId as Types.ObjectId).toString());
+    this.emitToAllParticipants(
+      memberIds,
+      'chat:message:deleted',
+      {
+        messageId: (deleted._id as Types.ObjectId).toString(),
+        conversationId: (deleted.conversationId as Types.ObjectId).toString(),
+      },
     );
-    if (conversation) {
-      this.emitToAllParticipants(
-        conversation.participants as Types.ObjectId[],
-        'chat:message:deleted',
-        {
-          messageId: (deleted._id as Types.ObjectId).toString(),
-          conversationId: (deleted.conversationId as Types.ObjectId).toString(),
-        },
-      );
-    }
 
     return deleted;
   }
@@ -1063,8 +1188,16 @@ export class ChatService {
         conversationId: original.conversationId,
         senderName,
       },
-      readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
       ...(expiresAt ? { expiresAt } : {}),
+    });
+
+    // Create a read + delivered receipt for the sender
+    await this.messageReceiptModel.create({
+      messageId: forwarded._id,
+      conversationId: targetConversation._id,
+      userId: new Types.ObjectId(senderId),
+      readAt: new Date(),
+      deliveredAt: new Date(),
     });
 
     // Update lastMessage on target conversation
@@ -1094,7 +1227,6 @@ export class ChatService {
       content: forwarded.content,
       attachments: forwarded.attachments,
       replyTo: null,
-      readBy: forwarded.readBy,
       isDeleted: forwarded.isDeleted,
       forwardedFrom: {
         messageId: (original._id as Types.ObjectId).toString(),
@@ -1105,8 +1237,9 @@ export class ChatService {
       updatedAt: forwarded.updatedAt,
     };
 
+    const memberIds = await this.getMemberIds(targetConversationId);
     this.emitToParticipants(
-      targetConversation.participants as Types.ObjectId[],
+      memberIds,
       senderId,
       'chat:message:new',
       payload,
@@ -1156,45 +1289,43 @@ export class ChatService {
     if (message.isDeleted) throw new BadRequestException('Cannot react to a deleted message.');
 
     const userObjId = new Types.ObjectId(userId);
-    const reactions = (message.reactions ?? []) as Array<{ emoji: string; userId: Types.ObjectId }>;
-    const existing = reactions.findIndex(
-      (r) => r.emoji === emoji && r.userId.equals(userObjId),
+    const msgObjId = new Types.ObjectId(messageId);
+
+    const existing = await this.messageReactionModel.findOne({
+      messageId: msgObjId,
+      userId: userObjId,
+      emoji,
+    });
+
+    if (existing) {
+      await this.messageReactionModel.deleteOne({ _id: existing._id });
+    } else {
+      await this.messageReactionModel.create({ messageId: msgObjId, userId: userObjId, emoji });
+    }
+
+    const reactions = await this.messageReactionModel
+      .find({ messageId: msgObjId })
+      .lean();
+
+    const reactionSummary = reactions.map((r) => ({
+      emoji: r.emoji,
+      userId: r.userId.toString(),
+    }));
+
+    const memberIds = await this.getMemberIds(message.conversationId.toString());
+    this.emitToAllParticipants(
+      memberIds,
+      'chat:message:reaction',
+      {
+        messageId,
+        conversationId: message.conversationId.toString(),
+        reactions: reactionSummary,
+      },
     );
 
-    let updated: MessageDocument | null;
-    if (existing !== -1) {
-      // Remove reaction
-      updated = await this.messageModel.findByIdAndUpdate(
-        messageId,
-        { $pull: { reactions: { emoji, userId: userObjId } } },
-        { new: true },
-      );
-    } else {
-      // Add reaction
-      updated = await this.messageModel.findByIdAndUpdate(
-        messageId,
-        { $push: { reactions: { emoji, userId: userObjId } } },
-        { new: true },
-      );
-    }
-    if (!updated) throw new NotFoundException('Message not found.');
-
-    const conversation = await this.conversationModel.findById(updated.conversationId);
-    if (conversation) {
-      this.emitToAllParticipants(
-        conversation.participants as Types.ObjectId[],
-        'chat:message:reaction',
-        {
-          messageId: (updated._id as Types.ObjectId).toString(),
-          conversationId: (updated.conversationId as Types.ObjectId).toString(),
-          reactions: (updated.reactions ?? []).map((r: any) => ({
-            emoji: r.emoji,
-            userId: r.userId.toString(),
-          })),
-        },
-      );
-    }
-    return updated;
+    const msg = await this.messageModel.findById(messageId);
+    if (!msg) throw new NotFoundException('Message not found.');
+    return msg;
   }
 
   // ── Pinned messages ────────────────────────────────────────────────────────
@@ -1229,8 +1360,9 @@ export class ChatService {
     );
     if (!updated) throw new NotFoundException('Conversation not found.');
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      updated.participants as Types.ObjectId[],
+      memberIds,
       'chat:message:pinned',
       {
         conversationId,
@@ -1291,8 +1423,9 @@ export class ChatService {
       { new: true },
     );
     if (!updated) throw new NotFoundException('Conversation not found.');
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      updated.participants as Types.ObjectId[],
+      memberIds,
       'chat:conversation:disappearing',
       { conversationId, enabled, ttl },
     );
@@ -1335,14 +1468,19 @@ export class ChatService {
     const conversation = await this.conversationModel.findOne({ inviteToken: token });
     if (!conversation) throw new NotFoundException('Invite link is invalid or has been reset.');
     const userObjId = new Types.ObjectId(userId);
-    const alreadyMember = conversation.participants.some((p) =>
-      (p as Types.ObjectId).equals(userObjId),
-    );
+    const existingMember = await this.conversationMemberModel.findOne({
+      conversationId: conversation._id,
+      userId: userObjId,
+    });
+    const alreadyMember = !!existingMember;
     if (!alreadyMember) {
-      await this.conversationModel.findByIdAndUpdate(conversation._id, {
-        $push: { participants: userObjId },
+      await this.conversationMemberModel.create({
+        conversationId: conversation._id,
+        userId: userObjId,
+        role: 'member',
+        joinedAt: new Date(),
+        isBlocked: false,
       });
-      conversation.participants.push(userObjId);
       await this.userConversationModel.create({
         userId: userObjId,
         conversationId: conversation._id,
@@ -1374,9 +1512,17 @@ export class ChatService {
       type: 'poll',
       content: question,
       attachments: [],
-      readBy: [{ userId: new Types.ObjectId(senderId), readAt: new Date() }],
       poll: { question, allowMultiple: !!allowMultiple, options: options.map((text) => ({ text, votes: [] })) },
       ...(expiresAt ? { expiresAt } : {}),
+    });
+
+    // Create a read + delivered receipt for the sender
+    await this.messageReceiptModel.create({
+      messageId: message._id,
+      conversationId: conversation._id,
+      userId: new Types.ObjectId(senderId),
+      readAt: new Date(),
+      deliveredAt: new Date(),
     });
 
     await this.conversationModel.findByIdAndUpdate(conversationId, {
@@ -1393,8 +1539,9 @@ export class ChatService {
       { $inc: { unreadCount: 1 } },
     );
 
+    const pollMemberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      conversation.participants as Types.ObjectId[],
+      pollMemberIds,
       'chat:message:new',
       message.toObject(),
     );
@@ -1448,14 +1595,12 @@ export class ChatService {
     );
     if (!updated) throw new NotFoundException('Message not found.');
 
-    const conversation = await this.conversationModel.findById(message.conversationId);
-    if (conversation) {
-      this.emitToAllParticipants(
-        conversation.participants as Types.ObjectId[],
-        'chat:poll:updated',
-        { messageId, poll: updated.poll },
-      );
-    }
+    const voteMemberIds = await this.getMemberIds(message.conversationId.toString());
+    this.emitToAllParticipants(
+      voteMemberIds,
+      'chat:poll:updated',
+      { messageId, poll: updated.poll },
+    );
 
     return updated as MessageDocument;
   }
@@ -1471,8 +1616,9 @@ export class ChatService {
     );
     if (!updated) throw new NotFoundException('Conversation not found.');
 
+    const memberIds = await this.getMemberIds(conversationId);
     this.emitToAllParticipants(
-      updated.participants as Types.ObjectId[],
+      memberIds,
       'chat:message:unpinned',
       { conversationId, messageId },
     );
@@ -1490,8 +1636,11 @@ export class ChatService {
     if (!conversation) throw new NotFoundException('Conversation not found.');
 
     const senderOid = new Types.ObjectId(senderId);
-    const isMember = conversation.participants.some((p) => p.equals(senderOid));
-    if (!isMember) throw new ForbiddenException('Not a participant.');
+    const senderMemberRecord = await this.conversationMemberModel.findOne({
+      conversationId: new Types.ObjectId(conversationId),
+      userId: senderOid,
+    });
+    if (!senderMemberRecord) throw new ForbiddenException('Not a participant.');
 
     const scheduledFor = new Date(dto.scheduledFor);
     if (scheduledFor <= new Date()) {
