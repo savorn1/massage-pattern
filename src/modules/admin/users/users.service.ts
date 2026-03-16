@@ -130,13 +130,30 @@ export class UsersService extends BaseRepository<UserDocument> implements OnModu
   }
 
   /**
-   * Get all active users with pagination
+   * Get multiple users by their IDs (used to resolve conversation participants)
    */
-  async getActiveUsers(skip = 0, limit = 10) {
-    return this.findWithPagination(
-      { isActive: true, isDeleted: false },
-      { skip, limit },
-      { createdAt: -1 },
-    );
+  async getByIds(ids: string[]) {
+    if (!ids.length) return [];
+    const { Types } = await import('mongoose');
+    const objectIds = ids.map((id) => new Types.ObjectId(id));
+    return this.userModel
+      .find({ _id: { $in: objectIds }, isDeleted: false })
+      .select('_id name email role avatar')
+      .lean();
+  }
+
+  /**
+   * Get all active users with pagination and optional filters
+   */
+  async getActiveUsers(
+    skip = 0,
+    limit = 10,
+    filters: { name?: string; email?: string; role?: string } = {},
+  ) {
+    const query: Record<string, unknown> = { isActive: true, isDeleted: false };
+    if (filters.name) query['name'] = { $regex: filters.name, $options: 'i' };
+    if (filters.email) query['email'] = { $regex: filters.email, $options: 'i' };
+    if (filters.role) query['role'] = filters.role;
+    return this.findWithPagination(query, { skip, limit }, { createdAt: -1 });
   }
 }

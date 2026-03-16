@@ -47,14 +47,33 @@ export class UsersController {
   }
 
   /**
+   * Get multiple users by IDs (comma-separated)
+   */
+  @Get('by-ids')
+  async findByIds(@Query('ids') ids: string) {
+    const idList = ids ? ids.split(',').filter(Boolean) : [];
+    const users = await this.usersService.getByIds(idList);
+    return users.map((u) => {
+      const { password: _pw, ...rest } = u as typeof u & { password?: unknown };
+      return rest;
+    });
+  }
+
+  /**
    * Get all users with pagination
    */
   @Get()
-  async findAll(@Query('skip') skip?: string, @Query('limit') limit?: string) {
+  async findAll(
+    @Query('skip') skip?: string,
+    @Query('limit') limit?: string,
+    @Query('name') name?: string,
+    @Query('email') email?: string,
+    @Query('role') role?: string,
+  ) {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
-    const result = await this.usersService.getActiveUsers(skipNum, limitNum);
+    const result = await this.usersService.getActiveUsers(skipNum, limitNum, { name, email, role });
 
     // Remove passwords from response
     const usersWithoutPasswords = result.data.map((user) => {

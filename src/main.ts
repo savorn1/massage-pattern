@@ -128,9 +128,10 @@ API requests are rate-limited to ensure fair usage and system stability.
     prefix: '/docs/',
   });
 
-  await app.listen(3000);
-  console.log('🚀 Application running on http://localhost:3000');
-  console.log('🔌 WebSocket server running on ws://localhost:3000');
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`🚀 Application running on http://localhost:${port}`);
+  console.log(`🔌 WebSocket server running on ws://localhost:${port}`);
   console.log(
     '🧪 WebSocket Test Client: http://localhost:3000/websocket-client.html',
   );
