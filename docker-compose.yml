@@ -56,7 +56,63 @@ services:
       timeout: 3s
       retries: 5
 
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - '9121:9121'
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.43
+    ports:
+      - '9216:9216'
+    command:
+      - '--mongodb.uri=mongodb://admin:password@mongodb:27017/?authSource=admin'
+      - '--collect-all'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      - redis-exporter
+      - mongodb-exporter
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - '3001:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 volumes:
   redis_data:
   rabbitmq_data:
   mongodb_data:
+  prometheus_data:
+  grafana_data:

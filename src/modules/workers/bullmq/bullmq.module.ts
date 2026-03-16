@@ -17,6 +17,7 @@ import {
 } from '@/modules/shared/entities/payment-qr.entity';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MetricsModule } from '@/modules/metrics/metrics.module';
 import { BullmqController } from './bullmq.controller';
 import { BullmqService } from './bullmq.service';
 import { EmailWorker } from './workers/email.worker';
@@ -27,6 +28,7 @@ import { PaymentWorker } from './workers/payment.worker';
 
 @Module({
   imports: [
+    MetricsModule,
     MongooseModule.forFeature([
       { name: Project.name, schema: ProjectSchema },
       { name: ProjectMember.name, schema: ProjectMemberSchema },

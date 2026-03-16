@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 export interface EmailJobData {
   to: string;
@@ -27,6 +28,8 @@ export class EmailWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmailWorker.name);
   private worker: Worker;
   private connection: Redis;
+
+  constructor(private readonly metricsService: MetricsService) {}
 
   onModuleInit() {
     this.connection = new Redis({
@@ -70,6 +73,7 @@ export class EmailWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Worker error:', err);
     });
 
+    this.metricsService.trackWorkerMetrics(this.worker, 'emails');
     this.logger.log(
       'Email worker started (concurrency: 5, rate limit: 100/min)',
     );

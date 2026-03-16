@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 export interface ImageJobData {
   imageId: string;
@@ -32,6 +33,8 @@ export class ImageWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ImageWorker.name);
   private worker: Worker;
   private connection: Redis;
+
+  constructor(private readonly metricsService: MetricsService) {}
 
   onModuleInit() {
     this.connection = new Redis({
@@ -66,6 +69,7 @@ export class ImageWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Image job ${job.id} progress: ${progress}%`);
     });
 
+    this.metricsService.trackWorkerMetrics(this.worker, 'images');
     this.logger.log('Image worker started (concurrency: 3)');
   }
 

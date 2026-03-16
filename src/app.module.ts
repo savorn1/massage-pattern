@@ -32,6 +32,9 @@ import { IntegrationsModule } from './integrations/integrations.module';
 // Health Monitoring
 import { HealthModule } from './modules/health/health.module';
 
+// Metrics (Prometheus)
+import { MetricsModule } from './modules/metrics/metrics.module';
+
 // Security (Rate Limiting)
 import { ThrottleModule } from './core/throttle/throttle.module';
 
@@ -109,6 +112,11 @@ import { CacheModule } from './modules/cache/cache.module';
     // HEALTH MONITORING
     // ══════════════════════════════════════════════════════════════════════
     HealthModule,
+
+    // ══════════════════════════════════════════════════════════════════════
+    // METRICS (Prometheus)
+    // ══════════════════════════════════════════════════════════════════════
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,6 +4,7 @@ import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gatewa
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Job, Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 const QUEUE_NAME = 'fund-pool-executor';
 const JOB_NAME = 'execute-fund-pools';
@@ -21,6 +22,7 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
     private readonly fundPoolsService: FundPoolsService,
     private readonly ws: WebsocketGateway,
     private readonly featureFlags: FeatureFlagService,
+    private readonly metricsService: MetricsService,
   ) { }
 
   async onModuleInit() {
@@ -62,6 +64,7 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`✗ Fund pool executor job ${job?.id} failed: ${err.message}`),
     );
 
+    this.metricsService.trackWorkerMetrics(this.worker, 'fund-pool-executor');
     this.logger.log('FundPoolExecutor worker started — checking pools every minute');
   }
 

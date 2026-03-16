@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Job, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { Model } from 'mongoose';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 export const PAYMENT_QUEUE = 'payments';
 
@@ -49,6 +50,7 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
     private readonly ws: WebsocketGateway,
     @InjectModel(PaymentQr.name)
     private readonly qrModel: Model<PaymentQrDocument>,
+    private readonly metricsService: MetricsService,
   ) { }
 
   async onModuleInit() {
@@ -75,6 +77,7 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`✗ Payment job ${job?.id} (${job?.name}) failed: ${err.message}`),
     );
 
+    this.metricsService.trackWorkerMetrics(this.worker, 'payments');
     this.logger.log('PaymentWorker started');
   }
 

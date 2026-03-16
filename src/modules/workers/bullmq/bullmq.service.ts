@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Queue, QueueEvents, Job, JobsOptions } from 'bullmq';
 import Redis from 'ioredis';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 export type JobData = Record<string, any> | object;
 
@@ -32,6 +33,8 @@ export class BullmqService implements OnModuleInit, OnModuleDestroy {
   private connection: Redis;
   private queues: Map<string, Queue> = new Map();
   private queueEvents: Map<string, QueueEvents> = new Map();
+
+  constructor(private readonly metricsService: MetricsService) {}
 
   onModuleInit() {
     this.connection = new Redis({
@@ -113,6 +116,7 @@ export class BullmqService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(`Added job ${job.id} (${jobName}) to queue: ${queueName}`);
+    this.metricsService.bullmqJobsTotal.inc({ queue: queueName, status: 'enqueued' });
     return job;
   }
 

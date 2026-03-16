@@ -19,6 +19,7 @@ import { TasksService } from '@/modules/admin/tasks/tasks.service';
 import { NotificationsService } from '@/modules/admin/notifications/notifications.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 import { FeatureFlagService } from '@/modules/feature-flags/feature-flag.service';
+import { MetricsService } from '@/modules/metrics/metrics.service';
 
 const QUEUE_NAME = 'task-seeder';
 const JOB_NAME = 'seed-task';
@@ -67,6 +68,7 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
     private readonly notificationsService: NotificationsService,
     private readonly ws: WebsocketGateway,
     private readonly featureFlags: FeatureFlagService,
+    private readonly metricsService: MetricsService,
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(ProjectMember.name) private readonly projectMemberModel: Model<ProjectMemberDocument>,
@@ -112,6 +114,7 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`✗ Seed job ${job?.id} failed: ${err.message}`),
     );
 
+    this.metricsService.trackWorkerMetrics(this.worker, 'task-seeder');
     this.logger.log('TaskSeeder worker started — 1 fake task per minute');
   }
 

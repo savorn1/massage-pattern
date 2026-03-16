@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # NestJS API — exposes Node.js + custom app metrics
+  - job_name: nestjs_api
+    static_configs:
+      - targets:
+          - host.docker.internal:3000  # Mac / Linux (host-gateway)
+    metrics_path: /metrics
+
+  # Redis exporter
+  - job_name: redis
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+
+  # MongoDB exporter
+  - job_name: mongodb
+    static_configs:
+      - targets:
+          - mongodb-exporter:9216
+
+  # NATS built-in monitoring (Prometheus text format via /metrics)
+  - job_name: nats
+    static_configs:
+      - targets:
+          - nats:8222
+    metrics_path: /metrics
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
