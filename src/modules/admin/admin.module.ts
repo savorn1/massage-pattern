@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FundPoolsModule } from './fund-pools/fund-pools.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ChatModule } from './chat/chat.module';
+import { ResumesModule } from './resumes/resumes.module';
 
 
 /**
@@ -51,6 +52,7 @@ import { ChatModule } from './chat/chat.module';
     FundPoolsModule,
     PaymentsModule,
     ChatModule,
+    ResumesModule,
   ],
   exports: [
     AuthModule,
@@ -68,6 +70,7 @@ import { ChatModule } from './chat/chat.module';
     FundPoolsModule,
     PaymentsModule,
     ChatModule,
+    ResumesModule,
   ],
 })
 export class AdminModule {}

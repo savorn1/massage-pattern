@@ -184,3 +184,15 @@ export {
   MessageReactionDocument,
   MessageReactionSchema,
 } from './message-reaction.entity';
+
+// Resume entity
+export {
+  Resume,
+  ResumeDocument,
+  ResumeSchema,
+  WorkExperience,
+  Education,
+  Language,
+  Award,
+  ResumeReference,
+} from './resume.entity';
