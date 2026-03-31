@@ -302,14 +302,15 @@ export class ChatController {
     return this.chatService.getLinkPreview(url);
   }
 
-  /** Search messages across all user conversations */
+  /** Search messages — across all user conversations, or scoped to one with ?conversationId= */
   @Get('messages/search')
   searchMessages(
     @Req() req,
     @Query('q') q: string,
     @Query('limit') limit?: string,
+    @Query('conversationId') conversationId?: string,
   ) {
-    return this.chatService.searchMessages(req.user.userId, q, limit ? +limit : 30);
+    return this.chatService.searchMessages(req.user.userId, q, limit ? +limit : 30, conversationId);
   }
 
   // ─── Disappearing messages ────────────────────────────────────────────────
@@ -415,6 +416,18 @@ export class ChatController {
   @Post('reminders/standalone')
   setStandaloneReminder(@Req() req, @Body() dto: SetStandaloneReminderDto) {
     return this.chatService.setStandaloneReminder(req.user.userId, dto);
+  }
+
+  // ─── AI Assistant ─────────────────────────────────────────────────────────
+
+  /** Generate an AI response and post it as a message in the conversation */
+  @Post('conversations/:id/ai-assist')
+  aiAssist(
+    @Req() req,
+    @Param('id') id: string,
+    @Body('query') query: string,
+  ) {
+    return this.chatService.aiAssist(id, req.user.userId, query);
   }
 
   // ─── Saved Replies ────────────────────────────────────────────────────────

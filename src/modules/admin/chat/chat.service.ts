@@ -35,6 +35,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
 import * as http from 'http';
@@ -88,6 +89,7 @@ export class ChatService {
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
     private readonly bullmqService: BullmqService,
+    private readonly configService: ConfigService,
   ) { }
 
   // ─── Presence ─────────────────────────────────────────────────────────────
@@ -939,6 +941,33 @@ export class ChatService {
       payload,
     );
 
+    // ── @here / @channel / @everyone — notify all group/broadcast members ─────
+    const hasEveryoneMention = /@\[(everyone|here|channel)\]/.test(rawContent);
+    if (
+      hasEveryoneMention &&
+      (conversation.type === ConversationType.GROUP ||
+        conversation.type === ConversationType.BROADCAST)
+    ) {
+      const actor = await this.usersService.findById(senderId);
+      const actorName = actor?.name ?? 'Someone';
+      const convId = (conversation._id as Types.ObjectId).toString();
+      const convName = conversation.name ?? 'a group';
+
+      for (const uid of memberIds) {
+        if (uid.toString() === senderId) continue;
+        const recipientId = uid.toString();
+        const notification = await this.notificationsService.create({
+          recipientId,
+          actorId: senderId,
+          conversationId: convId,
+          conversationName: convName,
+          type: NotificationType.MENTIONED,
+          message: `${actorName} mentioned @everyone in "${convName}"`,
+        });
+        this.wsGateway.broadcastToRoom(`user:${recipientId}`, 'notification:new', notification);
+      }
+    }
+
     return message;
   }
 
@@ -1405,20 +1434,29 @@ export class ChatService {
     return updated as ConversationDocument;
   }
 
-  /** Full-text search across all conversations the user belongs to. */
+  /** Full-text search across all conversations the user belongs to, or scoped to one conversation. */
   async searchMessages(
     userId: string,
     query: string,
     limit = 30,
+    conversationId?: string,
   ): Promise<{ message: MessageDocument; conversationId: string }[]> {
     if (!query?.trim()) return [];
 
-    // Get conversation IDs the user participates in
-    const userConvs = await this.userConversationModel
-      .find({ userId: new Types.ObjectId(userId) })
-      .select('conversationId')
-      .lean();
-    const convIds = userConvs.map((uc) => uc.conversationId);
+    let convIds: Types.ObjectId[];
+
+    if (conversationId) {
+      // Scope to single conversation — verify membership first
+      await this.getConversation(conversationId, userId);
+      convIds = [new Types.ObjectId(conversationId)];
+    } else {
+      // Get all conversation IDs the user participates in
+      const userConvs = await this.userConversationModel
+        .find({ userId: new Types.ObjectId(userId) })
+        .select('conversationId')
+        .lean();
+      convIds = userConvs.map((uc) => uc.conversationId);
+    }
 
     const messages = await this.messageModel
       .find({
@@ -1434,6 +1472,119 @@ export class ChatService {
       message: m as unknown as MessageDocument,
       conversationId: (m.conversationId as Types.ObjectId).toString(),
     }));
+  }
+
+  // ─── AI Assistant ──────────────────────────────────────────────────────────
+
+  /** Call Anthropic Claude API and return the text response. */
+  private async callAnthropicApi(query: string): Promise<string> {
+    const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: 'You are a helpful AI assistant embedded in a project management chat. Be concise, friendly, and actionable. Use markdown formatting when appropriate.',
+      messages: [{ role: 'user', content: query }],
+    });
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          hostname: 'api.anthropic.com',
+          path: '/v1/messages',
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk: string) => (data += chunk));
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              const text = parsed.content?.[0]?.text ?? 'No response.';
+              resolve(text);
+            } catch {
+              reject(new Error('Failed to parse AI response'));
+            }
+          });
+        },
+      );
+      req.on('error', reject);
+      req.setTimeout(30000, () => { req.destroy(); reject(new Error('AI request timed out')); });
+      req.write(body);
+      req.end();
+    });
+  }
+
+  /** Generate an AI response and post it as a message in the conversation. */
+  async aiAssist(
+    conversationId: string,
+    userId: string,
+    query: string,
+  ): Promise<MessageDocument> {
+    await this.getConversation(conversationId, userId);
+
+    if (!query?.trim()) {
+      throw new BadRequestException('Query cannot be empty.');
+    }
+
+    // Fetch last 10 messages for context
+    const recentMessages = await this.messageModel
+      .find({ conversationId: new Types.ObjectId(conversationId), isDeleted: false, type: { $in: ['text', 'ai_response'] } })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+    const contextLines = recentMessages.reverse().map(m =>
+      `[${m.type === 'ai_response' ? 'AI' : 'User'}]: ${m.content?.slice(0, 300) ?? ''}`
+    ).join('\n');
+
+    const fullQuery = contextLines
+      ? `Recent conversation:\n${contextLines}\n\nCurrent question: ${query.trim()}`
+      : query.trim();
+
+    const aiText = await this.callAnthropicApi(fullQuery);
+
+    const message = await this.messageModel.create({
+      conversationId: new Types.ObjectId(conversationId),
+      senderId: new Types.ObjectId(userId),
+      type: MessageType.AI_RESPONSE,
+      content: aiText,
+      attachments: [],
+    });
+
+    // Update lastMessage snapshot
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      lastMessage: {
+        messageId: message._id,
+        senderId: message.senderId,
+        content: `🤖 ${aiText.slice(0, 60)}${aiText.length > 60 ? '…' : ''}`,
+        createdAt: message.createdAt,
+        type: MessageType.AI_RESPONSE,
+      },
+    });
+
+    // Broadcast to all participants
+    const memberIds = await this.getMemberIds(conversationId);
+    const payload = {
+      _id: (message._id as Types.ObjectId).toString(),
+      conversationId: (message.conversationId as Types.ObjectId).toString(),
+      senderId: (message.senderId as Types.ObjectId).toString(),
+      type: message.type,
+      content: message.content,
+      attachments: [],
+      isDeleted: false,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+    };
+    this.emitToAllParticipants(memberIds, 'chat:message:new', payload);
+
+    return message;
   }
 
   // ─── Disappearing messages ──────────────────────────────────────────────────

@@ -10,6 +10,7 @@ export enum MessageType {
   SYSTEM = 'system',
   POLL = 'poll',
   VOICE = 'voice',
+  AI_RESPONSE = 'ai_response',
 }
 
 export class PollOption {
