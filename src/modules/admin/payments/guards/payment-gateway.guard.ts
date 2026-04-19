@@ -28,9 +28,13 @@ export class PaymentGatewayGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
-    const provided = req.headers['x-gateway-key'];
+    const provided = Array.isArray(req.headers['x-gateway-key'])
+      ? req.headers['x-gateway-key'][0]
+      : req.headers['x-gateway-key'];
 
-    console.debug(`[PaymentGatewayGuard] Expected key: ${this.expectedKey}, Provided key: ${provided}`);
+    console.debug(
+      `[PaymentGatewayGuard] Expected key: ${this.expectedKey}, Provided key: ${provided ?? 'undefined'}`,
+    );
 
     if (!provided || provided !== this.expectedKey) {
       throw new UnauthorizedException('Invalid or missing gateway key');

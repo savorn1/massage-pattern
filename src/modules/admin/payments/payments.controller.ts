@@ -20,7 +20,7 @@ import { PaymentsService } from './payments.service';
 
 @Controller('admin/payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   /**
    * POST /admin/payments/sample-order
@@ -31,10 +31,10 @@ export class PaymentsController {
   @Post('sample-order')
   @UseGuards(JwtAuthGuard)
   @Throttle({ short: { limit: 5, ttl: 60_000 } })
-  async createSampleOrder(
-    @CurrentUser() currentUser: { userId: string },
-  ) {
-    const result = await this.paymentsService.createSampleOrder(currentUser.userId);
+  async createSampleOrder(@CurrentUser() currentUser: { userId: string }) {
+    const result = await this.paymentsService.createSampleOrder(
+      currentUser.userId,
+    );
     return {
       success: true,
       data: result,
@@ -56,7 +56,10 @@ export class PaymentsController {
     @Body() dto: GenerateQrDto,
     @CurrentUser() currentUser: { userId: string },
   ) {
-    const result = await this.paymentsService.generateQr(dto, currentUser.userId);
+    const result = await this.paymentsService.generateQr(
+      dto,
+      currentUser.userId,
+    );
     return {
       success: true,
       data: result,
@@ -101,7 +104,10 @@ export class PaymentsController {
     @Query() dto: GetQrHistoryDto,
     @CurrentUser() currentUser: { userId: string },
   ) {
-    const result = await this.paymentsService.getQrHistory(currentUser.userId, dto);
+    const result = await this.paymentsService.getQrHistory(
+      currentUser.userId,
+      dto,
+    );
     return { success: true, data: result.data, total: result.total };
   }
 
@@ -117,7 +123,10 @@ export class PaymentsController {
     @Param('orderId') orderId: string,
     @CurrentUser() currentUser: { userId: string },
   ) {
-    const data = await this.paymentsService.getActiveQrForOrder(orderId, currentUser.userId);
+    const data = await this.paymentsService.getActiveQrForOrder(
+      orderId,
+      currentUser.userId,
+    );
     return { success: true, data };
   }
 
@@ -147,7 +156,10 @@ export class PaymentsController {
     @Param('qrId') qrId: string,
     @CurrentUser() currentUser: { userId: string },
   ) {
-    const status = await this.paymentsService.getQrStatus(qrId, currentUser.userId);
+    const status = await this.paymentsService.getQrStatus(
+      qrId,
+      currentUser.userId,
+    );
     return { success: true, data: status };
   }
 }
