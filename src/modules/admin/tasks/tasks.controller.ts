@@ -3,7 +3,11 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
-import { TaskActivityAction, TaskStatus, NotificationType } from '@/modules/shared/entities';
+import {
+  TaskActivityAction,
+  TaskStatus,
+  NotificationType,
+} from '@/modules/shared/entities';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
@@ -36,9 +40,13 @@ import { TaskEventsService, TaskEventType } from './task-events.service';
 import { TasksService } from './tasks.service';
 import { SkipThrottle } from '@nestjs/throttler';
 
-function toPlain(doc: any): Record<string, unknown> | null {
+function toPlain(
+  doc: { toJSON?(): Record<string, unknown> } | null | undefined,
+): Record<string, unknown> | null {
   if (!doc) return null;
-  return typeof doc.toJSON === 'function' ? doc.toJSON() : doc;
+  return typeof doc.toJSON === 'function'
+    ? doc.toJSON()
+    : (doc as Record<string, unknown>);
 }
 
 @ApiTags('admin/tasks')
@@ -53,7 +61,7 @@ export class TasksController {
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
     private readonly ws: WebsocketGateway,
-  ) { }
+  ) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -73,7 +81,7 @@ export class TasksController {
       currentUser.id,
       projectId,
     );
-    const taskId = (task as any)._id.toString();
+    const taskId = String((task as { _id: { toString(): string } })._id);
     await this.activityService.logActivity(
       taskId,
       currentUser.id,
@@ -99,9 +107,24 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks by project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by task status' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by task status',
+  })
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getByProject(
@@ -132,9 +155,22 @@ export class TasksController {
   @Get('my-tasks')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks assigned to current user' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'User tasks retrieved successfully' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User tasks retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyTasks(
     @CurrentUser() currentUser: { id: string },
@@ -163,8 +199,18 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get tasks by sprint' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
   @ApiResponse({ status: 200, description: 'Tasks retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getBySprint(
@@ -194,9 +240,22 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get backlog tasks (tasks without sprint)' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'Backlog tasks retrieved successfully' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Backlog tasks retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getBacklog(
     @Param('projectId') projectId: string,
@@ -248,7 +307,10 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get task counts by status for a project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiResponse({ status: 200, description: 'Task counts retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task counts retrieved successfully',
+  })
   async getProjectTaskCounts(@Param('projectId') projectId: string) {
     const counts = await this.tasksService.getTaskCountsByProject(projectId);
     return { success: true, data: counts };
@@ -322,22 +384,60 @@ export class TasksController {
     if (oldTask && task) {
       const userId = currentUser.id;
       if (updateTaskDto.status && updateTaskDto.status !== oldTask.status) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.STATUS_CHANGED, { from: oldTask.status, to: updateTaskDto.status });
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.STATUS_CHANGED,
+          { from: oldTask.status, to: updateTaskDto.status },
+        );
       }
-      if (updateTaskDto.priority && updateTaskDto.priority !== oldTask.priority) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.PRIORITY_CHANGED, { from: oldTask.priority, to: updateTaskDto.priority });
+      if (
+        updateTaskDto.priority &&
+        updateTaskDto.priority !== oldTask.priority
+      ) {
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.PRIORITY_CHANGED,
+          { from: oldTask.priority, to: updateTaskDto.priority },
+        );
       }
       if (updateTaskDto.title && updateTaskDto.title !== oldTask.title) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.TITLE_CHANGED, { from: oldTask.title, to: updateTaskDto.title });
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.TITLE_CHANGED,
+          { from: oldTask.title, to: updateTaskDto.title },
+        );
       }
-      if (updateTaskDto.description !== undefined && updateTaskDto.description !== oldTask.description) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.DESCRIPTION_CHANGED);
+      if (
+        updateTaskDto.description !== undefined &&
+        updateTaskDto.description !== oldTask.description
+      ) {
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.DESCRIPTION_CHANGED,
+        );
       }
       if (updateTaskDto.dueDate !== undefined) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.DUE_DATE_CHANGED, { from: oldTask.dueDate, to: updateTaskDto.dueDate });
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.DUE_DATE_CHANGED,
+          { from: oldTask.dueDate, to: updateTaskDto.dueDate },
+        );
       }
-      if (updateTaskDto.assigneeId && updateTaskDto.assigneeId !== oldTask.assigneeId?.toString()) {
-        await this.activityService.logActivity(id, userId, TaskActivityAction.ASSIGNED, { assigneeId: updateTaskDto.assigneeId });
+      if (
+        updateTaskDto.assigneeId &&
+        updateTaskDto.assigneeId !== oldTask.assigneeId?.toString()
+      ) {
+        await this.activityService.logActivity(
+          id,
+          userId,
+          TaskActivityAction.ASSIGNED,
+          { assigneeId: updateTaskDto.assigneeId },
+        );
       }
 
       await this.taskEvents.publishTaskEvent({
@@ -362,7 +462,17 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update task status' })
   @ApiParam({ name: 'id', description: 'Task ID' })
-  @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: ['todo', 'in_progress', 'in_review', 'done'] } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['todo', 'in_progress', 'in_review', 'done'],
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: 'Task status updated successfully' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -375,7 +485,12 @@ export class TasksController {
     const oldTask = await this.tasksService.findById(id);
     const task = await this.tasksService.updateStatus(id, status);
     if (oldTask) {
-      await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.STATUS_CHANGED, { from: oldTask.status, to: status });
+      await this.activityService.logActivity(
+        id,
+        currentUser.id,
+        TaskActivityAction.STATUS_CHANGED,
+        { from: oldTask.status, to: status },
+      );
       await this.taskEvents.publishTaskEvent({
         type: TaskEventType.TASK_MOVED,
         projectId: oldTask.projectId.toString(),
@@ -388,7 +503,11 @@ export class TasksController {
 
       // Award 5 points when a task is moved to done for the first time
       const assigneeId = oldTask.assigneeId?.toString();
-      if (status === TaskStatus.DONE && oldTask.status !== TaskStatus.DONE && assigneeId) {
+      if (
+        status === TaskStatus.DONE &&
+        oldTask.status !== TaskStatus.DONE &&
+        assigneeId
+      ) {
         const totalPoints = await this.usersService.addPoints(assigneeId, 5);
         const notification = await this.notificationsService.create({
           recipientId: assigneeId,
@@ -398,7 +517,11 @@ export class TasksController {
           type: NotificationType.TASK_COMPLETED,
           message: `You earned 5 points for completing "${oldTask.title}"! Total: ${totalPoints} pts`,
         });
-        this.ws.broadcastToRoom(`user:${assigneeId}`, 'notification:new', notification.toObject());
+        this.ws.broadcastToRoom(
+          `user:${assigneeId}`,
+          'notification:new',
+          notification.toObject(),
+        );
         this.ws.broadcastToRoom(`user:${assigneeId}`, 'points:earned', {
           points: 5,
           totalPoints,
@@ -428,7 +551,12 @@ export class TasksController {
     @CurrentUser() currentUser: { id: string },
   ) {
     const task = await this.tasksService.assignTask(id, assigneeId);
-    await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.ASSIGNED, { assigneeId });
+    await this.activityService.logActivity(
+      id,
+      currentUser.id,
+      TaskActivityAction.ASSIGNED,
+      { assigneeId },
+    );
     return {
       success: true,
       data: task,
@@ -447,7 +575,11 @@ export class TasksController {
     @CurrentUser() currentUser: { id: string },
   ) {
     const task = await this.tasksService.unassignTask(id);
-    await this.activityService.logActivity(id, currentUser.id, TaskActivityAction.UNASSIGNED);
+    await this.activityService.logActivity(
+      id,
+      currentUser.id,
+      TaskActivityAction.UNASSIGNED,
+    );
     return {
       success: true,
       data: task,
@@ -459,7 +591,10 @@ export class TasksController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Move task to sprint' })
   @ApiParam({ name: 'id', description: 'Task ID' })
-  @ApiParam({ name: 'sprintId', description: 'Sprint ID (use "backlog" to remove from sprint)' })
+  @ApiParam({
+    name: 'sprintId',
+    description: 'Sprint ID (use "backlog" to remove from sprint)',
+  })
   @ApiResponse({ status: 200, description: 'Task moved successfully' })
   @ApiResponse({ status: 404, description: 'Task or sprint not found' })
   async moveToSprint(

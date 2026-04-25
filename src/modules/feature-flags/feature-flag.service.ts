@@ -1,7 +1,16 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { FeatureFlag, FeatureFlagDocument, FlagType } from './feature-flag.entity';
+import {
+  FeatureFlag,
+  FeatureFlagDocument,
+  FlagType,
+} from './feature-flag.entity';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
 
 export interface CreateFlagDto {
@@ -54,7 +63,8 @@ export class FeatureFlagService {
 
   async create(dto: CreateFlagDto): Promise<FeatureFlag> {
     const existing = await this.flagModel.findOne({ key: dto.key }).exec();
-    if (existing) throw new ConflictException(`Feature flag "${dto.key}" already exists`);
+    if (existing)
+      throw new ConflictException(`Feature flag "${dto.key}" already exists`);
 
     const flag = new this.flagModel({
       ...dto,
@@ -80,7 +90,8 @@ export class FeatureFlagService {
 
   async delete(key: string): Promise<void> {
     const result = await this.flagModel.deleteOne({ key }).exec();
-    if (result.deletedCount === 0) throw new NotFoundException(`Feature flag "${key}" not found`);
+    if (result.deletedCount === 0)
+      throw new NotFoundException(`Feature flag "${key}" not found`);
     this.logger.log(`[FF] Deleted flag: ${key}`);
   }
 
@@ -93,21 +104,32 @@ export class FeatureFlagService {
     flag.enabled = !flag.enabled;
     await flag.save();
 
-    this.logger.log(`[FF] Toggled "${key}" → ${flag.enabled ? 'ENABLED' : 'DISABLED'}`);
+    this.logger.log(
+      `[FF] Toggled "${key}" → ${flag.enabled ? 'ENABLED' : 'DISABLED'}`,
+    );
     const result = flag.toObject();
-    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: result.enabled });
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', {
+      key,
+      enabled: result.enabled,
+    });
     return result;
   }
 
   async enable(key: string): Promise<FeatureFlag> {
     const flag = await this.update(key, { enabled: true });
-    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: true });
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', {
+      key,
+      enabled: true,
+    });
     return flag;
   }
 
   async disable(key: string): Promise<FeatureFlag> {
     const flag = await this.update(key, { enabled: false });
-    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', { key, enabled: false });
+    this.ws.broadcastToRoom('feature-flags', 'feature-flag:updated', {
+      key,
+      enabled: false,
+    });
     return flag;
   }
 
@@ -143,7 +165,9 @@ export class FeatureFlagService {
         return {
           key,
           enabled: active,
-          reason: active ? `in_percentage (bucket ${bucket})` : `out_of_percentage (bucket ${bucket})`,
+          reason: active
+            ? `in_percentage (bucket ${bucket})`
+            : `out_of_percentage (bucket ${bucket})`,
         };
       }
 
@@ -163,8 +187,13 @@ export class FeatureFlagService {
   }
 
   /** Evaluate multiple flags at once — efficient for client bootstrap */
-  async evaluateMany(keys: string[], userId?: string): Promise<Record<string, boolean>> {
-    const results = await Promise.all(keys.map((k) => this.evaluate(k, userId)));
+  async evaluateMany(
+    keys: string[],
+    userId?: string,
+  ): Promise<Record<string, boolean>> {
+    const results = await Promise.all(
+      keys.map((k) => this.evaluate(k, userId)),
+    );
     return Object.fromEntries(results.map((r) => [r.key, r.enabled]));
   }
 
@@ -218,14 +247,16 @@ export class FeatureFlagService {
       {
         key: 'fund-pool-executor',
         name: 'Fund Pool Executor',
-        description: 'Enable the BullMQ worker that automatically applies recurring amounts to fund pools',
+        description:
+          'Enable the BullMQ worker that automatically applies recurring amounts to fund pools',
         type: 'boolean',
         category: 'workers',
       },
       {
         key: 'task-seeder',
         name: 'Task Seeder',
-        description: 'Enable the BullMQ worker that auto-generates fake tasks every minute for testing',
+        description:
+          'Enable the BullMQ worker that auto-generates fake tasks every minute for testing',
         type: 'boolean',
         category: 'workers',
       },

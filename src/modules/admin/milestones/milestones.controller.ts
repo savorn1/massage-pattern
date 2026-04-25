@@ -33,7 +33,7 @@ import { MilestonesService } from './milestones.service';
 @Controller('admin/milestones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MilestonesController {
-  constructor(private readonly milestonesService: MilestonesService) { }
+  constructor(private readonly milestonesService: MilestonesService) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -60,9 +60,22 @@ export class MilestonesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get milestones by project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'Milestones retrieved successfully' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Milestones retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getByProject(
     @Param('projectId') projectId: string,
@@ -91,9 +104,22 @@ export class MilestonesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get upcoming milestones for a project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'Upcoming milestones retrieved successfully' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Upcoming milestones retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUpcoming(
     @Param('projectId') projectId: string,
@@ -122,9 +148,22 @@ export class MilestonesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get overdue milestones for a project' })
   @ApiParam({ name: 'projectId', description: 'Project ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'Overdue milestones retrieved successfully' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Overdue milestones retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getOverdue(
     @Param('projectId') projectId: string,
@@ -181,9 +220,11 @@ export class MilestonesController {
   async update(
     @Param('id') id: string,
     @Body() updateMilestoneDto: UpdateMilestoneDto,
-    @CurrentUser() currentUser: { userId: string },
   ) {
-    const milestone = await this.milestonesService.updateMilestone(id, updateMilestoneDto);
+    const milestone = await this.milestonesService.updateMilestone(
+      id,
+      updateMilestoneDto,
+    );
 
     return {
       success: true,
@@ -196,8 +237,18 @@ export class MilestonesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update milestone progress' })
   @ApiParam({ name: 'id', description: 'Milestone ID' })
-  @ApiBody({ schema: { type: 'object', properties: { progress: { type: 'number', minimum: 0, maximum: 100, example: 75 } } } })
-  @ApiResponse({ status: 200, description: 'Milestone progress updated successfully' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        progress: { type: 'number', minimum: 0, maximum: 100, example: 75 },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Milestone progress updated successfully',
+  })
   @ApiResponse({ status: 404, description: 'Milestone not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateProgress(

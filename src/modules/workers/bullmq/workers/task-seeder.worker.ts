@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Job, Queue, Worker } from 'bullmq';
 import { Model } from 'mongoose';
@@ -69,9 +74,11 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
     private readonly ws: WebsocketGateway,
     private readonly featureFlags: FeatureFlagService,
     private readonly metricsService: MetricsService,
-    @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-    @InjectModel(ProjectMember.name) private readonly projectMemberModel: Model<ProjectMemberDocument>,
+    @InjectModel(ProjectMember.name)
+    private readonly projectMemberModel: Model<ProjectMemberDocument>,
   ) {}
 
   async onModuleInit() {
@@ -95,11 +102,15 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     // Schedule one repeating job — fires every minute via cron
-    await this.queue.add(JOB_NAME, {}, {
-      repeat: { pattern: '* * * * *' },
-      removeOnComplete: true,
-      removeOnFail: 5,
-    });
+    await this.queue.add(
+      JOB_NAME,
+      {},
+      {
+        repeat: { pattern: '* * * * *' },
+        removeOnComplete: true,
+        removeOnFail: 5,
+      },
+    );
 
     // Worker that consumes jobs from the queue
     this.worker = new Worker(QUEUE_NAME, async (job) => this.processJob(job), {
@@ -161,16 +172,14 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
         type: pick(TYPES),
         status: TaskStatus.TODO,
         priority: pick(PRIORITIES),
-        assigneeId: assignee._id.toString(),
+        assigneeId: assignee._id as string,
         storyPoints: Math.floor(Math.random() * 8) + 1,
       },
-      reporter._id.toString(),
-      project._id.toString(),
+      reporter._id as string,
+      project._id as string,
     );
 
-    this.logger.log(
-      `Created "${task.key}" in project "${project.name}"`,
-    );
+    this.logger.log(`Created "${task.key}" in project "${project.name}"`);
 
     // 4. Notify every member of that project in real-time
     const members = await this.projectMemberModel
@@ -180,10 +189,10 @@ export class TaskSeederWorker implements OnModuleInit, OnModuleDestroy {
     for (const member of members) {
       const recipientId = member.userId.toString();
 
-      const taskId = task._id as unknown as string; // Mongoose ObjectId to string
+      const taskId = task._id as string; // Mongoose ObjectId to string
       const notification = await this.notificationsService.create({
         recipientId,
-        actorId: reporter._id.toString(),
+        actorId: reporter._id as string,
         taskId: taskId,
         taskTitle: task.title,
         type: NotificationType.ASSIGNED,

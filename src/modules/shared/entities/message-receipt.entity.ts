@@ -21,7 +21,8 @@ export class MessageReceipt {
   deliveredAt?: Date;
 }
 
-export const MessageReceiptSchema = SchemaFactory.createForClass(MessageReceipt);
+export const MessageReceiptSchema =
+  SchemaFactory.createForClass(MessageReceipt);
 
 MessageReceiptSchema.index({ messageId: 1, userId: 1 }, { unique: true });
 MessageReceiptSchema.index({ conversationId: 1, userId: 1, readAt: 1 });

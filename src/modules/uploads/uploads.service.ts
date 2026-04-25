@@ -29,7 +29,12 @@ export class UploadsService {
     const folder = this.getFolderByMime(mimeType);
 
     // 1. Upload bytes to MinIO
-    const result = await this.storageService.upload(buffer, originalName, mimeType, folder);
+    const result = await this.storageService.upload(
+      buffer,
+      originalName,
+      mimeType,
+      folder,
+    );
 
     // 2. Save metadata to MongoDB
     const file = new this.fileModel({
@@ -55,17 +60,11 @@ export class UploadsService {
   }
 
   async findByTask(taskId: string): Promise<FileDocument[]> {
-    return this.fileModel
-      .find({ taskId })
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.fileModel.find({ taskId }).sort({ createdAt: -1 }).exec();
   }
 
   async findByUploader(uploaderId: string): Promise<FileDocument[]> {
-    return this.fileModel
-      .find({ uploaderId })
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.fileModel.find({ uploaderId }).sort({ createdAt: -1 }).exec();
   }
 
   async findById(id: string): Promise<FileDocument> {
@@ -102,7 +101,7 @@ export class UploadsService {
   async getStats() {
     const [total, totalSize] = await Promise.all([
       this.fileModel.countDocuments(),
-      this.fileModel.aggregate([
+      this.fileModel.aggregate<{ totalSize: number }>([
         { $group: { _id: null, totalSize: { $sum: '$size' } } },
       ]),
     ]);

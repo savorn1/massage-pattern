@@ -36,7 +36,11 @@ export class ResumesController {
     @Body() dto: UpsertResumeDto,
   ) {
     const resume = await this.resumesService.upsert(user.userId, dto);
-    return { success: true, data: resume, message: 'Resume saved successfully' };
+    return {
+      success: true,
+      data: resume,
+      message: 'Resume saved successfully',
+    };
   }
 
   /**

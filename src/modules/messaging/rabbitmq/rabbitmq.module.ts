@@ -9,7 +9,21 @@ import { BackpressureService } from './backpressure.service';
 
 @Module({
   controllers: [RabbitmqController],
-  providers: [RabbitmqService, SagaOrchestratorService, DlqService, OutboxService, CircuitBreakerService, BackpressureService],
-  exports: [RabbitmqService, SagaOrchestratorService, DlqService, OutboxService, CircuitBreakerService, BackpressureService],
+  providers: [
+    RabbitmqService,
+    SagaOrchestratorService,
+    DlqService,
+    OutboxService,
+    CircuitBreakerService,
+    BackpressureService,
+  ],
+  exports: [
+    RabbitmqService,
+    SagaOrchestratorService,
+    DlqService,
+    OutboxService,
+    CircuitBreakerService,
+    BackpressureService,
+  ],
 })
 export class RabbitmqModule {}

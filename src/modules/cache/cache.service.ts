@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 
 export interface CacheStats {
@@ -6,7 +11,7 @@ export interface CacheStats {
   misses: number;
   sets: number;
   deletes: number;
-  hitRate: number;         // 0–100 %
+  hitRate: number; // 0–100 %
   keyCount: number;
   isConnected: boolean;
 }
@@ -29,7 +34,9 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('connect', () => this.logger.log('[Cache] Redis connected'));
-    this.client.on('error', (err) => this.logger.error('[Cache] Redis error:', err.message));
+    this.client.on('error', (err) =>
+      this.logger.error('[Cache] Redis error:', err.message),
+    );
   }
 
   async onModuleDestroy() {
@@ -89,7 +96,9 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
     await this.client.del(...keys);
     this.stats.deletes += keys.length;
-    this.logger.debug(`[Cache] DEL pattern "${pattern}" → ${keys.length} keys removed`);
+    this.logger.debug(
+      `[Cache] DEL pattern "${pattern}" → ${keys.length} keys removed`,
+    );
     return keys.length;
   }
 
@@ -167,7 +176,10 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     this.stats = { hits: 0, misses: 0, sets: 0, deletes: 0 };
   }
 
-  async listKeys(pattern = '*', limit = 50): Promise<{ key: string; ttl: number }[]> {
+  async listKeys(
+    pattern = '*',
+    limit = 50,
+  ): Promise<{ key: string; ttl: number }[]> {
     const keys = (await this.scanKeys(pattern)).slice(0, limit);
     const results = await Promise.all(
       keys.map(async (key) => ({ key, ttl: await this.ttl(key) })),
@@ -186,7 +198,13 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     let cursor = '0';
 
     do {
-      const [nextCursor, batch] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      const [nextCursor, batch] = await this.client.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100,
+      );
       cursor = nextCursor;
       keys.push(...batch);
     } while (cursor !== '0');

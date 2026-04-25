@@ -1,4 +1,19 @@
 // ════════════════════════════════════════════════════════════════════════════
+// Authenticated Request
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface AuthenticatedUser {
+  userId: string;
+  id: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthenticatedRequest {
+  user: AuthenticatedUser;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // API Response Interfaces
 // ════════════════════════════════════════════════════════════════════════════
 

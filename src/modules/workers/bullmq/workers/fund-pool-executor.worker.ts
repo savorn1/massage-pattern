@@ -1,7 +1,12 @@
 import { FundPoolsService } from '@/modules/admin/fund-pools/fund-pools.service';
 import { FeatureFlagService } from '@/modules/feature-flags/feature-flag.service';
 import { WebsocketGateway } from '@/modules/messaging/websocket/websocket.gateway';
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Job, Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { MetricsService } from '@/modules/metrics/metrics.service';
@@ -23,7 +28,7 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
     private readonly ws: WebsocketGateway,
     private readonly featureFlags: FeatureFlagService,
     private readonly metricsService: MetricsService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     this.connection = new Redis({
@@ -46,11 +51,15 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
 
     // Schedule one repeating job — fires every 10 seconds via cron
     // * * * * * runs every minute, but for testing we want it to run more frequently. In production, this should be changed back to every minute.
-    await this.queue.add(JOB_NAME, {}, {
-      repeat: { pattern: '*/30 * * * * *' },
-      removeOnComplete: true,
-      removeOnFail: 5,
-    });
+    await this.queue.add(
+      JOB_NAME,
+      {},
+      {
+        repeat: { pattern: '*/30 * * * * *' },
+        removeOnComplete: true,
+        removeOnFail: 5,
+      },
+    );
 
     this.worker = new Worker(QUEUE_NAME, async (job) => this.processJob(job), {
       connection: this.connection,
@@ -61,11 +70,15 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
     );
 
     this.worker.on('failed', (job: Job | undefined, err: Error) =>
-      this.logger.error(`✗ Fund pool executor job ${job?.id} failed: ${err.message}`),
+      this.logger.error(
+        `✗ Fund pool executor job ${job?.id} failed: ${err.message}`,
+      ),
     );
 
     this.metricsService.trackWorkerMetrics(this.worker, 'fund-pool-executor');
-    this.logger.log('FundPoolExecutor worker started — checking pools every minute');
+    this.logger.log(
+      'FundPoolExecutor worker started — checking pools every minute',
+    );
   }
 
   async onModuleDestroy() {
@@ -78,7 +91,9 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
   private async processJob(job: Job): Promise<void> {
     const enabled = await this.featureFlags.isEnabled(FLAG_KEY);
     if (!enabled) {
-      this.logger.log('Fund pool executor is disabled via feature flag — skipping');
+      this.logger.log(
+        'Fund pool executor is disabled via feature flag — skipping',
+      );
       return;
     }
 
@@ -95,14 +110,22 @@ export class FundPoolExecutorWorker implements OnModuleInit, OnModuleDestroy {
 
     // Execute all due pools concurrently — each pool's DB op and broadcast
     // are independent, so there's no reason to serialize them.
-    await Promise.all(duePools.map(async (pool) => {
-      try {
-        const poolId = pool._id as unknown as string;
-        const updated = await this.fundPoolsService.applyRecurring(poolId);
-        this.ws.broadcastToRoom(WS_ROOM, 'fund-pool:updated', updated.toObject());
-      } catch (err) {
-        this.logger.error(`Failed to execute pool "${pool.name}": ${(err as Error).message}`);
-      }
-    }));
+    await Promise.all(
+      duePools.map(async (pool) => {
+        try {
+          const poolId = pool._id as string;
+          const updated = await this.fundPoolsService.applyRecurring(poolId);
+          this.ws.broadcastToRoom(
+            WS_ROOM,
+            'fund-pool:updated',
+            updated.toObject(),
+          );
+        } catch (err) {
+          this.logger.error(
+            `Failed to execute pool "${pool.name}": ${(err as Error).message}`,
+          );
+        }
+      }),
+    );
   }
 }

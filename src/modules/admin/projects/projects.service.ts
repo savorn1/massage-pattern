@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Project, ProjectDocument, ProjectStatus, ProjectMember, ProjectMemberDocument, ProjectMemberRole } from '@/modules/shared/entities';
+import {
+  Project,
+  ProjectDocument,
+  ProjectStatus,
+  ProjectMember,
+  ProjectMemberDocument,
+  ProjectMemberRole,
+} from '@/modules/shared/entities';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -10,7 +17,7 @@ import { EventsService, EventType } from '../events/events.service';
 import { CacheService } from '@/modules/cache/cache.service';
 
 // ─── Cache TTL (seconds) ──────────────────────────────────────────────────────
-const PROJECT_LIST_TTL = 60;  // projects change less often than tasks
+const PROJECT_LIST_TTL = 60; // projects change less often than tasks
 
 /**
  * Service for managing projects
@@ -79,7 +86,7 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     // Emit real-time event
     await this.eventsService.emitProjectEvent({
       type: EventType.PROJECT_CREATED,
-      project: project.toObject(),
+      project: project.toObject() as Record<string, unknown>,
       workplaceId,
       userId,
       timestamp: new Date().toISOString(),
@@ -123,7 +130,7 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     // Emit real-time event
     await this.eventsService.emitProjectEvent({
       type: EventType.PROJECT_UPDATED,
-      project: project.toObject(),
+      project: project.toObject() as Record<string, unknown>,
       workplaceId: project.workplaceId.toString(),
       timestamp: new Date().toISOString(),
     });
@@ -147,11 +154,15 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     const key = `projects:owner:${ownerId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { ownerId: new Types.ObjectId(ownerId), status: ProjectStatus.ACTIVE },
-        { skip, limit },
-        { createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          {
+            ownerId: new Types.ObjectId(ownerId),
+            status: ProjectStatus.ACTIVE,
+          },
+          { skip, limit },
+          { createdAt: -1 },
+        ),
       PROJECT_LIST_TTL,
     );
   }
@@ -163,11 +174,15 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     const key = `projects:workplace:${workplaceId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { workplaceId: new Types.ObjectId(workplaceId), status: ProjectStatus.ACTIVE },
-        { skip, limit },
-        { createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          {
+            workplaceId: new Types.ObjectId(workplaceId),
+            status: ProjectStatus.ACTIVE,
+          },
+          { skip, limit },
+          { createdAt: -1 },
+        ),
       PROJECT_LIST_TTL,
     );
   }
@@ -179,11 +194,12 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     const key = `projects:active:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { status: ProjectStatus.ACTIVE },
-        { skip, limit },
-        { createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          { status: ProjectStatus.ACTIVE },
+          { skip, limit },
+          { createdAt: -1 },
+        ),
       PROJECT_LIST_TTL,
     );
   }
@@ -191,7 +207,10 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
   /**
    * Find project by key within a workplace
    */
-  async findByKey(workplaceId: string, key: string): Promise<ProjectDocument | null> {
+  async findByKey(
+    workplaceId: string,
+    key: string,
+  ): Promise<ProjectDocument | null> {
     return this.findOne({
       workplaceId: new Types.ObjectId(workplaceId),
       key,
@@ -215,14 +234,16 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     await Promise.all([
       this.cacheService.del(`projects:id:${id}`),
       this.cacheService.delPattern(`projects:workplace:${workplaceId}:*`),
-      this.cacheService.delPattern(`projects:owner:${project.ownerId.toString()}:*`),
+      this.cacheService.delPattern(
+        `projects:owner:${project.ownerId.toString()}:*`,
+      ),
       this.cacheService.delPattern(`projects:active:*`),
     ]);
 
     // Emit real-time event
     await this.eventsService.emitProjectEvent({
       type: EventType.PROJECT_DELETED,
-      project: project.toObject(),
+      project: project.toObject() as Record<string, unknown>,
       workplaceId,
       timestamp: new Date().toISOString(),
     });
@@ -244,7 +265,9 @@ export class ProjectsService extends BaseRepository<ProjectDocument> {
     // ── Cache invalidation ──────────────────────────────────────────────────
     await Promise.all([
       this.cacheService.del(`projects:id:${id}`),
-      this.cacheService.delPattern(`projects:workplace:${project.workplaceId.toString()}:*`),
+      this.cacheService.delPattern(
+        `projects:workplace:${project.workplaceId.toString()}:*`,
+      ),
       this.cacheService.delPattern(`projects:active:*`),
     ]);
 

@@ -3,7 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { TaskEventsService } from './task-events.service';
-import { Task, TaskSchema, Project, ProjectSchema } from '@/modules/shared/entities';
+import {
+  Task,
+  TaskSchema,
+  Project,
+  ProjectSchema,
+} from '@/modules/shared/entities';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { MessagingModule } from '@/modules/messaging/messaging.module';
 import { EventsModule } from '../events/events.module';

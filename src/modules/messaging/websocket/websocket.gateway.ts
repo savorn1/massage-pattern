@@ -86,7 +86,10 @@ export class WebsocketGateway
   // ── Presence helpers (Redis-backed, cross-instance) ───────────────────────
 
   /** Register a socket for a user. Returns true if the user just came online. */
-  private async presenceAdd(userId: string, socketId: string): Promise<boolean> {
+  private async presenceAdd(
+    userId: string,
+    socketId: string,
+  ): Promise<boolean> {
     if (!this.presenceRedis) return false;
     const key = presenceUserKey(userId);
     const pipeline = this.presenceRedis.pipeline();
@@ -103,7 +106,10 @@ export class WebsocketGateway
   }
 
   /** Remove a socket for a user. Returns true if the user just went offline. */
-  private async presenceRemove(userId: string, socketId: string): Promise<boolean> {
+  private async presenceRemove(
+    userId: string,
+    socketId: string,
+  ): Promise<boolean> {
     if (!this.presenceRedis) return false;
     const key = presenceUserKey(userId);
     await this.presenceRedis.srem(key, socketId);
@@ -131,29 +137,39 @@ export class WebsocketGateway
     // events (e.g. user A on instance #1 won't receive events from instance #2).
     // The adapter uses a Redis pub/sub pair to broadcast across all instances.
     try {
-      const redisHost = this.configService.get<string>('REDIS_HOST') || 'localhost';
+      const redisHost =
+        this.configService.get<string>('REDIS_HOST') || 'localhost';
       const redisPort = this.configService.get<number>('REDIS_PORT') || 6379;
 
       // Two separate connections — one publishes, one subscribes
       const pubClient = new Redis({ host: redisHost, port: redisPort });
       const subClient = new Redis({ host: redisHost, port: redisPort });
 
-      pubClient.on('error', (err) => this.logger.error('[WS Adapter] Redis pub error:', err.message));
-      subClient.on('error', (err) => this.logger.error('[WS Adapter] Redis sub error:', err.message));
+      pubClient.on('error', (err: Error) =>
+        this.logger.error('[WS Adapter] Redis pub error:', err.message),
+      );
+      subClient.on('error', (err: Error) =>
+        this.logger.error('[WS Adapter] Redis sub error:', err.message),
+      );
 
       // Attach — all emit/broadcast calls now sync across every instance
       this.server.adapter(createAdapter(pubClient, subClient));
-      this.logger.log('[WS Adapter] Redis adapter attached — multi-instance ready');
+      this.logger.log(
+        '[WS Adapter] Redis adapter attached — multi-instance ready',
+      );
 
       // Dedicated presence client (separate connection from adapter pair)
       this.presenceRedis = new Redis({ host: redisHost, port: redisPort });
-      this.presenceRedis.on('error', (err) =>
+      this.presenceRedis.on('error', (err: Error) =>
         this.logger.error('[Presence] Redis error:', err.message),
       );
       this.logger.log('[Presence] Redis presence store ready');
     } catch (err) {
       // Graceful degradation: app still works on a single instance without Redis
-      this.logger.warn('[WS Adapter] Could not attach Redis adapter, running single-instance:', err.message);
+      this.logger.warn(
+        '[WS Adapter] Could not attach Redis adapter, running single-instance:',
+        err instanceof Error ? err.message : String(err),
+      );
     }
 
     // Add server-level error listener
@@ -204,7 +220,10 @@ export class WebsocketGateway
         if (authUserId) {
           void this.presenceAdd(authUserId, client.id).then((wentOnline) => {
             if (wentOnline) {
-              this.server.emit('user:status', { userId: authUserId, online: true });
+              this.server.emit('user:status', {
+                userId: authUserId,
+                online: true,
+              });
             }
           });
         }
@@ -297,11 +316,16 @@ export class WebsocketGateway
 
             // Remove from Redis presence; emit offline if no more sockets remain
             if (clientInfo.userId) {
-              void this.presenceRemove(clientInfo.userId, client.id).then((wentOffline) => {
-                if (wentOffline) {
-                  this.server.emit('user:status', { userId: clientInfo.userId!, online: false });
-                }
-              });
+              void this.presenceRemove(clientInfo.userId, client.id).then(
+                (wentOffline) => {
+                  if (wentOffline) {
+                    this.server.emit('user:status', {
+                      userId: clientInfo.userId!,
+                      online: false,
+                    });
+                  }
+                },
+              );
             }
 
             // Notify all clients about final disconnection

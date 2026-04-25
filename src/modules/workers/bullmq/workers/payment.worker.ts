@@ -5,7 +5,12 @@ import {
   PaymentQrDocument,
   PaymentQrStatus,
 } from '@/modules/shared/entities/payment-qr.entity';
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Job, Worker } from 'bullmq';
 import Redis from 'ioredis';
@@ -51,9 +56,9 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
     @InjectModel(PaymentQr.name)
     private readonly qrModel: Model<PaymentQrDocument>,
     private readonly metricsService: MetricsService,
-  ) { }
+  ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     this.connection = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -64,17 +69,23 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error('PaymentWorker Redis error:', err.message),
     );
 
-    this.worker = new Worker(PAYMENT_QUEUE, async (job: Job) => this.processJob(job),
+    this.worker = new Worker(
+      PAYMENT_QUEUE,
+      async (job: Job) => this.processJob(job),
       {
         connection: this.connection,
         concurrency: 10,
       },
     );
 
-    this.worker.on('completed', (job: Job) => this.logger.log(`✓ Payment job ${job.id} (${job.name}) completed`),);
+    this.worker.on('completed', (job: Job) =>
+      this.logger.log(`✓ Payment job ${job.id} (${job.name}) completed`),
+    );
 
     this.worker.on('failed', (job: Job | undefined, err: Error) =>
-      this.logger.error(`✗ Payment job ${job?.id} (${job?.name}) failed: ${err.message}`),
+      this.logger.error(
+        `✗ Payment job ${job?.id} (${job?.name}) failed: ${err.message}`,
+      ),
     );
 
     this.metricsService.trackWorkerMetrics(this.worker, 'payments');
@@ -104,12 +115,19 @@ export class PaymentWorker implements OnModuleInit, OnModuleDestroy {
   // finalize-payment — broadcast confirmation after a successful QR scan
   // ─────────────────────────────────────────────────────────────────────────────
 
-  private async handlePaymentConfirmed(data: PaymentJobData): Promise<void> {
+  private handlePaymentConfirmed(data: PaymentJobData): void {
     const { qrId, orderId, clientId, amount, currency, paidAt } = data;
 
     this.logger.log(`Finalizing payment — orderId=${orderId}`);
 
-    const wsPayload = { orderId, qrId, amount, currency, paidAt, newStatus: OrderStatus.CONFIRMED };
+    const wsPayload = {
+      orderId,
+      qrId,
+      amount,
+      currency,
+      paidAt,
+      newStatus: OrderStatus.CONFIRMED,
+    };
 
     this.ws.broadcastToRoom(`user:${clientId}`, 'payment:confirmed', wsPayload);
     this.ws.broadcastToRoom(`order:${orderId}`, 'payment:confirmed', wsPayload);

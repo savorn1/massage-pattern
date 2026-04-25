@@ -40,10 +40,7 @@ export class FundPoolsController {
   @ApiResponse({ status: 200, description: 'List of fund pools' })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  async findAll(
-    @Query('skip') skip?: number,
-    @Query('limit') limit?: number,
-  ) {
+  async findAll(@Query('skip') skip?: number, @Query('limit') limit?: number) {
     return this.fundPoolsService.getAllFundPools(skip, limit);
   }
 
@@ -53,11 +50,11 @@ export class FundPoolsController {
   @ApiOperation({ summary: 'Get recent execution history for a fund pool' })
   @ApiResponse({ status: 200, description: 'Execution history' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  async getExecutions(
-    @Param('id') id: string,
-    @Query('limit') limit?: number,
-  ) {
-    return this.fundPoolsService.getRecentExecutions(id, limit ? Number(limit) : 10);
+  async getExecutions(@Param('id') id: string, @Query('limit') limit?: number) {
+    return this.fundPoolsService.getRecentExecutions(
+      id,
+      limit ? Number(limit) : 10,
+    );
   }
 
   @Get(':id')

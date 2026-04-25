@@ -49,7 +49,10 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
     return pool;
   }
 
-  async updateFundPool(id: string, dto: UpdateFundPoolDto): Promise<FundPoolDocument> {
+  async updateFundPool(
+    id: string,
+    dto: UpdateFundPoolDto,
+  ): Promise<FundPoolDocument> {
     const pool = await this.findById(id);
     if (!pool) {
       throw BusinessException.resourceNotFound('FundPool', id);
@@ -89,7 +92,9 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
 
   async toggleEnabled(id: string): Promise<FundPoolDocument> {
     const pool = await this.findFundPoolById(id);
-    const updated = await this.update(id, { isEnabled: !pool.isEnabled } as Partial<FundPoolDocument>);
+    const updated = await this.update(id, {
+      isEnabled: !pool.isEnabled,
+    } as Partial<FundPoolDocument>);
     if (!updated) {
       throw BusinessException.resourceNotFound('FundPool', id);
     }
@@ -98,7 +103,9 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
   }
 
   async recordExecution(id: string): Promise<FundPoolDocument> {
-    const updated = await this.update(id, { lastExecutedAt: new Date() } as Partial<FundPoolDocument>);
+    const updated = await this.update(id, {
+      lastExecutedAt: new Date(),
+    } as Partial<FundPoolDocument>);
     if (!updated) {
       throw BusinessException.resourceNotFound('FundPool', id);
     }
@@ -111,20 +118,27 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
    */
   async getDuePools(): Promise<FundPoolDocument[]> {
     const now = new Date();
-    return this.fundPoolModel.find({
-      isEnabled: true,
-      $or: [
-        { lastExecutedAt: null },
-        {
-          $expr: {
-            $lte: [
-              { $add: ['$lastExecutedAt', { $multiply: ['$intervalMinutes', 60000] }] },
-              now,
-            ],
+    return this.fundPoolModel
+      .find({
+        isEnabled: true,
+        $or: [
+          { lastExecutedAt: null },
+          {
+            $expr: {
+              $lte: [
+                {
+                  $add: [
+                    '$lastExecutedAt',
+                    { $multiply: ['$intervalMinutes', 60000] },
+                  ],
+                },
+                now,
+              ],
+            },
           },
-        },
-      ],
-    }).exec();
+        ],
+      })
+      .exec();
   }
 
   /**
@@ -166,7 +180,10 @@ export class FundPoolsService extends BaseRepository<FundPoolDocument> {
   /**
    * Returns the most recent executions for a pool, newest first.
    */
-  async getRecentExecutions(poolId: string, limit = 10): Promise<FundPoolExecutionDocument[]> {
+  async getRecentExecutions(
+    poolId: string,
+    limit = 10,
+  ): Promise<FundPoolExecutionDocument[]> {
     return this.executionModel
       .find()
       .find({ poolId: new Types.ObjectId(poolId) })

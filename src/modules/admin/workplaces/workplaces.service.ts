@@ -41,7 +41,9 @@ export class WorkplacesService extends BaseRepository<WorkplaceDocument> {
     userId: string,
   ): Promise<WorkplaceDocument> {
     // Check if slug is already taken
-    const existingWorkplace = await this.findOne({ slug: createWorkplaceDto.slug });
+    const existingWorkplace = await this.findOne({
+      slug: createWorkplaceDto.slug,
+    });
     if (existingWorkplace) {
       throw BusinessException.duplicateResource('Workplace', 'slug');
     }
@@ -51,7 +53,9 @@ export class WorkplacesService extends BaseRepository<WorkplaceDocument> {
       ownerId: new Types.ObjectId(userId),
     };
 
-    const workplace = await this.create(workplaceData as Partial<WorkplaceDocument>);
+    const workplace = await this.create(
+      workplaceData as Partial<WorkplaceDocument>,
+    );
 
     // Automatically add the creator as an owner member
     await this.workplaceMemberModel.create({
@@ -259,17 +263,24 @@ export class WorkplacesService extends BaseRepository<WorkplaceDocument> {
     const ids = workplaceIds.map((id) => new Types.ObjectId(id));
 
     const [projectCounts, memberCounts] = await Promise.all([
-      this.projectModel.aggregate([
+      this.projectModel.aggregate<{
+        _id: { toString(): string };
+        count: number;
+      }>([
         { $match: { workplaceId: { $in: ids }, status: 'active' } },
         { $group: { _id: '$workplaceId', count: { $sum: 1 } } },
       ]),
-      this.workplaceMemberModel.aggregate([
+      this.workplaceMemberModel.aggregate<{
+        _id: { toString(): string };
+        count: number;
+      }>([
         { $match: { workplaceId: { $in: ids } } },
         { $group: { _id: '$workplaceId', count: { $sum: 1 } } },
       ]),
     ]);
 
-    const stats: Record<string, { projectCount: number; memberCount: number }> = {};
+    const stats: Record<string, { projectCount: number; memberCount: number }> =
+      {};
     for (const id of workplaceIds) {
       stats[id] = { projectCount: 0, memberCount: 0 };
     }

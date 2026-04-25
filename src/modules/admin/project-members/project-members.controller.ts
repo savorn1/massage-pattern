@@ -1,4 +1,5 @@
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '@/common/interfaces';
 import {
   Body,
   Controller,
@@ -28,12 +29,15 @@ import { ProjectMembersService } from './project-members.service';
 @SkipThrottle({ short: true, medium: true, long: true })
 @Controller('admin/projects/:projectId/members')
 export class ProjectMembersController {
-  constructor(private readonly membersService: ProjectMembersService) { }
+  constructor(private readonly membersService: ProjectMembersService) {}
 
   @Post('join')
   @ApiOperation({ summary: 'Join a project directly (self-join as developer)' })
   @ApiResponse({ status: 201, description: 'Joined project successfully' })
-  async joinProject(@Param('projectId') projectId: string, @Request() req) {
+  async joinProject(
+    @Param('projectId') projectId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.membersService.addMember(projectId, { userId: req.user.id });
   }
 
@@ -64,14 +68,23 @@ export class ProjectMembersController {
   @Get('me')
   @ApiOperation({ summary: 'Get my membership status for this project' })
   @ApiResponse({ status: 200, description: 'Membership status' })
-  async getMyMembership(@Param('projectId') projectId: string, @Request() req) {
-    const role = await this.membersService.getMemberRole(projectId, req.user.id);
+  async getMyMembership(
+    @Param('projectId') projectId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const role = await this.membersService.getMemberRole(
+      projectId,
+      req.user.id,
+    );
     return { isMember: role !== null, role };
   }
 
   @Get('details')
   @ApiOperation({ summary: 'Get all members with user details' })
-  @ApiResponse({ status: 200, description: 'List of project members with details' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of project members with details',
+  })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAllWithDetails(
@@ -79,7 +92,11 @@ export class ProjectMembersController {
     @Query('skip') skip?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.membersService.getProjectMembersWithDetails(projectId, skip, limit);
+    return this.membersService.getProjectMembersWithDetails(
+      projectId,
+      skip,
+      limit,
+    );
   }
 
   @Get(':userId/role')
@@ -101,7 +118,11 @@ export class ProjectMembersController {
     @Param('userId') userId: string,
     @Body() updateMemberDto: UpdateProjectMemberRoleDto,
   ) {
-    return this.membersService.updateMemberRole(projectId, userId, updateMemberDto);
+    return this.membersService.updateMemberRole(
+      projectId,
+      userId,
+      updateMemberDto,
+    );
   }
 
   @Delete(':userId')

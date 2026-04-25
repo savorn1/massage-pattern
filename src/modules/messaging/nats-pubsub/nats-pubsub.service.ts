@@ -40,7 +40,10 @@ export class NatsPubSubService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Published to ${subject}`);
   }
 
-  subscribe(subject: string, callback: (message: string) => void): void {
+  subscribe(
+    subject: string,
+    callback: (message: string) => void | Promise<void>,
+  ): void {
     if (!this.nc) throw new Error('NATS not connected');
 
     if (!this.callbacks.has(subject)) {
@@ -51,7 +54,9 @@ export class NatsPubSubService implements OnModuleInit, OnModuleDestroy {
           const decoded = this.sc.decode(msg.data);
           const cbs = this.callbacks.get(subject);
           if (cbs) {
-            cbs.forEach((cb) => cb(decoded));
+            cbs.forEach((cb) => {
+              void cb(decoded);
+            });
           }
         },
       });

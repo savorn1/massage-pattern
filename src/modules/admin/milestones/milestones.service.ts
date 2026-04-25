@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Milestone, MilestoneDocument, MilestoneStatus } from '@/modules/shared/entities';
+import {
+  Milestone,
+  MilestoneDocument,
+  MilestoneStatus,
+} from '@/modules/shared/entities';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -148,7 +152,9 @@ export class MilestonesService extends BaseRepository<MilestoneDocument> {
       throw BusinessException.resourceNotFound('Milestone', milestoneId);
     }
 
-    this.logger.log(`Milestone ${milestoneId} progress updated to ${progress}%`);
+    this.logger.log(
+      `Milestone ${milestoneId} progress updated to ${progress}%`,
+    );
     return milestone;
   }
 }

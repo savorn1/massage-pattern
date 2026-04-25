@@ -9,7 +9,9 @@ import { Milestone, MilestoneSchema } from '@/modules/shared/entities';
  */
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Milestone.name, schema: MilestoneSchema }]),
+    MongooseModule.forFeature([
+      { name: Milestone.name, schema: MilestoneSchema },
+    ]),
   ],
   controllers: [MilestonesController],
   providers: [MilestonesService],

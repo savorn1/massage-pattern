@@ -9,7 +9,8 @@ import { NatsPubSubService } from './nats-pubsub.service';
 @UseGuards(JwtAuthGuard)
 export class NatsMonitorController {
   // NATS monitoring HTTP port (running inside docker on same host)
-  private readonly monitorBase = process.env.NATS_MONITOR_URL || 'http://localhost:8222';
+  private readonly monitorBase =
+    process.env.NATS_MONITOR_URL || 'http://localhost:8222';
 
   constructor(private readonly nats: NatsPubSubService) {}
 
@@ -31,43 +32,43 @@ export class NatsMonitorController {
     return {
       // Server vitals — messages/sec, uptime, memory
       server: {
-        version:    varz?.version   ?? 'unknown',
-        uptime:     varz?.uptime    ?? 'unknown',
-        now:        varz?.now       ?? null,
-        inMsgs:     varz?.in_msgs   ?? 0,
-        outMsgs:    varz?.out_msgs  ?? 0,
-        inBytes:    varz?.in_bytes  ?? 0,
-        outBytes:   varz?.out_bytes ?? 0,
+        version: varz?.version ?? 'unknown',
+        uptime: varz?.uptime ?? 'unknown',
+        now: varz?.now ?? null,
+        inMsgs: varz?.in_msgs ?? 0,
+        outMsgs: varz?.out_msgs ?? 0,
+        inBytes: varz?.in_bytes ?? 0,
+        outBytes: varz?.out_bytes ?? 0,
         slowConsumers: varz?.slow_consumers ?? 0,
-        mem:        varz?.mem       ?? 0,
+        mem: varz?.mem ?? 0,
         // Rate snapshot since server start
-        inMsgsRate:  varz?.in_msgs_rate  ?? 0,
+        inMsgsRate: varz?.in_msgs_rate ?? 0,
         outMsgsRate: varz?.out_msgs_rate ?? 0,
         isConnected: this.nats.isConnected(),
       },
 
       // Active client connections
       connections: {
-        total:   connz?.num_connections ?? 0,
+        total: connz?.num_connections ?? 0,
         clients: (connz?.connections ?? []).map((c: any) => ({
-          id:       c.cid,
-          name:     c.name || 'anonymous',
-          ip:       c.ip,
-          subs:     c.num_subs,
-          inMsgs:   c.in_msgs,
-          outMsgs:  c.out_msgs,
-          lang:     c.lang,
-          version:  c.version,
+          id: c.cid,
+          name: c.name || 'anonymous',
+          ip: c.ip,
+          subs: c.num_subs,
+          inMsgs: c.in_msgs,
+          outMsgs: c.out_msgs,
+          lang: c.lang,
+          version: c.version,
         })),
       },
 
       // Active subscriptions on the server
       subscriptions: {
-        total:    subsz?.num_subscriptions ?? 0,
+        total: subsz?.num_subscriptions ?? 0,
         subjects: (subsz?.subscriptions ?? []).map((s: any) => ({
           subject: s.subject,
-          sid:     s.sid,
-          client:  s.client_id,
+          sid: s.sid,
+          client: s.client_id,
         })),
       },
 
@@ -84,7 +85,7 @@ export class NatsMonitorController {
       if (!res.ok) return null;
       return res.json();
     } catch {
-      return null;   // NATS monitoring unreachable — return null gracefully
+      return null; // NATS monitoring unreachable — return null gracefully
     }
   }
 }

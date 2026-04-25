@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CacheService } from './cache.service';
 
@@ -133,12 +141,26 @@ export class CacheController {
    * Demo: Warm up cache — pre-populate before traffic arrives.
    */
   @Post('demo/warmup')
-  @ApiOperation({ summary: 'Demo: cache warm-up (pre-populate before traffic)' })
+  @ApiOperation({
+    summary: 'Demo: cache warm-up (pre-populate before traffic)',
+  })
   async demoWarmup() {
     const keys = [
-      { key: 'demo:projects:active', value: { count: 12, items: ['Alpha', 'Beta', 'Gamma'] }, ttl: 120 },
-      { key: 'demo:tasks:overdue', value: { count: 5, taskIds: ['T-001', 'T-042', 'T-077'] }, ttl: 60 },
-      { key: 'demo:users:online', value: { count: 3, users: ['alice', 'bob', 'charlie'] }, ttl: 30 },
+      {
+        key: 'demo:projects:active',
+        value: { count: 12, items: ['Alpha', 'Beta', 'Gamma'] },
+        ttl: 120,
+      },
+      {
+        key: 'demo:tasks:overdue',
+        value: { count: 5, taskIds: ['T-001', 'T-042', 'T-077'] },
+        ttl: 60,
+      },
+      {
+        key: 'demo:users:online',
+        value: { count: 3, users: ['alice', 'bob', 'charlie'] },
+        ttl: 30,
+      },
     ];
 
     for (const item of keys) {

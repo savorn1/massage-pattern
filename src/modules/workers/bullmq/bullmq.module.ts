@@ -52,4 +52,4 @@ import { PaymentWorker } from './workers/payment.worker';
   ],
   exports: [BullmqService],
 })
-export class BullmqModule { }
+export class BullmqModule {}

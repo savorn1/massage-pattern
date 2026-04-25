@@ -65,9 +65,7 @@ export class SprintsService extends BaseRepository<SprintDocument> {
     };
 
     const sprint = await this.create(sprintData as Partial<SprintDocument>);
-    this.logger.log(
-      `Sprint created: ${sprint.name} for project ${projectId}`,
-    );
+    this.logger.log(`Sprint created: ${sprint.name} for project ${projectId}`);
     return sprint;
   }
 
@@ -107,7 +105,11 @@ export class SprintsService extends BaseRepository<SprintDocument> {
     // Validate dates
     const startDate = updateData.startDate || sprint.startDate;
     const endDate = updateData.endDate || sprint.endDate;
-    if (startDate && endDate && new Date(endDate as Date) <= new Date(startDate as Date)) {
+    if (
+      startDate &&
+      endDate &&
+      new Date(endDate as Date) <= new Date(startDate as Date)
+    ) {
       throw BusinessException.invalidOperation(
         'End date must be after start date',
       );
@@ -145,11 +147,7 @@ export class SprintsService extends BaseRepository<SprintDocument> {
   /**
    * Get all sprints for a project
    */
-  async getProjectSprints(
-    projectId: string,
-    skip = 0,
-    limit = 20,
-  ) {
+  async getProjectSprints(projectId: string, skip = 0, limit = 20) {
     // Verify project exists
     const project = await this.projectModel.findById(projectId);
     if (!project) {
@@ -214,7 +212,9 @@ export class SprintsService extends BaseRepository<SprintDocument> {
     }
 
     // Check if there's already an active sprint in the project
-    const activeSprint = await this.getActiveSprint(sprint.projectId.toString());
+    const activeSprint = await this.getActiveSprint(
+      sprint.projectId.toString(),
+    );
     if (activeSprint) {
       throw BusinessException.invalidOperation(
         `There is already an active sprint: ${activeSprint.name}. Close it before starting a new one.`,
@@ -286,10 +286,11 @@ export class SprintsService extends BaseRepository<SprintDocument> {
     }
 
     // Can only go back to planning if not closed
-    if (status === SprintStatus.PLANNING && sprint.status === SprintStatus.CLOSED) {
-      throw BusinessException.invalidOperation(
-        'Cannot reopen a closed sprint',
-      );
+    if (
+      status === SprintStatus.PLANNING &&
+      sprint.status === SprintStatus.CLOSED
+    ) {
+      throw BusinessException.invalidOperation('Cannot reopen a closed sprint');
     }
 
     const updatedSprint = await this.update(id, { status });
@@ -300,10 +301,7 @@ export class SprintsService extends BaseRepository<SprintDocument> {
   /**
    * Update sprint goal
    */
-  async updateSprintGoal(
-    id: string,
-    goal: string,
-  ): Promise<SprintDocument> {
+  async updateSprintGoal(id: string, goal: string): Promise<SprintDocument> {
     const sprint = await this.findById(id);
     if (!sprint) {
       throw BusinessException.resourceNotFound('Sprint', id);
@@ -339,7 +337,11 @@ export class SprintsService extends BaseRepository<SprintDocument> {
     // Validate dates
     const finalStartDate = updateData.startDate || sprint.startDate;
     const finalEndDate = updateData.endDate || sprint.endDate;
-    if (finalStartDate && finalEndDate && new Date(finalEndDate as Date) <= new Date(finalStartDate as Date)) {
+    if (
+      finalStartDate &&
+      finalEndDate &&
+      new Date(finalEndDate as Date) <= new Date(finalStartDate as Date)
+    ) {
       throw BusinessException.invalidOperation(
         'End date must be after start date',
       );
@@ -353,22 +355,19 @@ export class SprintsService extends BaseRepository<SprintDocument> {
   /**
    * Get upcoming sprints (planning status)
    */
-  async getUpcomingSprints(
-    projectId: string,
-    skip = 0,
-    limit = 10,
-  ) {
-    return this.getSprintsByStatus(projectId, SprintStatus.PLANNING, skip, limit);
+  async getUpcomingSprints(projectId: string, skip = 0, limit = 10) {
+    return this.getSprintsByStatus(
+      projectId,
+      SprintStatus.PLANNING,
+      skip,
+      limit,
+    );
   }
 
   /**
    * Get closed sprints
    */
-  async getClosedSprints(
-    projectId: string,
-    skip = 0,
-    limit = 10,
-  ) {
+  async getClosedSprints(projectId: string, skip = 0, limit = 10) {
     return this.getSprintsByStatus(projectId, SprintStatus.CLOSED, skip, limit);
   }
 
@@ -394,7 +393,10 @@ export class SprintsService extends BaseRepository<SprintDocument> {
    * Get sprint count by status for a project
    */
   async getSprintCountByStatus(projectId: string) {
-    const result = await this.sprintModel.aggregate([
+    const result = await this.sprintModel.aggregate<{
+      _id: string;
+      count: number;
+    }>([
       { $match: { projectId: new Types.ObjectId(projectId) } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);

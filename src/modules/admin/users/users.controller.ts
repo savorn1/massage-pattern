@@ -54,6 +54,7 @@ export class UsersController {
     const idList = ids ? ids.split(',').filter(Boolean) : [];
     const users = await this.usersService.getByIds(idList);
     return users.map((u) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _pw, ...rest } = u as typeof u & { password?: unknown };
       return rest;
     });
@@ -73,7 +74,11 @@ export class UsersController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
-    const result = await this.usersService.getActiveUsers(skipNum, limitNum, { name, email, role });
+    const result = await this.usersService.getActiveUsers(skipNum, limitNum, {
+      name,
+      email,
+      role,
+    });
 
     // Remove passwords from response
     const usersWithoutPasswords = result.data.map((user) => {

@@ -29,7 +29,7 @@ export class TaskNotificationsListener implements OnModuleInit {
     // ── task.comment.added ──────────────────────────────────────────────────
     this.nats.subscribe(TASK_EVENTS.COMMENT_ADDED, async (raw) => {
       try {
-        const event: TaskCommentAddedEvent = JSON.parse(raw);
+        const event = JSON.parse(raw) as TaskCommentAddedEvent;
 
         // 1. Broadcast real-time update to task room (live comment feed)
         this.ws.broadcastToRoom(`task:${event.taskId}`, 'task:comment.added', {
@@ -50,7 +50,11 @@ export class TaskNotificationsListener implements OnModuleInit {
             type: NotificationType.MENTIONED,
             message: `${event.actorName} mentioned you in "${event.taskTitle}"`,
           });
-          this.ws.broadcastToRoom(`user:${recipientId}`, 'notification:new', created);
+          this.ws.broadcastToRoom(
+            `user:${recipientId}`,
+            'notification:new',
+            created,
+          );
         }
       } catch (err) {
         this.logger.error(`[task.comment.added] handler failed: ${err}`);
@@ -60,7 +64,7 @@ export class TaskNotificationsListener implements OnModuleInit {
     // ── task.updated ────────────────────────────────────────────────────────
     this.nats.subscribe(TASK_EVENTS.UPDATED, async (raw) => {
       try {
-        const event: TaskUpdatedEvent = JSON.parse(raw);
+        const event = JSON.parse(raw) as TaskUpdatedEvent;
 
         // Broadcast real-time task update to task room
         this.ws.broadcastToRoom(`task:${event.taskId}`, 'task:updated', {
@@ -80,7 +84,11 @@ export class TaskNotificationsListener implements OnModuleInit {
             type: NotificationType.ASSIGNED,
             message: `${event.actorName} assigned you to "${event.taskTitle}"`,
           });
-          this.ws.broadcastToRoom(`user:${event.newAssigneeId}`, 'notification:new', created);
+          this.ws.broadcastToRoom(
+            `user:${event.newAssigneeId}`,
+            'notification:new',
+            created,
+          );
         }
       } catch (err) {
         this.logger.error(`[task.updated] handler failed: ${err}`);
@@ -90,7 +98,7 @@ export class TaskNotificationsListener implements OnModuleInit {
     // ── task.file.attached ──────────────────────────────────────────────────
     this.nats.subscribe(TASK_EVENTS.FILE_ATTACHED, (raw) => {
       try {
-        const event: TaskFileAttachedEvent = JSON.parse(raw);
+        const event = JSON.parse(raw) as TaskFileAttachedEvent;
         this.ws.broadcastToRoom(`task:${event.taskId}`, 'task:file.attached', {
           taskId: event.taskId,
           userId: event.userId,

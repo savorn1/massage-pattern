@@ -68,7 +68,9 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
       role: addMemberDto.role || ProjectMemberRole.DEVELOPER,
     };
 
-    const member = await this.create(memberData as Partial<ProjectMemberDocument>);
+    const member = await this.create(
+      memberData as Partial<ProjectMemberDocument>,
+    );
     this.logger.log(
       `Member ${addMemberDto.userId} added to project ${projectId} with role ${member.role}`,
     );
@@ -78,10 +80,7 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
   /**
    * Remove a member from a project
    */
-  async removeMember(
-    projectId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeMember(projectId: string, userId: string): Promise<void> {
     const member = await this.findOne({
       projectId: new Types.ObjectId(projectId),
       userId: new Types.ObjectId(userId),
@@ -152,11 +151,7 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
   /**
    * Get all members of a project
    */
-  async getProjectMembers(
-    projectId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getProjectMembers(projectId: string, skip = 0, limit = 50) {
     // Verify project exists
     const project = await this.projectModel.findById(projectId);
     if (!project) {
@@ -173,11 +168,7 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
   /**
    * Get all members of a project with user details populated
    */
-  async getProjectMembersWithDetails(
-    projectId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getProjectMembersWithDetails(projectId: string, skip = 0, limit = 50) {
     // Verify project exists
     const project = await this.projectModel.findById(projectId);
     if (!project) {
@@ -286,7 +277,10 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
    * Get members count by role
    */
   async getMembersCountByRole(projectId: string) {
-    const result = await this.projectMemberModel.aggregate([
+    const result = await this.projectMemberModel.aggregate<{
+      _id: string;
+      count: number;
+    }>([
       { $match: { projectId: new Types.ObjectId(projectId) } },
       { $group: { _id: '$role', count: { $sum: 1 } } },
     ]);
@@ -331,9 +325,7 @@ export class ProjectMembersService extends BaseRepository<ProjectMemberDocument>
       }
     }
 
-    this.logger.log(
-      `${members.length} members added to project ${projectId}`,
-    );
+    this.logger.log(`${members.length} members added to project ${projectId}`);
     return members;
   }
 

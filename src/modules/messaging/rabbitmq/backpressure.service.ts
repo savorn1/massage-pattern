@@ -4,12 +4,12 @@ export type BackpressureStrategy = 'block' | 'drop' | 'reject';
 export type DropPolicy = 'oldest' | 'newest';
 
 export interface BackpressureConfig {
-  producerRatePerSec: number;   // messages produced per second
-  consumerRatePerSec: number;   // messages consumed per second
-  maxQueueDepth: number;        // max queue size before overflow
+  producerRatePerSec: number; // messages produced per second
+  consumerRatePerSec: number; // messages consumed per second
+  maxQueueDepth: number; // max queue size before overflow
   strategy: BackpressureStrategy;
-  dropPolicy: DropPolicy;       // used only when strategy = 'drop'
-  prefetchCount: number;        // simulated RabbitMQ prefetch / consumer channel limit
+  dropPolicy: DropPolicy; // used only when strategy = 'drop'
+  prefetchCount: number; // simulated RabbitMQ prefetch / consumer channel limit
 }
 
 export interface Message {
@@ -30,9 +30,9 @@ export interface BackpressureStats {
   consumed: number;
   dropped: number;
   rejected: number;
-  blocked: number;         // times producer was slowed (block strategy)
-  throughputProduced: number;  // per second (rolling)
-  throughputConsumed: number;  // per second (rolling)
+  blocked: number; // times producer was slowed (block strategy)
+  throughputProduced: number; // per second (rolling)
+  throughputConsumed: number; // per second (rolling)
   avgWaitMs: number;
   config: BackpressureConfig;
 }
@@ -42,7 +42,7 @@ export class BackpressureService {
   private readonly logger = new Logger(BackpressureService.name);
 
   private queue: Message[] = [];
-  private messageLog: Message[] = [];  // last 200 messages (done/dropped/rejected)
+  private messageLog: Message[] = []; // last 200 messages (done/dropped/rejected)
   private isRunning = false;
 
   private producerTimer?: ReturnType<typeof setInterval>;
@@ -80,7 +80,9 @@ export class BackpressureService {
     }
 
     this.isRunning = true;
-    this.logger.log(`[BP] Starting — producer: ${this.config.producerRatePerSec}/s, consumer: ${this.config.consumerRatePerSec}/s, strategy: ${this.config.strategy}`);
+    this.logger.log(
+      `[BP] Starting — producer: ${this.config.producerRatePerSec}/s, consumer: ${this.config.consumerRatePerSec}/s, strategy: ${this.config.strategy}`,
+    );
 
     this.startProducer();
     this.startConsumer();
@@ -99,7 +101,14 @@ export class BackpressureService {
     this.stop();
     this.queue = [];
     this.messageLog = [];
-    this.stats = { produced: 0, consumed: 0, dropped: 0, rejected: 0, blocked: 0, waitMs: [] };
+    this.stats = {
+      produced: 0,
+      consumed: 0,
+      dropped: 0,
+      rejected: 0,
+      blocked: 0,
+      waitMs: [],
+    };
     this.producedTimes = [];
     this.consumedTimes = [];
     this.logger.log('[BP] Cleared');
@@ -185,7 +194,9 @@ export class BackpressureService {
         // Slow down: just don't enqueue now but count as blocked
         // The message is queued anyway once there's room (simplified: we re-add a delay)
         this.stats.blocked++;
-        this.logger.warn(`[BP] BLOCKED producer — queue full (${this.queue.length})`);
+        this.logger.warn(
+          `[BP] BLOCKED producer — queue full (${this.queue.length})`,
+        );
         // Re-attempt after a short delay (simulates producer waiting)
         setTimeout(() => {
           if (this.queue.length < this.config.maxQueueDepth) {
@@ -224,11 +235,13 @@ export class BackpressureService {
   private consume(msg: Message): void {
     msg.status = 'done';
     msg.processedAt = new Date().toISOString();
-    msg.waitMs = new Date(msg.processedAt).getTime() - new Date(msg.producedAt).getTime();
+    msg.waitMs =
+      new Date(msg.processedAt).getTime() - new Date(msg.producedAt).getTime();
 
     this.stats.consumed++;
     this.stats.waitMs.push(msg.waitMs);
-    if (this.stats.waitMs.length > 200) this.stats.waitMs = this.stats.waitMs.slice(-200);
+    if (this.stats.waitMs.length > 200)
+      this.stats.waitMs = this.stats.waitMs.slice(-200);
 
     this.consumedTimes.push(Date.now());
     this.trimWindow(this.consumedTimes);
@@ -243,12 +256,19 @@ export class BackpressureService {
     const now = Date.now();
     const window = 3000; // 3-second rolling window
 
-    const recentProduced = this.producedTimes.filter((t) => now - t < window).length;
-    const recentConsumed = this.consumedTimes.filter((t) => now - t < window).length;
+    const recentProduced = this.producedTimes.filter(
+      (t) => now - t < window,
+    ).length;
+    const recentConsumed = this.consumedTimes.filter(
+      (t) => now - t < window,
+    ).length;
 
     const avgWaitMs =
       this.stats.waitMs.length > 0
-        ? Math.round(this.stats.waitMs.reduce((a, b) => a + b, 0) / this.stats.waitMs.length)
+        ? Math.round(
+            this.stats.waitMs.reduce((a, b) => a + b, 0) /
+              this.stats.waitMs.length,
+          )
         : 0;
 
     return {
@@ -260,8 +280,12 @@ export class BackpressureService {
       dropped: this.stats.dropped,
       rejected: this.stats.rejected,
       blocked: this.stats.blocked,
-      throughputProduced: parseFloat((recentProduced / (window / 1000)).toFixed(1)),
-      throughputConsumed: parseFloat((recentConsumed / (window / 1000)).toFixed(1)),
+      throughputProduced: parseFloat(
+        (recentProduced / (window / 1000)).toFixed(1),
+      ),
+      throughputConsumed: parseFloat(
+        (recentConsumed / (window / 1000)).toFixed(1),
+      ),
       avgWaitMs,
       config: this.config,
     };

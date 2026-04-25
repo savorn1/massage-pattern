@@ -39,10 +39,10 @@ export interface TaskFileAttachedEvent {
 // ─── Subject names ─────────────────────────────────────────────────────────
 
 export const TASK_EVENTS = {
-  COMMENT_ADDED:  'task.comment.added',
-  CREATED:        'task.created',
-  UPDATED:        'task.updated',
-  FILE_ATTACHED:  'task.file.attached',
+  COMMENT_ADDED: 'task.comment.added',
+  CREATED: 'task.created',
+  UPDATED: 'task.updated',
+  FILE_ATTACHED: 'task.file.attached',
 } as const;
 
 // ─── Service ───────────────────────────────────────────────────────────────

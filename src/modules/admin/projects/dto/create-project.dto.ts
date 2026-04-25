@@ -38,17 +38,26 @@ export class CreateProjectDto {
   @MaxLength(2000)
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Project priority', enum: ProjectPriority })
+  @ApiPropertyOptional({
+    description: 'Project priority',
+    enum: ProjectPriority,
+  })
   @IsEnum(ProjectPriority)
   @IsOptional()
   priority?: ProjectPriority;
 
-  @ApiPropertyOptional({ description: 'Project start date', example: '2024-01-15' })
+  @ApiPropertyOptional({
+    description: 'Project start date',
+    example: '2024-01-15',
+  })
   @IsDateString()
   @IsOptional()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Project end date', example: '2024-06-30' })
+  @ApiPropertyOptional({
+    description: 'Project end date',
+    example: '2024-06-30',
+  })
   @IsDateString()
   @IsOptional()
   endDate?: string;

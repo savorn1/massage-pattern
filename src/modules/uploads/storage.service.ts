@@ -16,8 +16,8 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 
 export interface UploadResult {
-  key: string;       // S3 object key
-  url: string;       // public URL
+  key: string; // S3 object key
+  url: string; // public URL
   bucket: string;
   size: number;
   mimeType: string;
@@ -43,7 +43,8 @@ export class StorageService implements OnModuleInit {
     const endpoint = this.configService.get<string>('s3.endpoint')!;
     const region = this.configService.get<string>('s3.region')!;
     const accessKeyId = this.configService.get<string>('s3.accessKeyId')!;
-    const secretAccessKey = this.configService.get<string>('s3.secretAccessKey')!;
+    const secretAccessKey =
+      this.configService.get<string>('s3.secretAccessKey')!;
 
     this.bucket = this.configService.get<string>('s3.bucket')!;
     this.publicUrl = this.configService.get<string>('s3.publicUrl')!;
@@ -120,7 +121,10 @@ export class StorageService implements OnModuleInit {
 
   // ─── List ─────────────────────────────────────────────────────────────────
 
-  async listObjects(prefix = 'uploads/', maxKeys = 100): Promise<S3ObjectInfo[]> {
+  async listObjects(
+    prefix = 'uploads/',
+    maxKeys = 100,
+  ): Promise<S3ObjectInfo[]> {
     const response = await this.client.send(
       new ListObjectsV2Command({
         Bucket: this.bucket,
@@ -138,7 +142,10 @@ export class StorageService implements OnModuleInit {
 
   // ─── Bucket management ────────────────────────────────────────────────────
 
-  async createBucket(bucket: string, publicRead = false): Promise<{ created: boolean; alreadyExists: boolean }> {
+  async createBucket(
+    bucket: string,
+    publicRead = false,
+  ): Promise<{ created: boolean; alreadyExists: boolean }> {
     let alreadyExists = false;
 
     try {
@@ -151,19 +158,25 @@ export class StorageService implements OnModuleInit {
     }
 
     if (publicRead) {
-      await this.client.send(new PutBucketPolicyCommand({
-        Bucket: bucket,
-        Policy: JSON.stringify({
-          Version: '2012-10-17',
-          Statement: [{
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucket}/*`],
-          }],
+      await this.client.send(
+        new PutBucketPolicyCommand({
+          Bucket: bucket,
+          Policy: JSON.stringify({
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${bucket}/*`],
+              },
+            ],
+          }),
         }),
-      }));
-      this.logger.log(`[Storage] Bucket "${bucket}" public read policy applied`);
+      );
+      this.logger.log(
+        `[Storage] Bucket "${bucket}" public read policy applied`,
+      );
     }
 
     return { created: !alreadyExists, alreadyExists };
@@ -175,35 +188,49 @@ export class StorageService implements OnModuleInit {
       this.logger.log(`[Storage] Bucket "${this.bucket}" exists`);
     } catch {
       try {
-        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+        await this.client.send(
+          new CreateBucketCommand({ Bucket: this.bucket }),
+        );
         this.logger.log(`[Storage] Bucket "${this.bucket}" created`);
       } catch (err: unknown) {
-        this.logger.error(`[Storage] Failed to create bucket: ${(err as Error).message}`);
+        this.logger.error(
+          `[Storage] Failed to create bucket: ${(err as Error).message}`,
+        );
       }
     }
 
     try {
-      await this.client.send(new PutBucketPolicyCommand({
-        Bucket: this.bucket,
-        Policy: JSON.stringify({
-          Version: '2012-10-17',
-          Statement: [{
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${this.bucket}/*`],
-          }],
+      await this.client.send(
+        new PutBucketPolicyCommand({
+          Bucket: this.bucket,
+          Policy: JSON.stringify({
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${this.bucket}/*`],
+              },
+            ],
+          }),
         }),
-      }));
-      this.logger.log(`[Storage] Bucket "${this.bucket}" public read policy applied`);
+      );
+      this.logger.log(
+        `[Storage] Bucket "${this.bucket}" public read policy applied`,
+      );
     } catch (err: unknown) {
-      this.logger.error(`[Storage] Failed to set bucket policy: ${(err as Error).message}`);
+      this.logger.error(
+        `[Storage] Failed to set bucket policy: ${(err as Error).message}`,
+      );
     }
   }
 
   async headObject(key: string): Promise<boolean> {
     try {
-      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
       return true;
     } catch {
       return false;

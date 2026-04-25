@@ -39,7 +39,11 @@ export class ProjectsController {
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiQuery({ name: 'workplaceId', required: true, description: 'Workplace ID' })
+  @ApiQuery({
+    name: 'workplaceId',
+    required: true,
+    description: 'Workplace ID',
+  })
   async create(
     @Body() createProjectDto: CreateProjectDto,
     @Query('workplaceId') workplaceId: string,
@@ -60,15 +64,28 @@ export class ProjectsController {
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all projects with pagination' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
   @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAll(@Query('skip') skip?: string, @Query('limit') limit?: string) {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
-    const result = await this.projectsService.getActiveProjects(skipNum, limitNum);
+    const result = await this.projectsService.getActiveProjects(
+      skipNum,
+      limitNum,
+    );
 
     return {
       success: true,
@@ -83,8 +100,18 @@ export class ProjectsController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get projects by workplace' })
   @ApiParam({ name: 'workplaceId', description: 'Workplace ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
   @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getByWorkplace(
@@ -112,10 +139,23 @@ export class ProjectsController {
 
   @Get('my-projects')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get current user\'s projects' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Number of records to skip' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of records to return' })
-  @ApiResponse({ status: 200, description: 'User projects retrieved successfully' })
+  @ApiOperation({ summary: "Get current user's projects" })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Number of records to skip',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of records to return',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User projects retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyProjects(
     @CurrentUser() currentUser: { userId: string },
@@ -173,7 +213,10 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
-    const project = await this.projectsService.updateProject(id, updateProjectDto);
+    const project = await this.projectsService.updateProject(
+      id,
+      updateProjectDto,
+    );
 
     return {
       success: true,

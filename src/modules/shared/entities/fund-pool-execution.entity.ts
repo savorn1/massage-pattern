@@ -18,7 +18,8 @@ export class FundPoolExecution {
   executedAt: Date;
 }
 
-export const FundPoolExecutionSchema = SchemaFactory.createForClass(FundPoolExecution);
+export const FundPoolExecutionSchema =
+  SchemaFactory.createForClass(FundPoolExecution);
 
 // Compound index: fast queries for a pool's history sorted by time
 //FundPoolExecutionSchema.index({ poolId: 1, executedAt: -1 });

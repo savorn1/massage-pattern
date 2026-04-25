@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Project, ProjectMember, ProjectMemberSchema, ProjectSchema, User, UserSchema } from '@/modules/shared/entities';
+import {
+  Project,
+  ProjectMember,
+  ProjectMemberSchema,
+  ProjectSchema,
+  User,
+  UserSchema,
+} from '@/modules/shared/entities';
 import { ProjectMembersService } from './project-members.service';
 import { ProjectMembersController } from './project-members.controller';
 

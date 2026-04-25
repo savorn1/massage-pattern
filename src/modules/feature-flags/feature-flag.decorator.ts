@@ -11,4 +11,5 @@ export const FEATURE_FLAG_KEY = 'feature_flag';
  * @Get('export')
  * exportToCsv() { ... }
  */
-export const RequireFlag = (flagKey: string) => SetMetadata(FEATURE_FLAG_KEY, flagKey);
+export const RequireFlag = (flagKey: string) =>
+  SetMetadata(FEATURE_FLAG_KEY, flagKey);

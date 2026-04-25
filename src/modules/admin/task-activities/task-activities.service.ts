@@ -40,7 +40,9 @@ export class TaskActivitiesService extends BaseRepository<TaskActivityDocument> 
       meta,
     } as Partial<TaskActivityDocument>);
 
-    this.logger.log(`Activity logged: ${action} on task ${taskId} by user ${userId}`);
+    this.logger.log(
+      `Activity logged: ${action} on task ${taskId} by user ${userId}`,
+    );
     return activity;
   }
 
@@ -71,6 +73,7 @@ export class TaskActivitiesService extends BaseRepository<TaskActivityDocument> 
       return {
         ...obj,
         user: obj.userId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         userId: (obj.userId as any)?._id || obj.userId,
       };
     });

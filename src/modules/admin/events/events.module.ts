@@ -8,7 +8,12 @@ import { WebsocketModule } from '@/modules/messaging/websocket/websocket.module'
 import { RedisStreamsModule } from '@/modules/messaging/redis-streams/redis-streams.module';
 
 @Module({
-  imports: [RedisPubsubModule, NatsPubSubModule, WebsocketModule, RedisStreamsModule],
+  imports: [
+    RedisPubsubModule,
+    NatsPubSubModule,
+    WebsocketModule,
+    RedisStreamsModule,
+  ],
   controllers: [EventsController],
   providers: [EventsService, LoadTestService],
   exports: [EventsService],

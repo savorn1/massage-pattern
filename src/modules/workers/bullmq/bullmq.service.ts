@@ -116,7 +116,10 @@ export class BullmqService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(`Added job ${job.id} (${jobName}) to queue: ${queueName}`);
-    this.metricsService.bullmqJobsTotal.inc({ queue: queueName, status: 'enqueued' });
+    this.metricsService.bullmqJobsTotal.inc({
+      queue: queueName,
+      status: 'enqueued',
+    });
     return job;
   }
 

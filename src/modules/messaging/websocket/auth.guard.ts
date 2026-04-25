@@ -52,7 +52,7 @@ export class WsAuthGuard implements CanActivate {
       throw new WsException('Unauthorized: invalid or expired token');
     }
 
-    client.data.user = {
+    (client.data as Record<string, unknown>).user = {
       id: payload.sub,
       username: payload.username ?? payload.email ?? 'Anonymous',
     };

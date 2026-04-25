@@ -1,6 +1,9 @@
 import {
-  CanActivate, ExecutionContext, Injectable,
-  ForbiddenException, Logger,
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FEATURE_FLAG_KEY } from './feature-flag.decorator';
@@ -28,18 +31,25 @@ export class FeatureFlagGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const flagKey = this.reflector.get<string>(FEATURE_FLAG_KEY, context.getHandler());
+    const flagKey = this.reflector.get<string>(
+      FEATURE_FLAG_KEY,
+      context.getHandler(),
+    );
 
     // No @RequireFlag decorator — allow through
     if (!flagKey) return true;
 
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<{ user?: { id?: string } }>();
     const userId: string | undefined = request.user?.id;
 
     const result = await this.flagService.evaluate(flagKey, userId);
 
     if (!result.enabled) {
-      this.logger.warn(`[FF] Access denied — flag "${flagKey}" disabled (${result.reason}) for user ${userId ?? 'anonymous'}`);
+      this.logger.warn(
+        `[FF] Access denied — flag "${flagKey}" disabled (${result.reason}) for user ${userId ?? 'anonymous'}`,
+      );
       throw new ForbiddenException(
         `Feature "${flagKey}" is not available. Reason: ${result.reason}`,
       );

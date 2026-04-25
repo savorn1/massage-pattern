@@ -18,7 +18,11 @@ export class MessageReaction {
   updatedAt: Date;
 }
 
-export const MessageReactionSchema = SchemaFactory.createForClass(MessageReaction);
+export const MessageReactionSchema =
+  SchemaFactory.createForClass(MessageReaction);
 
 MessageReactionSchema.index({ messageId: 1, emoji: 1 });
-MessageReactionSchema.index({ messageId: 1, userId: 1, emoji: 1 }, { unique: true });
+MessageReactionSchema.index(
+  { messageId: 1, userId: 1, emoji: 1 },
+  { unique: true },
+);

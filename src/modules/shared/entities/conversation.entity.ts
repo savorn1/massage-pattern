@@ -82,7 +82,6 @@ export class Conversation {
   updatedAt: Date;
 }
 
-
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
 
 // Indexes for efficient queries

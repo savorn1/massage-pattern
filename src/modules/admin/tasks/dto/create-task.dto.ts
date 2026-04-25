@@ -28,27 +28,45 @@ export class CreateTaskDto {
   @MaxLength(10000)
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Task type', enum: TaskType, default: TaskType.TASK })
+  @ApiPropertyOptional({
+    description: 'Task type',
+    enum: TaskType,
+    default: TaskType.TASK,
+  })
   @IsEnum(TaskType)
   @IsOptional()
   type?: TaskType;
 
-  @ApiPropertyOptional({ description: 'Task status', enum: TaskStatus, default: TaskStatus.TODO })
+  @ApiPropertyOptional({
+    description: 'Task status',
+    enum: TaskStatus,
+    default: TaskStatus.TODO,
+  })
   @IsEnum(TaskStatus)
   @IsOptional()
   status?: TaskStatus;
 
-  @ApiPropertyOptional({ description: 'Task priority', enum: TaskPriority, default: TaskPriority.MEDIUM })
+  @ApiPropertyOptional({
+    description: 'Task priority',
+    enum: TaskPriority,
+    default: TaskPriority.MEDIUM,
+  })
   @IsEnum(TaskPriority)
   @IsOptional()
   priority?: TaskPriority;
 
-  @ApiPropertyOptional({ description: 'Assignee user ID', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Assignee user ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   assigneeId?: string;
 
-  @ApiPropertyOptional({ description: 'Sprint ID', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Sprint ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   sprintId?: string;
@@ -70,7 +88,10 @@ export class CreateTaskDto {
   @IsOptional()
   storyPoints?: number;
 
-  @ApiPropertyOptional({ description: 'Parent task ID (for subtasks)', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Parent task ID (for subtasks)',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   parentId?: string;

@@ -113,11 +113,7 @@ export class DlqService implements OnModuleInit {
 
     // Dead Letter Queue — final resting place for permanently failed messages
     await this.channel.assertQueue(this.DLQ_QUEUE, { durable: true });
-    await this.channel.bindQueue(
-      this.DLQ_QUEUE,
-      this.DLX_EXCHANGE,
-      'dead',
-    );
+    await this.channel.bindQueue(this.DLQ_QUEUE, this.DLX_EXCHANGE, 'dead');
 
     // Retry queues with exponential TTL — messages wait here then go back to main
     for (let i = 0; i < this.RETRY_DELAYS.length; i++) {
@@ -146,10 +142,11 @@ export class DlqService implements OnModuleInit {
     // Consume from main queue
     await this.channel.consume(
       this.MAIN_QUEUE,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg) => {
         if (!msg) return;
 
-        const content = JSON.parse(msg.content.toString());
+        const content = JSON.parse(msg.content.toString()) as { id: string };
         const msgId: string = content.id;
         const retryCount =
           (msg.properties.headers?.['x-retry-count'] as number) || 0;
@@ -197,8 +194,7 @@ export class DlqService implements OnModuleInit {
             );
             this.channel.ack(msg);
 
-            const statusKey =
-              `retry_${retryCount + 1}` as MessageStatus;
+            const statusKey = `retry_${retryCount + 1}` as MessageStatus;
             this.updateMessage(msgId, {
               status: statusKey,
               error,
@@ -237,7 +233,9 @@ export class DlqService implements OnModuleInit {
             });
 
             this.stats.deadLettered++;
-            this.logger.warn(`Message ${msgId}: DEAD LETTERED after ${retryCount + 1} attempts`);
+            this.logger.warn(
+              `Message ${msgId}: DEAD LETTERED after ${retryCount + 1} attempts`,
+            );
           }
 
           this.stats.failed++;
@@ -247,7 +245,9 @@ export class DlqService implements OnModuleInit {
           this.updateMessage(msgId, { status: 'completed' });
           this.stats.processed++;
           this.attemptCounts.delete(msgId);
-          this.logger.log(`Message ${msgId}: processed successfully (attempt ${totalAttempts})`);
+          this.logger.log(
+            `Message ${msgId}: processed successfully (attempt ${totalAttempts})`,
+          );
         }
       },
       { noAck: false },
@@ -274,7 +274,7 @@ export class DlqService implements OnModuleInit {
     await this.setupQueues();
   }
 
-  async sendMessage(payload: Record<string, unknown>): Promise<DlqMessage> {
+  sendMessage(payload: Record<string, unknown>): DlqMessage {
     const id = `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const message: DlqMessage = {
       id,
@@ -292,7 +292,11 @@ export class DlqService implements OnModuleInit {
       this.messages = this.messages.slice(0, 50);
     }
 
-    const content = JSON.stringify({ id, ...payload, timestamp: new Date().toISOString() });
+    const content = JSON.stringify({
+      id,
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
     this.channel.sendToQueue(this.MAIN_QUEUE, Buffer.from(content), {
       persistent: true,
       headers: { 'x-retry-count': 0 },
@@ -301,13 +305,13 @@ export class DlqService implements OnModuleInit {
     return message;
   }
 
-  async sendBatch(
+  sendBatch(
     count: number,
     payload: Record<string, unknown>,
-  ): Promise<{ sent: number; ids: string[] }> {
+  ): { sent: number; ids: string[] } {
     const ids: string[] = [];
     for (let i = 0; i < count; i++) {
-      const msg = await this.sendMessage({
+      const msg = this.sendMessage({
         ...payload,
         batchIndex: i + 1,
         batchTotal: count,
@@ -317,7 +321,7 @@ export class DlqService implements OnModuleInit {
     return { sent: count, ids };
   }
 
-  async retryDeadMessage(msgId: string): Promise<boolean> {
+  retryDeadMessage(msgId: string): boolean {
     const msg = this.getMessage(msgId);
     if (!msg || msg.status !== 'dead') return false;
 
@@ -347,11 +351,11 @@ export class DlqService implements OnModuleInit {
     return true;
   }
 
-  async retryAllDead(): Promise<number> {
+  retryAllDead(): number {
     const deadMessages = this.messages.filter((m) => m.status === 'dead');
     let count = 0;
     for (const msg of deadMessages) {
-      const ok = await this.retryDeadMessage(msg.id);
+      const ok = this.retryDeadMessage(msg.id);
       if (ok) count++;
     }
     return count;

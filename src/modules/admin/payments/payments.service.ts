@@ -5,7 +5,11 @@ import {
   PaymentQrDocument,
   PaymentQrStatus,
 } from '@/modules/shared/entities/payment-qr.entity';
-import { PAYMENT_QUEUE, type PaymentJobData, type QrExpiredJobData } from '@/modules/workers/bullmq/workers/payment.worker';
+import {
+  PAYMENT_QUEUE,
+  type PaymentJobData,
+  type QrExpiredJobData,
+} from '@/modules/workers/bullmq/workers/payment.worker';
 import {
   Injectable,
   Logger,
@@ -43,8 +47,18 @@ interface QrPayload {
 
 /** Sample order items for demo purposes */
 const SAMPLE_ITEMS = [
-  { productId: 'sample-product-001', name: 'MacBook Pro 14-inch M3 Pro', price: 1999.00, quantity: 1 },
-  { productId: 'sample-product-002', name: 'AirPods Pro (2nd Gen)', price: 249.00, quantity: 1 },
+  {
+    productId: 'sample-product-001',
+    name: 'MacBook Pro 14-inch M3 Pro',
+    price: 1999.0,
+    quantity: 1,
+  },
+  {
+    productId: 'sample-product-002',
+    name: 'AirPods Pro (2nd Gen)',
+    price: 249.0,
+    quantity: 1,
+  },
 ];
 
 @Injectable()
@@ -62,7 +76,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
   ) {
     this.hmacSecret =
-      this.config.get<string>('PAYMENT_HMAC_SECRET') || 'change-me-in-production';
+      this.config.get<string>('PAYMENT_HMAC_SECRET') ||
+      'change-me-in-production';
   }
 
   onModuleInit() {
@@ -106,7 +121,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const currency = 'USD';
 
     // Create the order
-    const order = await this.orderModel.create({
+    const order = (await this.orderModel.create({
       clientId: userId,
       vendorId: userId, // self-vendor for demo
       items: SAMPLE_ITEMS,
@@ -117,7 +132,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       notes: 'Sample demo order',
       metadata: { currency },
       createdBy: userId,
-    }) as OrderDocument;
+    })) as OrderDocument;
 
     this.logger.log(`Sample order created: ${String(order._id)}`);
 
@@ -145,7 +160,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   async generateQr(
     dto: GenerateQrDto,
     clientId: string,
-  ): Promise<{ qrId: string; qrImage: string; expiresAt: Date; amount: number }> {
+  ): Promise<{
+    qrId: string;
+    qrImage: string;
+    expiresAt: Date;
+    amount: number;
+  }> {
     // 1. Load and validate the order
     const order = await this.orderModel.findById(dto.orderId).exec();
     if (!order) {
@@ -172,7 +192,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       .exec();
 
     if (staleQrs.length > 0) {
-      const staleIds = staleQrs.map((q) => q.qrId as string);
+      const staleIds = staleQrs.map((q) => q.qrId);
       await Promise.all(staleIds.map((id) => this.redis.del(QR_KEY(id))));
       await this.qrModel.updateMany(
         { qrId: { $in: staleIds } },
@@ -225,7 +245,11 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     // 6. Schedule proactive expiry — fires after TTL, marks DB record EXPIRED
     //    and pushes payment:expired WebSocket event to the user
-    const expiryJobData: QrExpiredJobData = { qrId, orderId: dto.orderId, clientId };
+    const expiryJobData: QrExpiredJobData = {
+      qrId,
+      orderId: dto.orderId,
+      clientId,
+    };
     await this.paymentQueue.add('expire-qr', expiryJobData, {
       delay: QR_TTL_SECONDS * 1000,
       attempts: 2,
@@ -242,7 +266,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       width: 400,
     });
 
-    this.logger.log(`QR generated — qrId=${qrId} orderId=${dto.orderId} expiresAt=${new Date(expiresAt).toISOString()}`);
+    this.logger.log(
+      `QR generated — qrId=${qrId} orderId=${dto.orderId} expiresAt=${new Date(expiresAt).toISOString()}`,
+    );
 
     return {
       qrId,
@@ -365,7 +391,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       removeOnFail: 10,
     });
 
-    this.logger.log(`Payment confirmed — qrId=${dto.qrId} orderId=${stored.orderId}`);
+    this.logger.log(
+      `Payment confirmed — qrId=${dto.qrId} orderId=${stored.orderId}`,
+    );
 
     return { success: true, orderId: stored.orderId, paidAt };
   }
@@ -385,15 +413,18 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
    * from the stored signed payload so the response is ready to display in a modal.
    * For expired / paid / cancelled QRs, qrImage is null and secondsLeft is 0.
    */
-  async getQrById(qrId: string, clientId: string): Promise<{
-    qrId:       string;
-    orderId:    string;
-    amount:     number;
-    currency:   string;
-    status:     PaymentQrStatus;
-    expiresAt:  Date;
-    paidAt:     Date | null;
-    qrImage:    string | null;
+  async getQrById(
+    qrId: string,
+    clientId: string,
+  ): Promise<{
+    qrId: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    status: PaymentQrStatus;
+    expiresAt: Date;
+    paidAt: Date | null;
+    qrImage: string | null;
     secondsLeft: number;
   }> {
     const record = await this.qrModel.findOne({ qrId, clientId }).exec();
@@ -402,13 +433,19 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Lazily sync stale PENDING → EXPIRED
-    if (record.status === PaymentQrStatus.PENDING && record.expiresAt < new Date()) {
-      await this.qrModel.updateOne({ qrId }, { status: PaymentQrStatus.EXPIRED });
+    if (
+      record.status === PaymentQrStatus.PENDING &&
+      record.expiresAt < new Date()
+    ) {
+      await this.qrModel.updateOne(
+        { qrId },
+        { status: PaymentQrStatus.EXPIRED },
+      );
       record.status = PaymentQrStatus.EXPIRED;
     }
 
-    let qrImage:     string | null = null;
-    let secondsLeft: number        = 0;
+    let qrImage: string | null = null;
+    let secondsLeft: number = 0;
 
     if (record.status === PaymentQrStatus.PENDING) {
       const cached = await this.redis.get(QR_KEY(qrId));
@@ -427,13 +464,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return {
-      qrId:        record.qrId,
-      orderId:     record.orderId,
-      amount:      record.amount,
-      currency:    record.currency,
-      status:      record.status,
-      expiresAt:   record.expiresAt,
-      paidAt:      record.paidAt ?? null,
+      qrId: record.qrId,
+      orderId: record.orderId,
+      amount: record.amount,
+      currency: record.currency,
+      status: record.status,
+      expiresAt: record.expiresAt,
+      paidAt: record.paidAt ?? null,
       qrImage,
       secondsLeft,
     };
@@ -444,15 +481,18 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
    * Re-renders the QR image from the Redis-cached payload.
    * Returns null when there is no active QR (expired, paid, cancelled, or never generated).
    */
-  async getActiveQrForOrder(orderId: string, clientId: string): Promise<{
-    qrId:       string;
-    orderId:    string;
-    amount:     number;
-    currency:   string;
-    status:     PaymentQrStatus;
-    expiresAt:  Date;
-    paidAt:     Date | null;
-    qrImage:    string | null;
+  async getActiveQrForOrder(
+    orderId: string,
+    clientId: string,
+  ): Promise<{
+    qrId: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    status: PaymentQrStatus;
+    expiresAt: Date;
+    paidAt: Date | null;
+    qrImage: string | null;
     secondsLeft: number;
   } | null> {
     const record = await this.qrModel
@@ -464,12 +504,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     // Lazily sync stale PENDING → EXPIRED
     if (record.expiresAt < new Date()) {
-      await this.qrModel.updateOne({ qrId: record.qrId }, { status: PaymentQrStatus.EXPIRED });
+      await this.qrModel.updateOne(
+        { qrId: record.qrId },
+        { status: PaymentQrStatus.EXPIRED },
+      );
       return null;
     }
 
-    let qrImage:     string | null = null;
-    let secondsLeft: number        = 0;
+    let qrImage: string | null = null;
+    let secondsLeft: number = 0;
 
     const cached = await this.redis.get(QR_KEY(record.qrId));
     if (cached) {
@@ -485,13 +528,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return {
-      qrId:        record.qrId,
-      orderId:     record.orderId,
-      amount:      record.amount,
-      currency:    record.currency,
-      status:      record.status,
-      expiresAt:   record.expiresAt,
-      paidAt:      record.paidAt ?? null,
+      qrId: record.qrId,
+      orderId: record.orderId,
+      amount: record.amount,
+      currency: record.currency,
+      status: record.status,
+      expiresAt: record.expiresAt,
+      paidAt: record.paidAt ?? null,
       qrImage,
       secondsLeft,
     };
@@ -508,7 +551,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       record.status === PaymentQrStatus.PENDING &&
       record.expiresAt < new Date()
     ) {
-      await this.qrModel.updateOne({ qrId }, { status: PaymentQrStatus.EXPIRED });
+      await this.qrModel.updateOne(
+        { qrId },
+        { status: PaymentQrStatus.EXPIRED },
+      );
       record.status = PaymentQrStatus.EXPIRED;
     }
 
@@ -535,18 +581,22 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     clientId: string,
     dto: GetQrHistoryDto,
   ): Promise<{ data: object[]; total: number }> {
-    const skip  = dto.skip  ?? 0;
+    const skip = dto.skip ?? 0;
     const limit = dto.limit ?? 20;
 
     // Proactively mark all stale PENDING records as EXPIRED in one query
     await this.qrModel.updateMany(
-      { clientId, status: PaymentQrStatus.PENDING, expiresAt: { $lt: new Date() } },
+      {
+        clientId,
+        status: PaymentQrStatus.PENDING,
+        expiresAt: { $lt: new Date() },
+      },
       { status: PaymentQrStatus.EXPIRED },
     );
 
     // Build filter
     const filter: Record<string, unknown> = { clientId };
-    if (dto.status)  filter.status  = dto.status;
+    if (dto.status) filter.status = dto.status;
     if (dto.orderId) filter.orderId = dto.orderId;
 
     const [records, total] = await Promise.all([
@@ -561,13 +611,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     return {
       data: records.map((r) => ({
-        qrId:      r.qrId,
-        orderId:   r.orderId,
-        amount:    r.amount,
-        currency:  r.currency,
-        status:    r.status,
+        qrId: r.qrId,
+        orderId: r.orderId,
+        amount: r.amount,
+        currency: r.currency,
+        status: r.status,
         expiresAt: r.expiresAt,
-        paidAt:    r.paidAt   ?? null,
+        paidAt: r.paidAt ?? null,
         createdAt: (r as { createdAt?: Date }).createdAt ?? null,
       })),
       total,
@@ -584,7 +634,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         Object.entries(payload).sort(([a], [b]) => a.localeCompare(b)),
       ),
     );
-    return createHmac('sha256', this.hmacSecret).update(canonical).digest('hex');
+    return createHmac('sha256', this.hmacSecret)
+      .update(canonical)
+      .digest('hex');
   }
 
   private async expireQr(qrId: string) {

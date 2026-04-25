@@ -57,9 +57,7 @@ export class LabelsService extends BaseRepository<LabelDocument> {
     };
 
     const label = await this.create(labelData as Partial<LabelDocument>);
-    this.logger.log(
-      `Label created: ${label.name} for project ${projectId}`,
-    );
+    this.logger.log(`Label created: ${label.name} for project ${projectId}`);
     return label;
   }
 
@@ -124,11 +122,7 @@ export class LabelsService extends BaseRepository<LabelDocument> {
   /**
    * Get all labels for a project
    */
-  async getProjectLabels(
-    projectId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getProjectLabels(projectId: string, skip = 0, limit = 50) {
     // Verify project exists
     const project = await this.projectModel.findById(projectId);
     if (!project) {
@@ -209,10 +203,7 @@ export class LabelsService extends BaseRepository<LabelDocument> {
   /**
    * Check if label belongs to project
    */
-  async belongsToProject(
-    labelId: string,
-    projectId: string,
-  ): Promise<boolean> {
+  async belongsToProject(labelId: string, projectId: string): Promise<boolean> {
     const label = await this.findById(labelId);
     return label?.projectId.toString() === projectId;
   }

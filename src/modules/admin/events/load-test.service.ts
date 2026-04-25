@@ -25,7 +25,13 @@ export interface SpikeTestConfig {
   transport?: 'redis' | 'nats';
 }
 
-export type SpikePhase = 'base' | 'spike' | 'hold' | 'drop' | 'recovery' | 'done';
+export type SpikePhase =
+  | 'base'
+  | 'spike'
+  | 'hold'
+  | 'drop'
+  | 'recovery'
+  | 'done';
 
 interface PhaseStats {
   phase: SpikePhase;
@@ -111,13 +117,9 @@ export class LoadTestService {
       maxLatencyMs: sorted.length > 0 ? sorted[sorted.length - 1] : 0,
       minLatencyMs: sorted.length > 0 ? sorted[0] : 0,
       p95LatencyMs:
-        sorted.length > 0
-          ? sorted[Math.floor(sorted.length * 0.95)]
-          : 0,
+        sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.95)] : 0,
       p99LatencyMs:
-        sorted.length > 0
-          ? sorted[Math.floor(sorted.length * 0.99)]
-          : 0,
+        sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.99)] : 0,
       messagesPerSecond:
         elapsed > 0 ? Math.round(this.totalMessagesSent / elapsed) : 0,
       elapsedSeconds: Math.round(elapsed),
@@ -128,7 +130,9 @@ export class LoadTestService {
       memoryUsageMB: Math.round(memUsage.heapUsed / 1024 / 1024),
       transport: this.config?.transport || 'redis',
       spikePhase: this.spikePhase || undefined,
-      spikePhaseElapsed: this.spikePhase ? Math.round(spikePhaseElapsed) : undefined,
+      spikePhaseElapsed: this.spikePhase
+        ? Math.round(spikePhaseElapsed)
+        : undefined,
       spikeConfig: this.spikeConfig || undefined,
       phaseStats: this.phaseStats.length > 0 ? this.phaseStats : undefined,
     };
@@ -163,7 +167,8 @@ export class LoadTestService {
     const serverUrls = this.getServerUrls();
     const defaultBatchSize =
       config.numClients > 500 ? 20 : config.numClients > 100 ? 30 : 50;
-    const batchSize = config.batchSize || Math.min(defaultBatchSize, config.numClients);
+    const batchSize =
+      config.batchSize || Math.min(defaultBatchSize, config.numClients);
     const defaultRampUpSeconds =
       config.numClients >= 1000 ? 10 : config.numClients >= 500 ? 5 : 0;
     const rampUpMs = (config.rampUpSeconds ?? defaultRampUpSeconds) * 1000;
@@ -175,7 +180,13 @@ export class LoadTestService {
         `room=${config.room}, ${config.messagesPerSecond} msg/s, ${config.durationSeconds}s`,
     );
 
-    await this.connectClients(config.numClients, serverUrls, config.room, batchSize, batchDelay);
+    await this.connectClients(
+      config.numClients,
+      serverUrls,
+      config.room,
+      batchSize,
+      batchDelay,
+    );
 
     const connected = this.clients.filter((c) => c.connected).length;
     this.logger.log(`${connected}/${config.numClients} clients connected`);
@@ -184,7 +195,7 @@ export class LoadTestService {
 
     if (config.durationSeconds > 0) {
       this.durationTimeout = setTimeout(() => {
-        this.stop();
+        void this.stop();
       }, config.durationSeconds * 1000);
     }
 
@@ -207,7 +218,8 @@ export class LoadTestService {
       };
     }
 
-    const totalDuration = config.baseSeconds + config.spikeSeconds + config.recoverySeconds + 10; // +10 for spike/drop transitions
+    const totalDuration =
+      config.baseSeconds + config.spikeSeconds + config.recoverySeconds + 10; // +10 for spike/drop transitions
     this.config = {
       numClients: config.spikeClients,
       room: config.room,
@@ -230,8 +242,14 @@ export class LoadTestService {
     );
 
     // Phase 1: BASE - connect base clients
-    await this.enterPhase('base');
-    await this.connectClients(config.baseClients, [serverUrl], config.room, 30, 200);
+    this.enterPhase('base');
+    await this.connectClients(
+      config.baseClients,
+      [serverUrl],
+      config.room,
+      30,
+      200,
+    );
     this.startMessaging(config.messagesPerSecond, config.room);
 
     let connected = this.clients.filter((c) => c.connected).length;
@@ -242,10 +260,16 @@ export class LoadTestService {
     this.capturePhaseStats('base', config.baseClients);
 
     // Phase 2: SPIKE - rapidly add clients to spike level
-    await this.enterPhase('spike');
+    this.enterPhase('spike');
     const additionalClients = config.spikeClients - config.baseClients;
     this.logger.log(`[SPIKE] Adding ${additionalClients} clients rapidly...`);
-    await this.connectClients(additionalClients, [serverUrl], config.room, 50, 50);
+    await this.connectClients(
+      additionalClients,
+      [serverUrl],
+      config.room,
+      50,
+      50,
+    );
 
     connected = this.clients.filter((c) => c.connected).length;
     this.logger.log(`[SPIKE] ${connected} clients connected`);
@@ -254,13 +278,13 @@ export class LoadTestService {
     if (!this.isRunning) return { message: 'Spike test stopped' };
 
     // Phase 3: HOLD - maintain spike load
-    await this.enterPhase('hold');
+    this.enterPhase('hold');
     await this.waitPhase(config.spikeSeconds);
     if (!this.isRunning) return { message: 'Spike test stopped' };
     this.capturePhaseStats('hold', config.spikeClients);
 
     // Phase 4: DROP - disconnect back to base level
-    await this.enterPhase('drop');
+    this.enterPhase('drop');
     const clientsToRemove = this.clients.length - config.baseClients;
     this.logger.log(`[DROP] Disconnecting ${clientsToRemove} clients...`);
     await this.disconnectClients(clientsToRemove);
@@ -272,7 +296,7 @@ export class LoadTestService {
     if (!this.isRunning) return { message: 'Spike test stopped' };
 
     // Phase 5: RECOVERY - monitor at base load
-    await this.enterPhase('recovery');
+    this.enterPhase('recovery');
     await this.waitPhase(config.recoverySeconds);
     this.capturePhaseStats('recovery', config.baseClients);
 
@@ -287,7 +311,7 @@ export class LoadTestService {
     };
   }
 
-  private async enterPhase(phase: SpikePhase) {
+  private enterPhase(phase: SpikePhase): void {
     this.spikePhase = phase;
     this.spikePhaseStart = new Date();
     // Reset latencies for per-phase measurement
@@ -302,9 +326,7 @@ export class LoadTestService {
         ? sorted.reduce((sum, l) => sum + l, 0) / sorted.length
         : 0;
     const p95 =
-      sorted.length > 0
-        ? sorted[Math.floor(sorted.length * 0.95)]
-        : 0;
+      sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.95)] : 0;
 
     this.phaseStats.push({
       phase,
@@ -365,7 +387,11 @@ export class LoadTestService {
       for (let j = 0; j < batchCount; j++) {
         const client = this.clients.pop();
         if (client) {
-          try { client.disconnect(); } catch {}
+          try {
+            client.disconnect();
+          } catch {
+            /* ignore disconnect errors during cleanup */
+          }
         }
       }
       if (i + batchSize < toRemove) {
@@ -374,6 +400,7 @@ export class LoadTestService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private startMessaging(messagesPerSecond: number, _room?: string) {
     if (this.messageInterval) {
       clearInterval(this.messageInterval);

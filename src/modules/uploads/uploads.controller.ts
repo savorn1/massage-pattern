@@ -1,7 +1,16 @@
 import {
-  Controller, Post, Get, Delete, Param, Query,
-  UseInterceptors, UploadedFile, UploadedFiles,
-  BadRequestException, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  Query,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
+  BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
@@ -35,7 +44,9 @@ export class UploadsController {
     if (!file) throw new BadRequestException('No file provided');
     if (!uploaderId) throw new BadRequestException('uploaderId is required');
 
-    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const originalName = Buffer.from(file.originalname, 'latin1').toString(
+      'utf8',
+    );
     const saved = await this.uploadsService.uploadFile(
       file.buffer,
       originalName,
@@ -62,12 +73,19 @@ export class UploadsController {
     @Query('uploaderId') uploaderId: string,
     @Query('taskId') taskId?: string,
   ) {
-    if (!files || files.length === 0) throw new BadRequestException('No files provided');
+    if (!files || files.length === 0)
+      throw new BadRequestException('No files provided');
     if (!uploaderId) throw new BadRequestException('uploaderId is required');
 
     const results = await Promise.all(
       files.map((f) =>
-        this.uploadsService.uploadFile(f.buffer, Buffer.from(f.originalname, 'latin1').toString('utf8'), f.mimetype, uploaderId, taskId),
+        this.uploadsService.uploadFile(
+          f.buffer,
+          Buffer.from(f.originalname, 'latin1').toString('utf8'),
+          f.mimetype,
+          uploaderId,
+          taskId,
+        ),
       ),
     );
 
@@ -120,7 +138,10 @@ export class UploadsController {
     @Param('id') id: string,
     @Query('expiresIn') expiresIn = '900',
   ) {
-    const url = await this.uploadsService.getPresignedUrl(id, parseInt(expiresIn, 10));
+    const url = await this.uploadsService.getPresignedUrl(
+      id,
+      parseInt(expiresIn, 10),
+    );
     return { success: true, url, expiresInSeconds: parseInt(expiresIn, 10) };
   }
 

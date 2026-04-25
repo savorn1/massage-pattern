@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import * as amqp from 'amqplib';
 
 // ─── Simulated DB rows ──────────────────────────────────────────────────────
@@ -17,7 +22,7 @@ export type OutboxStatus = 'pending' | 'published' | 'failed';
 export interface OutboxRow {
   id: string;
   orderId: string;
-  topic: string;        // RabbitMQ routing key
+  topic: string; // RabbitMQ routing key
   payload: Record<string, unknown>;
   status: OutboxStatus;
   retryCount: number;
@@ -50,7 +55,7 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
 
   // Relay state
   private relayTimer: ReturnType<typeof setInterval> | null = null;
-  private brokerDown = false;        // simulated outage toggle
+  private brokerDown = false; // simulated outage toggle
   private relayRunning = false;
   private pollCount = 0;
   private publishedCount = 0;
@@ -74,7 +79,9 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
         process.env.RABBITMQ_URL || 'amqp://localhost:5672',
       );
       this.channel = await this.connection.createChannel();
-      await this.channel.assertExchange(this.EXCHANGE, 'topic', { durable: true });
+      await this.channel.assertExchange(this.EXCHANGE, 'topic', {
+        durable: true,
+      });
       await this.channel.assertQueue('outbox.orders', { durable: true });
       await this.channel.bindQueue('outbox.orders', this.EXCHANGE, 'order.*');
       this.logger.log('Outbox exchange and queues initialized');
@@ -102,11 +109,10 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
    * Here we simulate it in-memory. The key guarantee:
    *   Both rows are written together, or neither is.
    */
-  createOrder(dto: {
-    customer: string;
-    amount: number;
-    items: number;
-  }): { order: OrderRow; outboxEntry: OutboxRow } {
+  createOrder(dto: { customer: string; amount: number; items: number }): {
+    order: OrderRow;
+    outboxEntry: OutboxRow;
+  } {
     const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
     const now = new Date().toISOString();
 
@@ -175,7 +181,10 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
   startRelay(): void {
     if (this.relayRunning) return;
     this.relayRunning = true;
-    this.relayTimer = setInterval(() => this.runRelayPoll(), this.RELAY_INTERVAL_MS);
+    this.relayTimer = setInterval(
+      () => this.runRelayPoll(),
+      this.RELAY_INTERVAL_MS,
+    );
     this.logger.log('Outbox relay started');
   }
 
@@ -188,7 +197,7 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Outbox relay stopped');
   }
 
-  private async runRelayPoll(): Promise<void> {
+  private runRelayPoll(): void {
     this.pollCount++;
     this.lastPollAt = new Date().toISOString();
 
@@ -199,7 +208,9 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
 
     if (pending.length === 0) return;
 
-    this.logger.debug(`Relay poll #${this.pollCount}: ${pending.length} pending`);
+    this.logger.debug(
+      `Relay poll #${this.pollCount}: ${pending.length} pending`,
+    );
 
     for (const entry of pending) {
       if (this.brokerDown) {

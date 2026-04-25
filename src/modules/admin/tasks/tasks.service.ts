@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Task, TaskDocument, TaskStatus, Project, ProjectDocument } from '@/modules/shared/entities';
+import {
+  Task,
+  TaskDocument,
+  TaskStatus,
+  Project,
+  ProjectDocument,
+} from '@/modules/shared/entities';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { BaseRepository } from '@/core/database/base/base.repository';
@@ -10,7 +16,7 @@ import { EventsService, EventType } from '../events/events.service';
 import { CacheService } from '@/modules/cache/cache.service';
 
 // ─── Cache TTLs (seconds) ────────────────────────────────────────────────────
-const TASK_LIST_TTL = 30;  // short — tasks change often
+const TASK_LIST_TTL = 30; // short — tasks change often
 const TASK_ITEM_TTL = 60;
 
 /**
@@ -88,7 +94,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     if (createTaskDto.labelIds) {
-      taskData.labelIds = createTaskDto.labelIds.map((id) => new Types.ObjectId(id));
+      taskData.labelIds = createTaskDto.labelIds.map(
+        (id) => new Types.ObjectId(id),
+      );
     }
 
     if (createTaskDto.parentId) {
@@ -100,19 +108,23 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     const task = await this.create(taskData as Partial<TaskDocument>);
-    this.logger.log(`Task created: ${task.title} (${task.key}) by user ${userId}`);
+    this.logger.log(
+      `Task created: ${task.title} (${task.key}) by user ${userId}`,
+    );
 
     // ── Cache invalidation ──────────────────────────────────────────────────
     await this.cacheService.delPattern(`tasks:project:${projectId}:*`);
     await this.cacheService.delPattern(`tasks:backlog:${projectId}:*`);
     if (createTaskDto.sprintId) {
-      await this.cacheService.delPattern(`tasks:sprint:${createTaskDto.sprintId}:*`);
+      await this.cacheService.delPattern(
+        `tasks:sprint:${createTaskDto.sprintId}:*`,
+      );
     }
 
     // Emit real-time event
     await this.eventsService.emitTaskEvent({
       type: EventType.TASK_CREATED,
-      task: task.toObject(),
+      task: task.toObject() as Record<string, unknown>,
       projectId: projectId,
       userId,
       timestamp: new Date().toISOString(),
@@ -139,7 +151,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     if (updateTaskDto.labelIds) {
-      updateData.labelIds = updateTaskDto.labelIds.map((id) => new Types.ObjectId(id));
+      updateData.labelIds = updateTaskDto.labelIds.map(
+        (id) => new Types.ObjectId(id),
+      );
     }
 
     if (updateTaskDto.parentId) {
@@ -165,16 +179,20 @@ export class TasksService extends BaseRepository<TaskDocument> {
       this.cacheService.delPattern(`tasks:backlog:${projectId}:*`),
     ]);
     if (updateTaskDto.sprintId) {
-      await this.cacheService.delPattern(`tasks:sprint:${updateTaskDto.sprintId}:*`);
+      await this.cacheService.delPattern(
+        `tasks:sprint:${updateTaskDto.sprintId}:*`,
+      );
     }
     if (updateTaskDto.assigneeId) {
-      await this.cacheService.delPattern(`tasks:assignee:${updateTaskDto.assigneeId}:*`);
+      await this.cacheService.delPattern(
+        `tasks:assignee:${updateTaskDto.assigneeId}:*`,
+      );
     }
 
     // Emit real-time event
     await this.eventsService.emitTaskEvent({
       type: EventType.TASK_UPDATED,
-      task: task.toObject(),
+      task: task.toObject() as Record<string, unknown>,
       projectId: task.projectId.toString(),
       timestamp: new Date().toISOString(),
     });
@@ -192,7 +210,7 @@ export class TasksService extends BaseRepository<TaskDocument> {
     }
 
     const projectId = task.projectId.toString();
-    const taskData = task.toObject();
+    const taskData = task.toObject() as Record<string, unknown>;
 
     await this.delete(id);
     this.logger.log(`Task deleted: ${id}`);
@@ -204,7 +222,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
       this.cacheService.delPattern(`tasks:backlog:${projectId}:*`),
     ]);
     if (task.sprintId) {
-      await this.cacheService.delPattern(`tasks:sprint:${task.sprintId.toString()}:*`);
+      await this.cacheService.delPattern(
+        `tasks:sprint:${task.sprintId.toString()}:*`,
+      );
     }
 
     // Emit real-time event
@@ -222,17 +242,25 @@ export class TasksService extends BaseRepository<TaskDocument> {
    * Cache-aside: results are cached in Redis for TASK_LIST_TTL seconds.
    * Any mutation (create / update / delete) calls delPattern to bust these keys.
    */
-  async getTasksByProject(projectId: string, skip = 0, limit = 10, status?: TaskStatus) {
+  async getTasksByProject(
+    projectId: string,
+    skip = 0,
+    limit = 10,
+    status?: TaskStatus,
+  ) {
     const key = `tasks:project:${projectId}:${status || 'all'}:${skip}:${limit}`;
-    const filter: Record<string, unknown> = { projectId: new Types.ObjectId(projectId) };
+    const filter: Record<string, unknown> = {
+      projectId: new Types.ObjectId(projectId),
+    };
     if (status) filter.status = status;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        filter,
-        { skip, limit },
-        { order: 1, createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          filter,
+          { skip, limit },
+          { order: 1, createdAt: -1 },
+        ),
       TASK_LIST_TTL,
     );
   }
@@ -244,11 +272,12 @@ export class TasksService extends BaseRepository<TaskDocument> {
     const key = `tasks:sprint:${sprintId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { sprintId: new Types.ObjectId(sprintId) },
-        { skip, limit },
-        { order: 1, createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          { sprintId: new Types.ObjectId(sprintId) },
+          { skip, limit },
+          { order: 1, createdAt: -1 },
+        ),
       TASK_LIST_TTL,
     );
   }
@@ -260,11 +289,12 @@ export class TasksService extends BaseRepository<TaskDocument> {
     const key = `tasks:assignee:${assigneeId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { assigneeId: new Types.ObjectId(assigneeId) },
-        { skip, limit },
-        { dueDate: 1 },
-      ),
+      () =>
+        this.findWithPagination(
+          { assigneeId: new Types.ObjectId(assigneeId) },
+          { skip, limit },
+          { dueDate: 1 },
+        ),
       TASK_LIST_TTL,
     );
   }
@@ -272,7 +302,12 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Get tasks by status (not cached — status changes are very frequent on kanban boards)
    */
-  async getTasksByStatus(projectId: string, status: TaskStatus, skip = 0, limit = 10) {
+  async getTasksByStatus(
+    projectId: string,
+    status: TaskStatus,
+    skip = 0,
+    limit = 10,
+  ) {
     return this.findWithPagination(
       {
         projectId: new Types.ObjectId(projectId),
@@ -290,11 +325,12 @@ export class TasksService extends BaseRepository<TaskDocument> {
     const key = `tasks:subtasks:${parentId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        { parentId: new Types.ObjectId(parentId) },
-        { skip, limit },
-        { order: 1, createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          { parentId: new Types.ObjectId(parentId) },
+          { skip, limit },
+          { order: 1, createdAt: -1 },
+        ),
       TASK_ITEM_TTL,
     );
   }
@@ -302,7 +338,10 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Assign task to user
    */
-  async assignTask(taskId: string, assigneeId: string): Promise<TaskDocument | null> {
+  async assignTask(
+    taskId: string,
+    assigneeId: string,
+  ): Promise<TaskDocument | null> {
     const task = await this.update(taskId, {
       assigneeId: new Types.ObjectId(assigneeId),
     });
@@ -316,7 +355,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
     // ── Cache invalidation ──────────────────────────────────────────────────
     await Promise.all([
       this.cacheService.del(`tasks:id:${taskId}`),
-      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(
+        `tasks:project:${task.projectId.toString()}:*`,
+      ),
       this.cacheService.delPattern(`tasks:assignee:${assigneeId}:*`),
     ]);
 
@@ -340,7 +381,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
     // ── Cache invalidation ──────────────────────────────────────────────────
     await Promise.all([
       this.cacheService.del(`tasks:id:${taskId}`),
-      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(
+        `tasks:project:${task.projectId.toString()}:*`,
+      ),
     ]);
 
     return task;
@@ -349,7 +392,10 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Update task status
    */
-  async updateStatus(taskId: string, status: TaskStatus): Promise<TaskDocument | null> {
+  async updateStatus(
+    taskId: string,
+    status: TaskStatus,
+  ): Promise<TaskDocument | null> {
     const task = await this.update(taskId, { status });
     if (!task) {
       throw BusinessException.resourceNotFound('Task', taskId);
@@ -360,7 +406,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
     // ── Cache invalidation ──────────────────────────────────────────────────
     await Promise.all([
       this.cacheService.del(`tasks:id:${taskId}`),
-      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(
+        `tasks:project:${task.projectId.toString()}:*`,
+      ),
     ]);
 
     return task;
@@ -369,7 +417,10 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Move task to sprint
    */
-  async moveToSprint(taskId: string, sprintId: string | null): Promise<TaskDocument | null> {
+  async moveToSprint(
+    taskId: string,
+    sprintId: string | null,
+  ): Promise<TaskDocument | null> {
     // Fetch before update so we can bust the old sprint's cache
     const oldTask = await this.findById(taskId);
 
@@ -387,11 +438,21 @@ export class TasksService extends BaseRepository<TaskDocument> {
     // ── Cache invalidation ──────────────────────────────────────────────────
     const busts: Promise<unknown>[] = [
       this.cacheService.del(`tasks:id:${taskId}`),
-      this.cacheService.delPattern(`tasks:project:${task.projectId.toString()}:*`),
-      this.cacheService.delPattern(`tasks:backlog:${task.projectId.toString()}:*`),
+      this.cacheService.delPattern(
+        `tasks:project:${task.projectId.toString()}:*`,
+      ),
+      this.cacheService.delPattern(
+        `tasks:backlog:${task.projectId.toString()}:*`,
+      ),
     ];
-    if (sprintId) busts.push(this.cacheService.delPattern(`tasks:sprint:${sprintId}:*`));
-    if (oldTask?.sprintId) busts.push(this.cacheService.delPattern(`tasks:sprint:${oldTask.sprintId.toString()}:*`));
+    if (sprintId)
+      busts.push(this.cacheService.delPattern(`tasks:sprint:${sprintId}:*`));
+    if (oldTask?.sprintId)
+      busts.push(
+        this.cacheService.delPattern(
+          `tasks:sprint:${oldTask.sprintId.toString()}:*`,
+        ),
+      );
     await Promise.all(busts);
 
     return task;
@@ -400,7 +461,9 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Reorder tasks
    */
-  async reorderTasks(taskOrders: { taskId: string; order: number }[]): Promise<void> {
+  async reorderTasks(
+    taskOrders: { taskId: string; order: number }[],
+  ): Promise<void> {
     const bulkOps = taskOrders.map(({ taskId, order }) => ({
       updateOne: {
         filter: { _id: new Types.ObjectId(taskId) },
@@ -433,9 +496,14 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Add labels to task
    */
-  async addLabels(taskId: string, labelIds: string[]): Promise<TaskDocument | null> {
+  async addLabels(
+    taskId: string,
+    labelIds: string[],
+  ): Promise<TaskDocument | null> {
     const task = await this.update(taskId, {
-      $addToSet: { labelIds: { $each: labelIds.map((id) => new Types.ObjectId(id)) } },
+      $addToSet: {
+        labelIds: { $each: labelIds.map((id) => new Types.ObjectId(id)) },
+      },
     });
 
     if (!task) {
@@ -449,9 +517,14 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Remove labels from task
    */
-  async removeLabels(taskId: string, labelIds: string[]): Promise<TaskDocument | null> {
+  async removeLabels(
+    taskId: string,
+    labelIds: string[],
+  ): Promise<TaskDocument | null> {
     const task = await this.update(taskId, {
-      $pull: { labelIds: { $in: labelIds.map((id) => new Types.ObjectId(id)) } },
+      $pull: {
+        labelIds: { $in: labelIds.map((id) => new Types.ObjectId(id)) },
+      },
     });
 
     if (!task) {
@@ -465,7 +538,10 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Get task by key
    */
-  async findByKey(projectId: string, key: string): Promise<TaskDocument | null> {
+  async findByKey(
+    projectId: string,
+    key: string,
+  ): Promise<TaskDocument | null> {
     return this.findOne({
       projectId: new Types.ObjectId(projectId),
       key,
@@ -479,14 +555,15 @@ export class TasksService extends BaseRepository<TaskDocument> {
     const key = `tasks:backlog:${projectId}:${skip}:${limit}`;
     return this.cacheService.getOrSet(
       key,
-      () => this.findWithPagination(
-        {
-          projectId: new Types.ObjectId(projectId),
-          sprintId: { $exists: false },
-        },
-        { skip, limit },
-        { order: 1, createdAt: -1 },
-      ),
+      () =>
+        this.findWithPagination(
+          {
+            projectId: new Types.ObjectId(projectId),
+            sprintId: { $exists: false },
+          },
+          { skip, limit },
+          { order: 1, createdAt: -1 },
+        ),
       TASK_LIST_TTL,
     );
   }
@@ -494,11 +571,15 @@ export class TasksService extends BaseRepository<TaskDocument> {
   /**
    * Get task counts grouped by status for a project
    */
-  async getTaskCountsByProject(projectId: string): Promise<{ total: number; byStatus: Record<string, number> }> {
-    const rows = await this.taskModel.aggregate<{ _id: string; count: number }>([
-      { $match: { projectId: new Types.ObjectId(projectId) } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]);
+  async getTaskCountsByProject(
+    projectId: string,
+  ): Promise<{ total: number; byStatus: Record<string, number> }> {
+    const rows = await this.taskModel.aggregate<{ _id: string; count: number }>(
+      [
+        { $match: { projectId: new Types.ObjectId(projectId) } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ],
+    );
 
     const byStatus: Record<string, number> = {};
     let total = 0;

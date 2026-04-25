@@ -1,9 +1,22 @@
 import {
-  Controller, Get, Post, Put, Delete, Patch,
-  Body, Param, Query, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Patch,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { FeatureFlagService, CreateFlagDto, UpdateFlagDto } from './feature-flag.service';
+import {
+  FeatureFlagService,
+  CreateFlagDto,
+  UpdateFlagDto,
+} from './feature-flag.service';
 
 @ApiTags('Feature Flags')
 @Controller('feature-flags')
@@ -39,10 +52,7 @@ export class FeatureFlagController {
 
   @Get(':key/evaluate')
   @ApiOperation({ summary: 'Evaluate a single flag for a user' })
-  async evaluate(
-    @Param('key') key: string,
-    @Query('userId') userId?: string,
-  ) {
+  async evaluate(@Param('key') key: string, @Query('userId') userId?: string) {
     const result = await this.flagService.evaluate(key, userId);
     return { success: true, ...result };
   }

@@ -27,7 +27,11 @@ export class FeatureFlag {
    * percentage — enabled for a rolling percentage of users (0–100)
    * users      — enabled only for specific user IDs
    */
-  @Prop({ type: String, enum: ['boolean', 'percentage', 'users'], default: 'boolean' })
+  @Prop({
+    type: String,
+    enum: ['boolean', 'percentage', 'users'],
+    default: 'boolean',
+  })
   type: FlagType;
 
   /** Used when type === 'percentage' */

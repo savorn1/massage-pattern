@@ -18,7 +18,6 @@ import { PaymentsModule } from './payments/payments.module';
 import { ChatModule } from './chat/chat.module';
 import { ResumesModule } from './resumes/resumes.module';
 
-
 /**
  * Admin module - aggregates all admin-related modules
  * - Auth - Authentication (login, register, JWT tokens)

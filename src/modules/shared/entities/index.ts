@@ -84,12 +84,7 @@ export {
 } from './notification.entity';
 
 // Order entity (e-commerce)
-export {
-  Order,
-  OrderDocument,
-  OrderSchema,
-  OrderStatus,
-} from './order.entity';
+export { Order, OrderDocument, OrderSchema, OrderStatus } from './order.entity';
 
 // Product entity (e-commerce)
 export { Product, ProductDocument, ProductSchema } from './product.entity';

@@ -85,7 +85,9 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.activeConsumers.set(queue, consumerTag);
-    this.logger.log(`Started consuming from queue "${queue}" (tag: ${consumerTag})`);
+    this.logger.log(
+      `Started consuming from queue "${queue}" (tag: ${consumerTag})`,
+    );
   }
 
   async cancelConsumer(queue: string): Promise<void> {
@@ -113,7 +115,9 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
       options.headers = headers;
     }
     this.channel.publish(exchange, routingKey, Buffer.from(message), options);
-    this.logger.log(`Published to exchange "${exchange}" [${routingKey}] type=${type}`);
+    this.logger.log(
+      `Published to exchange "${exchange}" [${routingKey}] type=${type}`,
+    );
   }
 
   async bindQueueToExchange(
@@ -124,14 +128,18 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
     bindHeaders?: Record<string, string>,
   ): Promise<void> {
     if (!this.channel) throw new Error('RabbitMQ not connected');
-    await this.channel.assertExchange(exchange, exchangeType, { durable: true });
+    await this.channel.assertExchange(exchange, exchangeType, {
+      durable: true,
+    });
     await this.channel.assertQueue(queue, { durable: true });
     if (exchangeType === 'headers' && bindHeaders) {
       await this.channel.bindQueue(queue, exchange, '', bindHeaders);
     } else {
       await this.channel.bindQueue(queue, exchange, routingKey);
     }
-    this.logger.log(`Bound queue "${queue}" to exchange "${exchange}" [${routingKey}] type=${exchangeType}`);
+    this.logger.log(
+      `Bound queue "${queue}" to exchange "${exchange}" [${routingKey}] type=${exchangeType}`,
+    );
   }
 
   // --- Queue Management ---
@@ -149,7 +157,9 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
   async purgeQueue(queue: string): Promise<number> {
     if (!this.channel) throw new Error('RabbitMQ not connected');
     const result = await this.channel.purgeQueue(queue);
-    this.logger.log(`Purged queue "${queue}": ${result.messageCount} messages removed`);
+    this.logger.log(
+      `Purged queue "${queue}": ${result.messageCount} messages removed`,
+    );
     return result.messageCount;
   }
 

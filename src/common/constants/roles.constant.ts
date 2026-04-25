@@ -105,7 +105,6 @@ export function getPermissionsForRole(role: UserRole): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
-
 /**
  * Check if a role has a specific permission
  */

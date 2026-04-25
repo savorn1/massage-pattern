@@ -24,6 +24,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '@/common/interfaces';
 import { TaskCommentsService } from './task-comments.service';
 import { CreateTaskCommentDto, UpdateTaskCommentDto } from './dto';
 import { TaskEventsService } from '@/modules/admin/task-events/task-events.service';
@@ -41,7 +42,9 @@ export class TaskCommentsController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Add a comment to a task (supports optional file attachment)' })
+  @ApiOperation({
+    summary: 'Add a comment to a task (supports optional file attachment)',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiResponse({ status: 201, description: 'Comment added successfully' })
   @UseInterceptors(
@@ -54,12 +57,15 @@ export class TaskCommentsController {
     @Param('taskId') taskId: string,
     @Body() body: CreateTaskCommentDto,
     @UploadedFile() file: Express.Multer.File | undefined,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     if (!body.content?.trim() && !file) {
-      throw new BadRequestException('Comment must have content or an attached file');
+      throw new BadRequestException(
+        'Comment must have content or an attached file',
+      );
     }
-    const { comment, taskTitle, actorName, projectId } = await this.commentsService.createComment(taskId, req.user.id, body, file);
+    const { comment, taskTitle, actorName, projectId } =
+      await this.commentsService.createComment(taskId, req.user.id, body, file);
 
     // Extract mentioned user IDs from content — format: @[Name](24-char-hex-id)
     const mentionedUserIds: string[] = [];
@@ -70,7 +76,8 @@ export class TaskCommentsController {
 
     // Resolve @[everyone] — add all project members except the actor
     if ((comment.content ?? '').includes('@[everyone]')) {
-      const { data: members } = await this.projectMembersService.getProjectMembers(projectId, 0, 1000);
+      const { data: members } =
+        await this.projectMembersService.getProjectMembers(projectId, 0, 1000);
       for (const m of members) {
         const uid = m.userId.toString();
         if (uid !== req.user.id && !mentionedUserIds.includes(uid)) {
@@ -85,7 +92,7 @@ export class TaskCommentsController {
       taskTitle,
       userId: req.user.id,
       actorName,
-      commentId: (comment._id as any).toString(),
+      commentId: String(comment._id),
       hasAttachment: !!file,
       content: comment.content ?? '',
       mentionedUserIds,
@@ -121,16 +128,20 @@ export class TaskCommentsController {
   async update(
     @Param('id') id: string,
     @Body() updateCommentDto: UpdateTaskCommentDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.commentsService.updateComment(id, req.user.id, updateCommentDto);
+    return this.commentsService.updateComment(
+      id,
+      req.user.id,
+      updateCommentDto,
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a comment' })
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Comment not found' })
-  async remove(@Param('id') id: string, @Request() req) {
+  async remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.commentsService.deleteComment(id, req.user.id);
   }
 }

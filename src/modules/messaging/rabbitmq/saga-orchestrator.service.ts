@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RabbitmqService } from './rabbitmq.service';
 
-export type SagaStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'compensating' | 'compensated';
+export type SagaStepStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'compensating'
+  | 'compensated';
 
 export interface SagaStep {
   name: string;
@@ -132,14 +138,18 @@ export class SagaOrchestratorService {
         step.status = 'completed';
         step.completedAt = new Date().toISOString();
         step.duration = stepDelay;
-        this.logger.log(`Saga ${sagaId} step ${i + 1}/${steps.length}: ${step.name} ✅`);
+        this.logger.log(
+          `Saga ${sagaId} step ${i + 1}/${steps.length}: ${step.name} ✅`,
+        );
       } catch (err) {
         step.status = 'failed';
         step.completedAt = new Date().toISOString();
         step.duration = stepDelay;
         step.error = (err as Error).message;
         failedIndex = i;
-        this.logger.error(`Saga ${sagaId} step ${i + 1}/${steps.length}: ${step.name} ❌ — ${step.error}`);
+        this.logger.error(
+          `Saga ${sagaId} step ${i + 1}/${steps.length}: ${step.name} ❌ — ${step.error}`,
+        );
         break;
       }
     }
@@ -149,7 +159,9 @@ export class SagaOrchestratorService {
       sagaLog.status = 'failed';
       sagaLog.failedAtStep = failedIndex;
 
-      this.logger.log(`Saga ${sagaId}: Starting compensation from step ${failedIndex}`);
+      this.logger.log(
+        `Saga ${sagaId}: Starting compensation from step ${failedIndex}`,
+      );
 
       let compensated = 0;
       // Compensate completed steps in reverse (not the failed one, not steps after it)
@@ -170,13 +182,16 @@ export class SagaOrchestratorService {
         });
 
         try {
-          await this.rabbitmqService.sendToQueue(step.compensationQueue, compMessage);
+          await this.rabbitmqService.sendToQueue(
+            step.compensationQueue,
+            compMessage,
+          );
           await this.delay(compDelay);
           step.compensationStatus = 'completed';
           step.compensationDuration = compDelay;
           compensated++;
           this.logger.log(`Saga ${sagaId} compensate: ${step.name} ↩️ done`);
-        } catch (err) {
+        } catch {
           step.compensationStatus = 'failed';
           this.logger.error(`Saga ${sagaId} compensate failed: ${step.name}`);
         }
@@ -190,7 +205,8 @@ export class SagaOrchestratorService {
 
     sagaLog.completedAt = new Date().toISOString();
     sagaLog.totalDuration =
-      new Date(sagaLog.completedAt).getTime() - new Date(sagaLog.startedAt).getTime();
+      new Date(sagaLog.completedAt).getTime() -
+      new Date(sagaLog.startedAt).getTime();
 
     // Store log
     this.sagaLogs.unshift(sagaLog);

@@ -1,5 +1,10 @@
 import { ChatService } from '@/modules/admin/chat/chat.service';
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
@@ -33,7 +38,9 @@ export class ScheduledMessageWorker implements OnModuleInit, OnModuleDestroy {
     });
 
     this.worker.on('failed', (job, err) => {
-      this.logger.error(`Scheduled message job ${job?.id} failed: ${err.message}`);
+      this.logger.error(
+        `Scheduled message job ${job?.id} failed: ${err.message}`,
+      );
     });
 
     this.logger.log('ScheduledMessageWorker started');

@@ -8,7 +8,19 @@ import { FeatureFlagModule } from './feature-flags/feature-flag.module';
 import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
-  imports: [AdminModule, ClientModule, VendorModule, FeatureFlagModule, UploadsModule],
-  exports: [AdminModule, ClientModule, VendorModule, FeatureFlagModule, UploadsModule],
+  imports: [
+    AdminModule,
+    ClientModule,
+    VendorModule,
+    FeatureFlagModule,
+    UploadsModule,
+  ],
+  exports: [
+    AdminModule,
+    ClientModule,
+    VendorModule,
+    FeatureFlagModule,
+    UploadsModule,
+  ],
 })
 export class FeaturesModule {}

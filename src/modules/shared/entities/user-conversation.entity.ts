@@ -38,6 +38,9 @@ export const UserConversationSchema =
   SchemaFactory.createForClass(UserConversation);
 
 // One record per user per conversation
-UserConversationSchema.index({ userId: 1, conversationId: 1 }, { unique: true });
+UserConversationSchema.index(
+  { userId: 1, conversationId: 1 },
+  { unique: true },
+);
 // Fetch all conversations for a user ordered by activity
 UserConversationSchema.index({ userId: 1 });

@@ -5,10 +5,10 @@ import { MessageType } from './message.entity';
 export type ScheduledMessageDocument = ScheduledMessage & Document;
 
 export enum ScheduledMessageStatus {
-  PENDING   = 'pending',
-  SENT      = 'sent',
+  PENDING = 'pending',
+  SENT = 'sent',
   CANCELLED = 'cancelled',
-  FAILED    = 'failed',
+  FAILED = 'failed',
 }
 
 @Schema({ collection: 'scheduled_messages', timestamps: true })
@@ -51,7 +51,8 @@ export class ScheduledMessage {
   updatedAt: Date;
 }
 
-export const ScheduledMessageSchema = SchemaFactory.createForClass(ScheduledMessage);
+export const ScheduledMessageSchema =
+  SchemaFactory.createForClass(ScheduledMessage);
 
 ScheduledMessageSchema.index({ senderId: 1, status: 1 });
 ScheduledMessageSchema.index({ scheduledFor: 1, status: 1 });

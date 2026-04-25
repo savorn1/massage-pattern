@@ -16,7 +16,15 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto, UpdateUiSettingsDto } from './dto';
+import {
+  LoginDto,
+  RegisterDto,
+  AuthResponseDto,
+  RefreshTokenDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
+  UpdateUiSettingsDto,
+} from './dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
@@ -29,7 +37,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'User login',
-    description: 'Authenticate user with email and password to receive JWT tokens',
+    description:
+      'Authenticate user with email and password to receive JWT tokens',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
@@ -157,9 +166,7 @@ export class AuthController {
     description: 'Logout successful',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout() {
-    // In a stateless JWT setup, logout is handled client-side
-    // For enhanced security, implement token blacklisting with Redis
+  logout() {
     return {
       success: true,
       message: 'Logout successful',

@@ -4,8 +4,8 @@ import { Document, Types } from 'mongoose';
 export type MessageReminderDocument = MessageReminder & Document;
 
 export enum MessageReminderStatus {
-  PENDING   = 'pending',
-  SENT      = 'sent',
+  PENDING = 'pending',
+  SENT = 'sent',
   CANCELLED = 'cancelled',
 }
 
@@ -48,7 +48,8 @@ export class MessageReminder {
   updatedAt: Date;
 }
 
-export const MessageReminderSchema = SchemaFactory.createForClass(MessageReminder);
+export const MessageReminderSchema =
+  SchemaFactory.createForClass(MessageReminder);
 
 MessageReminderSchema.index({ userId: 1, status: 1 });
 MessageReminderSchema.index({ remindAt: 1, status: 1 });

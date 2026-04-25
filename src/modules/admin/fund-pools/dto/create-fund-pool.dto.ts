@@ -24,18 +24,27 @@ export class CreateFundPoolDto {
   @MaxLength(100)
   name: string;
 
-  @ApiPropertyOptional({ description: 'Amount added to the pool on each interval execution', example: 500 })
+  @ApiPropertyOptional({
+    description: 'Amount added to the pool on each interval execution',
+    example: 500,
+  })
   @IsNumber()
   @Min(0)
   @IsOptional()
   recurringAmount?: number;
 
-  @ApiProperty({ description: 'Interval in minutes for scheduled execution', example: 60 })
+  @ApiProperty({
+    description: 'Interval in minutes for scheduled execution',
+    example: 60,
+  })
   @IsNumber()
   @Min(1)
   intervalMinutes: number;
 
-  @ApiPropertyOptional({ description: 'Whether the pool is enabled', example: true })
+  @ApiPropertyOptional({
+    description: 'Whether the pool is enabled',
+    example: true,
+  })
   @IsBoolean()
   @IsOptional()
   isEnabled?: boolean;

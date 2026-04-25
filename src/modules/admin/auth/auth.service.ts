@@ -1,10 +1,21 @@
 import { UserRole } from '@/common/constants/roles.constant';
 import { UserDocument } from '@/modules/shared/entities';
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { ChangePasswordDto, LoginDto, RegisterDto, UpdateProfileDto, UpdateUiSettingsDto } from './dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  UpdateProfileDto,
+  UpdateUiSettingsDto,
+} from './dto';
 
 interface JwtPayload {
   sub: string;
@@ -20,7 +31,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   /**
    * Validate user credentials
@@ -173,7 +184,10 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const isValid = await this.usersService.verifyPassword(user, dto.currentPassword);
+    const isValid = await this.usersService.verifyPassword(
+      user,
+      dto.currentPassword,
+    );
     if (!isValid) {
       throw new BadRequestException('Current password is incorrect');
     }

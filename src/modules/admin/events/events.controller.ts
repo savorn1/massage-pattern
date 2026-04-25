@@ -1,6 +1,10 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { EventsService, EventType } from './events.service';
-import { LoadTestService, LoadTestConfig, SpikeTestConfig } from './load-test.service';
+import {
+  LoadTestService,
+  LoadTestConfig,
+  SpikeTestConfig,
+} from './load-test.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
 class TestTaskEventDto {
@@ -166,11 +170,7 @@ export class EventsController {
   async testCustomEvent(
     @Body() body: { room: string; eventType: string; data: any },
   ) {
-    await this.eventsService.emitToRoom(
-      body.room,
-      body.eventType,
-      body.data,
-    );
+    await this.eventsService.emitToRoom(body.room, body.eventType, body.data);
 
     return {
       success: true,
@@ -183,7 +183,7 @@ export class EventsController {
 
   @Post('test/nats/task-created')
   @ApiOperation({ summary: 'Send test task:created event via NATS' })
-  async testNatsTaskCreated(@Body() dto: TestTaskEventDto) {
+  testNatsTaskCreated(@Body() dto: TestTaskEventDto) {
     const testTask = {
       _id: dto.taskId || `test-task-${Date.now()}`,
       title: dto.title || 'Test Task from NATS',
@@ -196,7 +196,7 @@ export class EventsController {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.eventsService.emitTaskEventViaNats({
+    this.eventsService.emitTaskEventViaNats({
       type: EventType.TASK_CREATED,
       task: testTask,
       projectId: dto.projectId,
@@ -213,7 +213,7 @@ export class EventsController {
 
   @Post('test/nats/project-created')
   @ApiOperation({ summary: 'Send test project:created event via NATS' })
-  async testNatsProjectCreated(@Body() dto: TestProjectEventDto) {
+  testNatsProjectCreated(@Body() dto: TestProjectEventDto) {
     const testProject = {
       _id: dto.projectId || `test-project-${Date.now()}`,
       name: dto.name || 'Test Project from NATS',
@@ -225,7 +225,7 @@ export class EventsController {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.eventsService.emitProjectEventViaNats({
+    this.eventsService.emitProjectEventViaNats({
       type: EventType.PROJECT_CREATED,
       project: testProject,
       workplaceId: dto.workplaceId,
@@ -242,14 +242,10 @@ export class EventsController {
 
   @Post('test/nats/custom')
   @ApiOperation({ summary: 'Send custom test event via NATS' })
-  async testNatsCustomEvent(
-    @Body() body: { room: string; eventType: string; data: any },
+  testNatsCustomEvent(
+    @Body() body: { room: string; eventType: string; data: unknown },
   ) {
-    await this.eventsService.emitToRoomViaNats(
-      body.room,
-      body.eventType,
-      body.data,
-    );
+    this.eventsService.emitToRoomViaNats(body.room, body.eventType, body.data);
 
     return {
       success: true,
@@ -259,9 +255,17 @@ export class EventsController {
   }
 
   @Post('test/benchmark')
-  @ApiOperation({ summary: 'Benchmark Redis vs NATS - send same event via both' })
+  @ApiOperation({
+    summary: 'Benchmark Redis vs NATS - send same event via both',
+  })
   async benchmark(
-    @Body() body: { room: string; eventType: string; data: any; iterations?: number },
+    @Body()
+    body: {
+      room: string;
+      eventType: string;
+      data: Record<string, unknown>;
+      iterations?: number;
+    },
   ) {
     const iterations = body.iterations || 1;
     const results = { redis: [] as number[], nats: [] as number[] };
@@ -276,7 +280,7 @@ export class EventsController {
 
       // NATS timing
       const natsStart = performance.now();
-      await this.eventsService.emitToRoomViaNats(body.room, body.eventType, payload);
+      this.eventsService.emitToRoomViaNats(body.room, body.eventType, payload);
       results.nats.push(performance.now() - natsStart);
     }
 
@@ -298,8 +302,7 @@ export class EventsController {
         minMs: Math.round(min(results.nats) * 100) / 100,
         maxMs: Math.round(max(results.nats) * 100) / 100,
       },
-      winner:
-        avg(results.redis) < avg(results.nats) ? 'Redis' : 'NATS',
+      winner: avg(results.redis) < avg(results.nats) ? 'Redis' : 'NATS',
     };
   }
 
@@ -332,7 +335,9 @@ export class EventsController {
   // --- Spike Test Endpoints ---
 
   @Post('spike-test/start')
-  @ApiOperation({ summary: 'Start a spike test (base → spike → hold → drop → recovery)' })
+  @ApiOperation({
+    summary: 'Start a spike test (base → spike → hold → drop → recovery)',
+  })
   async startSpikeTest(@Body() config: SpikeTestConfig) {
     return this.loadTestService.startSpike({
       room: config.room || 'spike-test:default',

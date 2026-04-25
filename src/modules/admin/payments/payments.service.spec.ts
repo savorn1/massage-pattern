@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 import { createHmac } from 'crypto';
 import { BusinessException } from '@/core/exceptions/business.exception';
 import { OrderStatus } from '@/modules/shared/entities';
@@ -14,7 +15,6 @@ jest.mock('qrcode', () => ({
 
 /** Creates a chainable Mongoose query mock that resolves to `resolved`. */
 function mockQuery(resolved: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const q: any = {};
   for (const method of ['select', 'lean', 'sort', 'skip', 'limit']) {
     q[method] = jest.fn().mockReturnValue(q);
@@ -41,15 +41,14 @@ function signPayload(payload: Record<string, unknown>): string {
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 describe('PaymentsService', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let service: PaymentsService;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockQrModel: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockOrderModel: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockRedis: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockQueue: any;
 
   beforeEach(() => {
@@ -288,7 +287,12 @@ describe('PaymentsService', () => {
       mockQrModel.findOne.mockReturnValue(mockQuery(null));
 
       const err = await service
-        .verifyAndProcess({ qrId: QR_ID, nonce: NONCE, amount: AMOUNT, signature: 'x' })
+        .verifyAndProcess({
+          qrId: QR_ID,
+          nonce: NONCE,
+          amount: AMOUNT,
+          signature: 'x',
+        })
         .catch((e) => e);
 
       expect(err).toBeInstanceOf(BusinessException);
@@ -303,7 +307,12 @@ describe('PaymentsService', () => {
       );
 
       await expect(
-        service.verifyAndProcess({ qrId: QR_ID, nonce: NONCE, amount: AMOUNT, signature: 'x' }),
+        service.verifyAndProcess({
+          qrId: QR_ID,
+          nonce: NONCE,
+          amount: AMOUNT,
+          signature: 'x',
+        }),
       ).rejects.toBeInstanceOf(BusinessException);
     });
 
@@ -315,7 +324,12 @@ describe('PaymentsService', () => {
       );
 
       const err = await service
-        .verifyAndProcess({ qrId: QR_ID, nonce: NONCE, amount: AMOUNT, signature: 'x' })
+        .verifyAndProcess({
+          qrId: QR_ID,
+          nonce: NONCE,
+          amount: AMOUNT,
+          signature: 'x',
+        })
         .catch((e) => e);
 
       expect(err).toBeInstanceOf(BusinessException);
@@ -352,7 +366,7 @@ describe('PaymentsService', () => {
           qrId: QR_ID,
           nonce: NONCE,
           amount: AMOUNT,
-          signature: stored.signature as string,
+          signature: stored.signature,
         })
         .catch((e) => e);
 
@@ -371,7 +385,7 @@ describe('PaymentsService', () => {
           qrId: QR_ID,
           nonce: NONCE,
           amount: AMOUNT + 50, // wrong amount
-          signature: stored.signature as string,
+          signature: stored.signature,
         }),
       ).rejects.toBeInstanceOf(BusinessException);
     });
@@ -387,7 +401,7 @@ describe('PaymentsService', () => {
           qrId: QR_ID,
           nonce: NONCE,
           amount: AMOUNT,
-          signature: stored.signature as string,
+          signature: stored.signature,
         })
         .catch((e) => e);
 
@@ -408,7 +422,7 @@ describe('PaymentsService', () => {
           qrId: QR_ID,
           nonce: NONCE,
           amount: AMOUNT,
-          signature: stored.signature as string,
+          signature: stored.signature,
         }),
       ).rejects.toBeInstanceOf(BusinessException);
     });
@@ -423,7 +437,7 @@ describe('PaymentsService', () => {
         qrId: QR_ID,
         nonce: NONCE,
         amount: AMOUNT,
-        signature: stored.signature as string,
+        signature: stored.signature,
       });
 
       // Return value

@@ -32,7 +32,7 @@ export class TaskEventsService implements OnModuleInit {
   async onModuleInit() {
     await this.redisPubsub.subscribe('task-events', (message: string) => {
       try {
-        const payload: TaskEventPayload = JSON.parse(message);
+        const payload = JSON.parse(message) as TaskEventPayload;
         const room = `project:${payload.projectId}`;
         this.wsGateway.server.to(room).emit(payload.type, payload);
         this.logger.log(`Broadcast ${payload.type} to room ${room}`);

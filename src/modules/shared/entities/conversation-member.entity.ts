@@ -26,9 +26,13 @@ export class ConversationMember {
   updatedAt: Date;
 }
 
-export const ConversationMemberSchema = SchemaFactory.createForClass(ConversationMember);
+export const ConversationMemberSchema =
+  SchemaFactory.createForClass(ConversationMember);
 
-ConversationMemberSchema.index({ conversationId: 1, userId: 1 }, { unique: true });
+ConversationMemberSchema.index(
+  { conversationId: 1, userId: 1 },
+  { unique: true },
+);
 ConversationMemberSchema.index({ userId: 1 });
 ConversationMemberSchema.index({ conversationId: 1, role: 1 });
 ConversationMemberSchema.index({ conversationId: 1, isBlocked: 1 });

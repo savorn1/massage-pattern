@@ -13,7 +13,10 @@ import * as bcrypt from 'bcrypt';
  * Service for managing users in the admin module
  */
 @Injectable()
-export class UsersService extends BaseRepository<UserDocument> implements OnModuleInit {
+export class UsersService
+  extends BaseRepository<UserDocument>
+  implements OnModuleInit
+{
   private readonly logger = new Logger(UsersService.name);
   private readonly saltRounds = 10;
 
@@ -121,12 +124,14 @@ export class UsersService extends BaseRepository<UserDocument> implements OnModu
    * Atomically increment a user's points and return the new total
    */
   async addPoints(userId: string, amount: number): Promise<number> {
-    const updated = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $inc: { points: amount } },
-      { new: true, select: 'points' },
-    ).lean();
-    return (updated as any)?.points ?? 0;
+    const updated = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $inc: { points: amount } },
+        { new: true, select: 'points' },
+      )
+      .lean();
+    return (updated as { points: number } | null)?.points ?? 0;
   }
 
   /**
@@ -152,7 +157,8 @@ export class UsersService extends BaseRepository<UserDocument> implements OnModu
   ) {
     const query: Record<string, unknown> = { isActive: true, isDeleted: false };
     if (filters.name) query['name'] = { $regex: filters.name, $options: 'i' };
-    if (filters.email) query['email'] = { $regex: filters.email, $options: 'i' };
+    if (filters.email)
+      query['email'] = { $regex: filters.email, $options: 'i' };
     if (filters.role) query['role'] = filters.role;
     return this.findWithPagination(query, { skip, limit }, { createdAt: -1 });
   }

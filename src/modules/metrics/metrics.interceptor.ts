@@ -42,7 +42,14 @@ export class MetricsInterceptor implements NestInterceptor {
     start: number,
   ): void {
     const duration = Date.now() - start;
-    this.metricsService.httpRequestsTotal.inc({ method, route, status_code: statusCode });
-    this.metricsService.httpRequestDurationMs.observe({ method, route }, duration);
+    this.metricsService.httpRequestsTotal.inc({
+      method,
+      route,
+      status_code: statusCode,
+    });
+    this.metricsService.httpRequestDurationMs.observe(
+      { method, route },
+      duration,
+    );
   }
 }

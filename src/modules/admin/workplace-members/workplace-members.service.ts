@@ -81,7 +81,9 @@ export class WorkplaceMembersService extends BaseRepository<WorkplaceMemberDocum
       role: addMemberDto.role || WorkplaceMemberRole.MEMBER,
     };
 
-    const member = await this.create(memberData as Partial<WorkplaceMemberDocument>);
+    const member = await this.create(
+      memberData as Partial<WorkplaceMemberDocument>,
+    );
     this.logger.log(
       `Member ${addMemberDto.userId} added to workplace ${workplaceId} with role ${member.role}`,
     );
@@ -91,10 +93,7 @@ export class WorkplaceMembersService extends BaseRepository<WorkplaceMemberDocum
   /**
    * Remove a member from a workplace
    */
-  async removeMember(
-    workplaceId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeMember(workplaceId: string, userId: string): Promise<void> {
     const member = await this.findOne({
       workplaceId: new Types.ObjectId(workplaceId),
       userId: new Types.ObjectId(userId),
@@ -178,11 +177,7 @@ export class WorkplaceMembersService extends BaseRepository<WorkplaceMemberDocum
   /**
    * Get all members of a workplace
    */
-  async getWorkplaceMembers(
-    workplaceId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getWorkplaceMembers(workplaceId: string, skip = 0, limit = 50) {
     // Verify workplace exists
     const workplace = await this.workplaceModel.findById(workplaceId);
     if (!workplace) {
@@ -286,7 +281,10 @@ export class WorkplaceMembersService extends BaseRepository<WorkplaceMemberDocum
    * Get members count by role
    */
   async getMembersCountByRole(workplaceId: string) {
-    const result = await this.workplaceMemberModel.aggregate([
+    const result = await this.workplaceMemberModel.aggregate<{
+      _id: string;
+      count: number;
+    }>([
       { $match: { workplaceId: new Types.ObjectId(workplaceId) } },
       { $group: { _id: '$role', count: { $sum: 1 } } },
     ]);

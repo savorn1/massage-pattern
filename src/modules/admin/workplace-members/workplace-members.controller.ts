@@ -52,7 +52,10 @@ export class WorkplaceMembersController {
 
   @Get('details')
   @ApiOperation({ summary: 'Get all members with user details' })
-  @ApiResponse({ status: 200, description: 'List of workplace members with details' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of workplace members with details',
+  })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAllWithDetails(
@@ -60,7 +63,11 @@ export class WorkplaceMembersController {
     @Query('skip') skip?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.membersService.getWorkplaceMembersWithDetails(workplaceId, skip, limit);
+    return this.membersService.getWorkplaceMembersWithDetails(
+      workplaceId,
+      skip,
+      limit,
+    );
   }
 
   @Get(':userId/role')
@@ -82,7 +89,11 @@ export class WorkplaceMembersController {
     @Param('userId') userId: string,
     @Body() updateMemberDto: UpdateWorkplaceMemberRoleDto,
   ) {
-    return this.membersService.updateMemberRole(workplaceId, userId, updateMemberDto);
+    return this.membersService.updateMemberRole(
+      workplaceId,
+      userId,
+      updateMemberDto,
+    );
   }
 
   @Delete(':userId')

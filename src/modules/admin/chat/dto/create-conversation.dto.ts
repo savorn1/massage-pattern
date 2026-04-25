@@ -17,7 +17,7 @@ export class CreateConversationDto {
   participants: string[];
 
   // Required for group conversations
-  @ValidateIf((o) => o.type === ConversationType.GROUP)
+  @ValidateIf((o: CreateConversationDto) => o.type === ConversationType.GROUP)
   @IsString()
   name?: string;
 

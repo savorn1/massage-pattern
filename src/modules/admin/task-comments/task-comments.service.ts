@@ -42,7 +42,12 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
     userId: string,
     createCommentDto: CreateTaskCommentDto,
     file?: Express.Multer.File,
-  ): Promise<{ comment: TaskCommentDocument; taskTitle: string; actorName: string; projectId: string }> {
+  ): Promise<{
+    comment: TaskCommentDocument;
+    taskTitle: string;
+    actorName: string;
+    projectId: string;
+  }> {
     // Verify task exists
     const task = await this.taskModel.findById(taskId);
     if (!task) {
@@ -82,7 +87,9 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
       attachments,
     };
 
-    const comment = await this.create(commentData as Partial<TaskCommentDocument>);
+    const comment = await this.create(
+      commentData as Partial<TaskCommentDocument>,
+    );
     this.logger.log(`Comment created on task ${taskId} by user ${userId}`);
     return {
       comment,
@@ -159,11 +166,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Get all comments for a task
    */
-  async getTaskComments(
-    taskId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getTaskComments(taskId: string, skip = 0, limit = 50) {
     // Verify task exists
     const task = await this.taskModel.findById(taskId);
     if (!task) {
@@ -180,11 +183,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Get all comments for a task with user details populated
    */
-  async getTaskCommentsWithDetails(
-    taskId: string,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getTaskCommentsWithDetails(taskId: string, skip = 0, limit = 50) {
     // Verify task exists
     const task = await this.taskModel.findById(taskId);
     if (!task) {
@@ -209,11 +208,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Get comments by user
    */
-  async getUserComments(
-    userId: string,
-    skip = 0,
-    limit = 20,
-  ) {
+  async getUserComments(userId: string, skip = 0, limit = 20) {
     return this.findWithPagination(
       { userId: new Types.ObjectId(userId) },
       { skip, limit },
@@ -246,10 +241,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Check if comment belongs to task
    */
-  async belongsToTask(
-    commentId: string,
-    taskId: string,
-  ): Promise<boolean> {
+  async belongsToTask(commentId: string, taskId: string): Promise<boolean> {
     const comment = await this.findById(commentId);
     return comment?.taskId.toString() === taskId;
   }
@@ -257,10 +249,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Check if user is the comment author
    */
-  async isAuthor(
-    commentId: string,
-    userId: string,
-  ): Promise<boolean> {
+  async isAuthor(commentId: string, userId: string): Promise<boolean> {
     const comment = await this.findById(commentId);
     return comment?.userId.toString() === userId;
   }
@@ -298,12 +287,7 @@ export class TaskCommentsService extends BaseRepository<TaskCommentDocument> {
   /**
    * Get comments created after a certain date
    */
-  async getCommentsAfterDate(
-    taskId: string,
-    date: Date,
-    skip = 0,
-    limit = 50,
-  ) {
+  async getCommentsAfterDate(taskId: string, date: Date, skip = 0, limit = 50) {
     return this.findWithPagination(
       {
         taskId: new Types.ObjectId(taskId),

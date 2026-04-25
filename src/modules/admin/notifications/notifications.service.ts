@@ -33,18 +33,25 @@ export class NotificationsService {
       actorId: dto.actorId ? new Types.ObjectId(dto.actorId) : undefined,
       taskId: dto.taskId ? new Types.ObjectId(dto.taskId) : undefined,
       taskTitle: dto.taskTitle,
-      conversationId: dto.conversationId ? new Types.ObjectId(dto.conversationId) : undefined,
+      conversationId: dto.conversationId
+        ? new Types.ObjectId(dto.conversationId)
+        : undefined,
       conversationName: dto.conversationName,
       type: dto.type,
       message: dto.message,
       isRead: false,
     });
     const saved = await doc.save();
-    this.logger.debug(`Notification created for user ${dto.recipientId}: ${dto.message}`);
+    this.logger.debug(
+      `Notification created for user ${dto.recipientId}: ${dto.message}`,
+    );
     return saved;
   }
 
-  async findByUser(userId: string, limit = 30): Promise<NotificationDocument[]> {
+  async findByUser(
+    userId: string,
+    limit = 30,
+  ): Promise<NotificationDocument[]> {
     return this.model
       .find({ recipientId: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })

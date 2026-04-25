@@ -9,14 +9,17 @@ export class ResumesService {
   private readonly logger = new Logger(ResumesService.name);
 
   constructor(
-    @InjectModel(Resume.name) private readonly resumeModel: Model<ResumeDocument>,
+    @InjectModel(Resume.name)
+    private readonly resumeModel: Model<ResumeDocument>,
   ) {}
 
   /**
    * Get resume for a user. Returns null if not found.
    */
   async findByUserId(userId: string): Promise<ResumeDocument | null> {
-    return this.resumeModel.findOne({ userId, isDeleted: { $ne: true } }).exec();
+    return this.resumeModel
+      .findOne({ userId, isDeleted: { $ne: true } })
+      .exec();
   }
 
   /**
@@ -32,7 +35,7 @@ export class ResumesService {
       .exec();
 
     this.logger.log(`Resume upserted for user: ${userId}`);
-    return resume!;
+    return resume;
   }
 
   /**

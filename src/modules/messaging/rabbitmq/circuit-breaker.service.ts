@@ -14,12 +14,12 @@ export interface CallRecord {
 }
 
 export interface CircuitBreakerConfig {
-  failureThreshold: number;   // how many failures to trip to OPEN
-  windowMs: number;           // time window to count failures in (ms)
-  timeoutMs: number;          // how long to stay OPEN before trying HALF-OPEN
-  successThreshold: number;   // successes in HALF-OPEN needed to close (we use 1 for simplicity)
-  serviceLatencyMs: number;   // simulated downstream call delay
-  fallbackEnabled: boolean;   // return fallback response when OPEN
+  failureThreshold: number; // how many failures to trip to OPEN
+  windowMs: number; // time window to count failures in (ms)
+  timeoutMs: number; // how long to stay OPEN before trying HALF-OPEN
+  successThreshold: number; // successes in HALF-OPEN needed to close (we use 1 for simplicity)
+  serviceLatencyMs: number; // simulated downstream call delay
+  fallbackEnabled: boolean; // return fallback response when OPEN
 }
 
 export interface CircuitBreakerStatus {
@@ -94,15 +94,26 @@ export class CircuitBreakerService {
 
       if (this.config.fallbackEnabled) {
         this.stats.totalFallback++;
-        const record = this.recordCall(callId, 'fallback', Date.now() - start, 'open', {
-          message: 'Circuit OPEN — serving fallback response',
-          data: { cached: true, label: requestLabel || 'payment' },
-        });
+        const record = this.recordCall(
+          callId,
+          'fallback',
+          Date.now() - start,
+          'open',
+          {
+            message: 'Circuit OPEN — serving fallback response',
+            data: { cached: true, label: requestLabel || 'payment' },
+          },
+        );
         this.logger.warn(`[CB] OPEN — fallback served for ${callId}`);
         return record;
       }
 
-      const record = this.recordCall(callId, 'rejected', Date.now() - start, 'open', undefined,
+      const record = this.recordCall(
+        callId,
+        'rejected',
+        Date.now() - start,
+        'open',
+        undefined,
         'Circuit breaker OPEN — request rejected',
       );
       this.logger.warn(`[CB] OPEN — rejected ${callId}`);
@@ -126,11 +137,17 @@ export class CircuitBreakerService {
       this.onSuccess();
       this.stats.totalSuccess++;
 
-      const record = this.recordCall(callId, 'success', Date.now() - start, stateAtCall, {
-        message: 'Payment processed successfully',
-        transactionId: `TXN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        label: requestLabel || 'payment',
-      });
+      const record = this.recordCall(
+        callId,
+        'success',
+        Date.now() - start,
+        stateAtCall,
+        {
+          message: 'Payment processed successfully',
+          transactionId: `TXN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          label: requestLabel || 'payment',
+        },
+      );
       this.logger.log(`[CB] SUCCESS — ${callId} (${Date.now() - start}ms)`);
       return record;
     } catch (err: unknown) {
@@ -138,7 +155,14 @@ export class CircuitBreakerService {
       this.onFailure();
       this.stats.totalFailure++;
 
-      const record = this.recordCall(callId, 'failure', Date.now() - start, stateAtCall, undefined, message);
+      const record = this.recordCall(
+        callId,
+        'failure',
+        Date.now() - start,
+        stateAtCall,
+        undefined,
+        message,
+      );
       this.logger.warn(`[CB] FAILURE — ${callId}: ${message}`);
       return record;
     }
@@ -203,7 +227,9 @@ export class CircuitBreakerService {
 
   private transitionTo(newState: CircuitState): void {
     if (this.state === newState) return;
-    this.logger.log(`[CB] State: ${this.state.toUpperCase()} → ${newState.toUpperCase()}`);
+    this.logger.log(
+      `[CB] State: ${this.state.toUpperCase()} → ${newState.toUpperCase()}`,
+    );
     this.state = newState;
     this.lastStateChange = new Date().toISOString();
 
@@ -269,8 +295,12 @@ export class CircuitBreakerService {
         (t) => Date.now() - t < this.config.windowMs,
       ).length,
       config: this.config,
-      openedAt: this.openedAt ? new Date(this.openedAt).toISOString() : undefined,
-      halfOpenAt: this.halfOpenAt ? new Date(this.halfOpenAt).toISOString() : undefined,
+      openedAt: this.openedAt
+        ? new Date(this.openedAt).toISOString()
+        : undefined,
+      halfOpenAt: this.halfOpenAt
+        ? new Date(this.halfOpenAt).toISOString()
+        : undefined,
       lastStateChange: this.lastStateChange,
       serviceDown: this.serviceDown,
       timeUntilHalfOpenMs,
@@ -284,7 +314,13 @@ export class CircuitBreakerService {
 
   clearLog(): void {
     this.callLog = [];
-    this.stats = { totalCalls: 0, totalSuccess: 0, totalFailure: 0, totalRejected: 0, totalFallback: 0 };
+    this.stats = {
+      totalCalls: 0,
+      totalSuccess: 0,
+      totalFailure: 0,
+      totalRejected: 0,
+      totalFallback: 0,
+    };
     this.resetCircuit();
   }
 

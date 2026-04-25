@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Project, ProjectSchema, Sprint, SprintSchema } from '@/modules/shared/entities';
+import {
+  Project,
+  ProjectSchema,
+  Sprint,
+  SprintSchema,
+} from '@/modules/shared/entities';
 import { SprintsService } from './sprints.service';
 import { SprintsController } from './sprints.controller';
 

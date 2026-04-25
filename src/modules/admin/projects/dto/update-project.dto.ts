@@ -1,9 +1,18 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsEnum, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsEnum,
+  MaxLength,
+} from 'class-validator';
 import { ProjectStatus, ProjectPriority } from '@/modules/shared/entities';
 
 export class UpdateProjectDto {
-  @ApiPropertyOptional({ description: 'Project name', example: 'Website Redesign' })
+  @ApiPropertyOptional({
+    description: 'Project name',
+    example: 'Website Redesign',
+  })
   @IsString()
   @IsOptional()
   @MaxLength(200)
@@ -23,22 +32,34 @@ export class UpdateProjectDto {
   @IsOptional()
   status?: ProjectStatus;
 
-  @ApiPropertyOptional({ description: 'Project priority', enum: ProjectPriority })
+  @ApiPropertyOptional({
+    description: 'Project priority',
+    enum: ProjectPriority,
+  })
   @IsEnum(ProjectPriority)
   @IsOptional()
   priority?: ProjectPriority;
 
-  @ApiPropertyOptional({ description: 'Project cover image URL', example: 'https://...' })
+  @ApiPropertyOptional({
+    description: 'Project cover image URL',
+    example: 'https://...',
+  })
   @IsString()
   @IsOptional()
   coverImage?: string;
 
-  @ApiPropertyOptional({ description: 'Project start date', example: '2024-01-15' })
+  @ApiPropertyOptional({
+    description: 'Project start date',
+    example: '2024-01-15',
+  })
   @IsDateString()
   @IsOptional()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Project end date', example: '2024-06-30' })
+  @ApiPropertyOptional({
+    description: 'Project end date',
+    example: '2024-06-30',
+  })
   @IsDateString()
   @IsOptional()
   endDate?: string;

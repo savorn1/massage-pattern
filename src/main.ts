@@ -9,10 +9,10 @@ import { HttpExceptionFilter } from './core/exceptions/http-exception.filter';
 import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
 
 const LOG_LEVEL_MAP: Record<string, LogLevel[]> = {
-  error:   ['error'],
-  warn:    ['error', 'warn'],
-  log:     ['error', 'warn', 'log'],
-  debug:   ['error', 'warn', 'log', 'debug'],
+  error: ['error'],
+  warn: ['error', 'warn'],
+  log: ['error', 'warn', 'log'],
+  debug: ['error', 'warn', 'log', 'debug'],
   verbose: ['error', 'warn', 'log', 'debug', 'verbose'],
 };
 
@@ -81,9 +81,18 @@ API requests are rate-limited to ensure fair usage and system stability.
     )
     .addServer('http://localhost:3000', 'Local Development')
     .addTag('admin/users', 'User management - CRUD operations for system users')
-    .addTag('admin/projects', 'Project management - Create and manage projects with team members')
-    .addTag('admin/tasks', 'Task management - Create, assign, and track task progress')
-    .addTag('admin/milestones', 'Milestone management - Set and track project milestones')
+    .addTag(
+      'admin/projects',
+      'Project management - Create and manage projects with team members',
+    )
+    .addTag(
+      'admin/tasks',
+      'Task management - Create, assign, and track task progress',
+    )
+    .addTag(
+      'admin/milestones',
+      'Milestone management - Set and track project milestones',
+    )
     .addTag('auth', 'Authentication - Login, logout, and token management')
     .addBearerAuth(
       {

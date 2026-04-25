@@ -1,4 +1,5 @@
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '@/common/interfaces';
 import {
   Body,
   Controller,
@@ -31,7 +32,7 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 
   // ─── Presence ─────────────────────────────────────────────────────────────
 
@@ -45,19 +46,25 @@ export class ChatController {
 
   /** Create a new private or group conversation */
   @Post('conversations')
-  createConversation(@Req() req, @Body() dto: CreateConversationDto) {
+  createConversation(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateConversationDto,
+  ) {
     return this.chatService.createConversation(req.user.userId, dto);
   }
 
   /** Get all conversations for the authenticated user */
   @Get('conversations')
-  getUserConversations(@Req() req) {
+  getUserConversations(@Req() req: AuthenticatedRequest) {
     return this.chatService.getUserConversations(req.user.userId);
   }
 
   /** Join a group conversation via invite token */
   @Post('conversations/join/:token')
-  joinViaInviteToken(@Req() req, @Param('token') token: string) {
+  joinViaInviteToken(
+    @Req() req: AuthenticatedRequest,
+    @Param('token') token: string,
+  ) {
     return this.chatService.joinViaInviteToken(token, req.user.userId);
   }
 
@@ -65,41 +72,45 @@ export class ChatController {
 
   /** Get archived conversations for the authenticated user */
   @Get('conversations/archived')
-  getArchivedConversations(@Req() req) {
+  getArchivedConversations(@Req() req: AuthenticatedRequest) {
     return this.chatService.getArchivedConversations(req.user.userId);
   }
 
   @Patch('conversations/:id/archive')
   archiveConversation(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: { archive: boolean },
   ) {
-    return this.chatService.archiveConversation(req.user.userId, id, body.archive);
+    return this.chatService.archiveConversation(
+      req.user.userId,
+      id,
+      body.archive,
+    );
   }
 
   /** Get (or generate) the invite link token for a group conversation */
   @Get('conversations/:id/invite-link')
-  getInviteLink(@Req() req, @Param('id') id: string) {
+  getInviteLink(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.chatService.getInviteLink(id, req.user.userId);
   }
 
   /** Reset the invite link token for a group conversation */
   @Post('conversations/:id/invite-link/reset')
-  resetInviteLink(@Req() req, @Param('id') id: string) {
+  resetInviteLink(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.chatService.resetInviteLink(id, req.user.userId);
   }
 
   /** Get a single conversation by id */
   @Get('conversations/:id')
-  getConversation(@Req() req, @Param('id') id: string) {
+  getConversation(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.chatService.getConversation(id, req.user.userId);
   }
 
   /** Update group name, avatar, or admins */
   @Patch('conversations/:id')
   updateGroup(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateGroupDto,
   ) {
@@ -109,7 +120,7 @@ export class ChatController {
   /** Add participants to a group conversation */
   @Post('conversations/:id/participants')
   addParticipants(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('userIds') userIds: string[],
   ) {
@@ -119,7 +130,7 @@ export class ChatController {
   /** Remove a participant from a group (admin only) */
   @Delete('conversations/:id/participants/:userId')
   removeParticipant(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('userId') userId: string,
   ) {
@@ -128,15 +139,18 @@ export class ChatController {
 
   /** Leave a group conversation (self-remove) */
   @Delete('conversations/:id/leave')
-  leaveGroup(@Req() req, @Param('id') id: string) {
-    return this.chatService.removeParticipant(id, req.user.userId, req.user.userId);
+  leaveGroup(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.chatService.removeParticipant(
+      id,
+      req.user.userId,
+      req.user.userId,
+    );
   }
-
 
   /** Block a member from sending messages (admin only) */
   @Post('conversations/:id/members/:userId/block')
   blockMember(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('userId') userId: string,
   ) {
@@ -146,7 +160,7 @@ export class ChatController {
   /** Unblock a member (admin only) */
   @Post('conversations/:id/members/:userId/unblock')
   unblockMember(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('userId') userId: string,
   ) {
@@ -157,9 +171,11 @@ export class ChatController {
 
   /** Send a message to a conversation (multipart/form-data, up to 5 files × 20 MB) */
   @Post('conversations/:id/messages')
-  @UseInterceptors(FilesInterceptor('files', 5, { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FilesInterceptor('files', 5, { limits: { fileSize: 20 * 1024 * 1024 } }),
+  )
   sendMessage(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: SendMessageDto,
     @UploadedFiles() files: Express.Multer.File[] = [],
@@ -170,28 +186,40 @@ export class ChatController {
   /** Get a context window of messages around a specific message */
   @Get('conversations/:id/messages/around/:messageId')
   getMessagesAround(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
     @Query('limit') limit = 50,
   ) {
-    return this.chatService.getMessagesAround(id, req.user.userId, messageId, +limit);
+    return this.chatService.getMessagesAround(
+      id,
+      req.user.userId,
+      messageId,
+      +limit,
+    );
   }
 
   /** Get messages for a conversation (newest first, paginated; or cursor via before/after) */
   @Get('conversations/:id/messages')
   getMessages(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Query() query: GetMessagesQueryDto,
   ) {
-    return this.chatService.getMessages(id, req.user.userId, query.page, query.limit, query.before, query.after);
+    return this.chatService.getMessages(
+      id,
+      req.user.userId,
+      query.page,
+      query.limit,
+      query.before,
+      query.after,
+    );
   }
 
   /** Mark a message as read and reset unread count */
   @Post('conversations/:id/messages/:messageId/read')
   async markAsRead(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
   ) {
@@ -202,7 +230,7 @@ export class ChatController {
   /** Mark a message as delivered (client receipt acknowledgement) */
   @Post('conversations/:id/messages/:messageId/delivered')
   async markAsDelivered(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
   ) {
@@ -213,7 +241,7 @@ export class ChatController {
   /** Edit message content (sender only) */
   @Patch('messages/:messageId')
   editMessage(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('messageId') messageId: string,
     @Body('content') content: string,
   ) {
@@ -222,14 +250,17 @@ export class ChatController {
 
   /** Soft-delete a message (sender only) */
   @Delete('messages/:messageId')
-  deleteMessage(@Req() req, @Param('messageId') messageId: string) {
+  deleteMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('messageId') messageId: string,
+  ) {
     return this.chatService.deleteMessage(messageId, req.user.userId);
   }
 
   /** Toggle emoji reaction on a message */
   @Post('messages/:messageId/reactions')
   toggleReaction(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('messageId') messageId: string,
     @Body('emoji') emoji: string,
   ) {
@@ -239,11 +270,15 @@ export class ChatController {
   /** Pin a message in a conversation */
   @Post('conversations/:id/pin/:messageId')
   pinMessage(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') conversationId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.chatService.pinMessage(conversationId, messageId, req.user.userId);
+    return this.chatService.pinMessage(
+      conversationId,
+      messageId,
+      req.user.userId,
+    );
   }
 
   /** Unpin a message from a conversation */
@@ -258,7 +293,7 @@ export class ChatController {
   /** Mute or unmute a conversation for the current user */
   @Post('conversations/:id/mute')
   async muteConversation(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('mute') mute: boolean,
   ) {
@@ -269,7 +304,7 @@ export class ChatController {
   /** Get the thread (root message + all direct replies) for a message */
   @Get('conversations/:id/messages/:messageId/thread')
   getThreadMessages(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
   ) {
@@ -278,21 +313,27 @@ export class ChatController {
 
   /** Star a message */
   @Post('messages/:messageId/star')
-  async starMessage(@Req() req, @Param('messageId') messageId: string) {
+  async starMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('messageId') messageId: string,
+  ) {
     await this.chatService.starMessage(req.user.userId, messageId);
     return { ok: true };
   }
 
   /** Unstar a message */
   @Delete('messages/:messageId/star')
-  async unstarMessage(@Req() req, @Param('messageId') messageId: string) {
+  async unstarMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('messageId') messageId: string,
+  ) {
     await this.chatService.unstarMessage(req.user.userId, messageId);
     return { ok: true };
   }
 
   /** Get all starred messages for the current user */
   @Get('starred')
-  getStarredMessages(@Req() req) {
+  getStarredMessages(@Req() req: AuthenticatedRequest) {
     return this.chatService.getStarredMessages(req.user.userId);
   }
 
@@ -305,43 +346,64 @@ export class ChatController {
   /** Search messages — across all user conversations, or scoped to one with ?conversationId= */
   @Get('messages/search')
   searchMessages(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Query('q') q: string,
     @Query('limit') limit?: string,
     @Query('conversationId') conversationId?: string,
   ) {
-    return this.chatService.searchMessages(req.user.userId, q, limit ? +limit : 30, conversationId);
+    return this.chatService.searchMessages(
+      req.user.userId,
+      q,
+      limit ? +limit : 30,
+      conversationId,
+    );
   }
 
   // ─── Disappearing messages ────────────────────────────────────────────────
 
   @Patch('conversations/:id/disappearing')
   setDisappearingMessages(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: { enabled: boolean; ttl: number },
   ) {
-    return this.chatService.setDisappearingMessages(id, req.user.userId, body.enabled, body.ttl);
+    return this.chatService.setDisappearingMessages(
+      id,
+      req.user.userId,
+      body.enabled,
+      body.ttl,
+    );
   }
 
   // ─── Polls ────────────────────────────────────────────────────────────────
 
   @Post('conversations/:id/poll')
   createPoll(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() body: { question: string; options: string[]; allowMultiple?: boolean },
+    @Body()
+    body: { question: string; options: string[]; allowMultiple?: boolean },
   ) {
-    return this.chatService.createPoll(id, req.user.userId, body.question, body.options, !!body.allowMultiple);
+    return this.chatService.createPoll(
+      id,
+      req.user.userId,
+      body.question,
+      body.options,
+      !!body.allowMultiple,
+    );
   }
 
   @Post('messages/:messageId/poll/vote')
   votePoll(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('messageId') messageId: string,
     @Body() body: { optionIndexes: number[] },
   ) {
-    return this.chatService.votePoll(messageId, req.user.userId, body.optionIndexes);
+    return this.chatService.votePoll(
+      messageId,
+      req.user.userId,
+      body.optionIndexes,
+    );
   }
 
   // ─── Forwarding ───────────────────────────────────────────────────────────
@@ -349,18 +411,25 @@ export class ChatController {
   /** Forward a message to another conversation */
   @Post('messages/:messageId/forward')
   forwardMessage(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('messageId') messageId: string,
     @Body() dto: ForwardMessageDto,
   ) {
-    return this.chatService.forwardMessage(messageId, req.user.userId, dto.targetConversationId);
+    return this.chatService.forwardMessage(
+      messageId,
+      req.user.userId,
+      dto.targetConversationId,
+    );
   }
 
   // ─── Mentions ─────────────────────────────────────────────────────────────
 
   /** Get all messages where the current user was mentioned */
   @Get('mentions')
-  getMentions(@Req() req, @Query('limit') limit?: string) {
+  getMentions(
+    @Req() req: AuthenticatedRequest,
+    @Query('limit') limit?: string,
+  ) {
     return this.chatService.getMentions(req.user.userId, limit ? +limit : 50);
   }
 
@@ -369,7 +438,7 @@ export class ChatController {
   /** Schedule a message to be sent at a future time */
   @Post('conversations/:id/messages/schedule')
   scheduleMessage(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: ScheduleMessageDto,
   ) {
@@ -378,13 +447,16 @@ export class ChatController {
 
   /** List all pending scheduled messages for the current user */
   @Get('scheduled')
-  getScheduledMessages(@Req() req) {
+  getScheduledMessages(@Req() req: AuthenticatedRequest) {
     return this.chatService.getScheduledMessages(req.user.userId);
   }
 
   /** Cancel a pending scheduled message */
   @Delete('scheduled/:id')
-  cancelScheduledMessage(@Req() req, @Param('id') id: string) {
+  cancelScheduledMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.chatService.cancelScheduledMessage(id, req.user.userId);
   }
 
@@ -393,7 +465,7 @@ export class ChatController {
   /** Set a reminder for a message */
   @Post('messages/:messageId/remind')
   setReminder(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('messageId') messageId: string,
     @Body() dto: SetReminderDto,
   ) {
@@ -402,19 +474,22 @@ export class ChatController {
 
   /** List all pending reminders for the current user */
   @Get('reminders')
-  getReminders(@Req() req) {
+  getReminders(@Req() req: AuthenticatedRequest) {
     return this.chatService.getReminders(req.user.userId);
   }
 
   /** Cancel a pending reminder */
   @Delete('reminders/:id')
-  cancelReminder(@Req() req, @Param('id') id: string) {
+  cancelReminder(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.chatService.cancelReminder(id, req.user.userId);
   }
 
   /** Create a standalone reminder (not tied to a message — via /remind slash command) */
   @Post('reminders/standalone')
-  setStandaloneReminder(@Req() req, @Body() dto: SetStandaloneReminderDto) {
+  setStandaloneReminder(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: SetStandaloneReminderDto,
+  ) {
     return this.chatService.setStandaloneReminder(req.user.userId, dto);
   }
 
@@ -423,7 +498,7 @@ export class ChatController {
   /** Generate an AI response and post it as a message in the conversation */
   @Post('conversations/:id/ai-assist')
   aiAssist(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body('query') query: string,
   ) {
@@ -434,20 +509,23 @@ export class ChatController {
 
   /** Create a new saved reply template */
   @Post('saved-replies')
-  createSavedReply(@Req() req, @Body() dto: CreateSavedReplyDto) {
+  createSavedReply(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateSavedReplyDto,
+  ) {
     return this.chatService.createSavedReply(req.user.userId, dto);
   }
 
   /** List all saved replies for the current user */
   @Get('saved-replies')
-  getSavedReplies(@Req() req) {
+  getSavedReplies(@Req() req: AuthenticatedRequest) {
     return this.chatService.getSavedReplies(req.user.userId);
   }
 
   /** Update an existing saved reply */
   @Patch('saved-replies/:id')
   updateSavedReply(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateSavedReplyDto,
   ) {
@@ -456,7 +534,7 @@ export class ChatController {
 
   /** Delete a saved reply */
   @Delete('saved-replies/:id')
-  deleteSavedReply(@Req() req, @Param('id') id: string) {
+  deleteSavedReply(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.chatService.deleteSavedReply(id, req.user.userId);
   }
 }

@@ -12,7 +12,10 @@ import {
 import { TaskStatus, TaskPriority, TaskType } from '@/modules/shared/entities';
 
 export class UpdateTaskDto {
-  @ApiPropertyOptional({ description: 'Task title', example: 'Implement login page' })
+  @ApiPropertyOptional({
+    description: 'Task title',
+    example: 'Implement login page',
+  })
   @IsString()
   @IsOptional()
   @MaxLength(500)
@@ -42,12 +45,18 @@ export class UpdateTaskDto {
   @IsOptional()
   priority?: TaskPriority;
 
-  @ApiPropertyOptional({ description: 'Assignee user ID', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Assignee user ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   assigneeId?: string;
 
-  @ApiPropertyOptional({ description: 'Sprint ID', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Sprint ID',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   sprintId?: string;
@@ -75,7 +84,10 @@ export class UpdateTaskDto {
   @IsOptional()
   order?: number;
 
-  @ApiPropertyOptional({ description: 'Parent task ID (for subtasks)', example: '507f1f77bcf86cd799439011' })
+  @ApiPropertyOptional({
+    description: 'Parent task ID (for subtasks)',
+    example: '507f1f77bcf86cd799439011',
+  })
   @IsString()
   @IsOptional()
   parentId?: string;

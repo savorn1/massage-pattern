@@ -29,12 +29,17 @@ const c = {
 
 function colorMethod(method: string): string {
   switch (method) {
-    case 'GET': return `${c.green}${c.bold}${method}${c.reset}`;
-    case 'POST': return `${c.cyan}${c.bold}${method}${c.reset}`;
+    case 'GET':
+      return `${c.green}${c.bold}${method}${c.reset}`;
+    case 'POST':
+      return `${c.cyan}${c.bold}${method}${c.reset}`;
     case 'PUT':
-    case 'PATCH': return `${c.yellow}${c.bold}${method}${c.reset}`;
-    case 'DELETE': return `${c.red}${c.bold}${method}${c.reset}`;
-    default: return `${c.white}${method}${c.reset}`;
+    case 'PATCH':
+      return `${c.yellow}${c.bold}${method}${c.reset}`;
+    case 'DELETE':
+      return `${c.red}${c.bold}${method}${c.reset}`;
+    default:
+      return `${c.white}${method}${c.reset}`;
   }
 }
 

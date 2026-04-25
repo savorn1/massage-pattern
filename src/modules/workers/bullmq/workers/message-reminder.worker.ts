@@ -1,5 +1,10 @@
 import { ChatService } from '@/modules/admin/chat/chat.service';
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
