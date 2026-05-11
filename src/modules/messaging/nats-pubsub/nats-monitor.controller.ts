@@ -50,25 +50,29 @@ export class NatsMonitorController {
       // Active client connections
       connections: {
         total: connz?.num_connections ?? 0,
-        clients: (connz?.connections ?? []).map((c: any) => ({
-          id: c.cid,
-          name: c.name || 'anonymous',
-          ip: c.ip,
-          subs: c.num_subs,
-          inMsgs: c.in_msgs,
-          outMsgs: c.out_msgs,
-          lang: c.lang,
-          version: c.version,
+        clients: (
+          (connz?.connections as Array<Record<string, unknown>>) ?? []
+        ).map((c) => ({
+          id: c['cid'],
+          name: (c['name'] as string) || 'anonymous',
+          ip: c['ip'],
+          subs: c['num_subs'],
+          inMsgs: c['in_msgs'],
+          outMsgs: c['out_msgs'],
+          lang: c['lang'],
+          version: c['version'],
         })),
       },
 
       // Active subscriptions on the server
       subscriptions: {
         total: subsz?.num_subscriptions ?? 0,
-        subjects: (subsz?.subscriptions ?? []).map((s: any) => ({
-          subject: s.subject,
-          sid: s.sid,
-          client: s.client_id,
+        subjects: (
+          (subsz?.subscriptions as Array<Record<string, unknown>>) ?? []
+        ).map((s) => ({
+          subject: s['subject'],
+          sid: s['sid'],
+          client: s['client_id'],
         })),
       },
 
@@ -79,11 +83,13 @@ export class NatsMonitorController {
 
   // ── helpers ─────────────────────────────────────────────────────────────
 
-  private async fetchNats(endpoint: string): Promise<any> {
+  private async fetchNats(
+    endpoint: string,
+  ): Promise<Record<string, unknown> | null> {
     try {
       const res = await fetch(`${this.monitorBase}/${endpoint}`);
       if (!res.ok) return null;
-      return res.json();
+      return res.json() as Promise<Record<string, unknown>>;
     } catch {
       return null; // NATS monitoring unreachable — return null gracefully
     }

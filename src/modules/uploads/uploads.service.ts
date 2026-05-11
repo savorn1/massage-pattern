@@ -116,7 +116,9 @@ export class UploadsService {
   // ─── Helper ───────────────────────────────────────────────────────────────
 
   private getFolderByMime(mimeType: string): string {
-    const f = this.configService.get('s3.folders');
+    const f = this.configService.get<Record<string, string>>('s3.folders');
+
+    if (!f) throw new Error('S3 folders configuration is missing');
     if (mimeType.startsWith('image/')) return f.images;
     if (mimeType.startsWith('video/')) return f.videos;
     if (mimeType.startsWith('audio/')) return f.audios;

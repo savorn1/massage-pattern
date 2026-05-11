@@ -1582,7 +1582,8 @@ export class ChatService {
       throw new NotFoundException('Message not found.');
 
     const already = (conversation.pinnedMessages ?? []).some(
-      (p: any) => p.messageId.toString() === messageId,
+      (p: { messageId: { toString(): string } }) =>
+        p.messageId.toString() === messageId,
     );
     if (already) return conversation as ConversationDocument;
 
@@ -1686,7 +1687,9 @@ export class ChatService {
           res.on('data', (chunk: string) => (data += chunk));
           res.on('end', () => {
             try {
-              const parsed = JSON.parse(data);
+              const parsed = JSON.parse(data) as {
+                content?: Array<{ text?: string }>;
+              };
               const text = parsed.content?.[0]?.text ?? 'No response.';
               resolve(text);
             } catch {
@@ -1731,7 +1734,7 @@ export class ChatService {
       .reverse()
       .map(
         (m) =>
-          `[${m.type === 'ai_response' ? 'AI' : 'User'}]: ${m.content?.slice(0, 300) ?? ''}`,
+          `[${(m.type as string) === 'ai_response' ? 'AI' : 'User'}]: ${m.content?.slice(0, 300) ?? ''}`,
       )
       .join('\n');
 
@@ -1948,7 +1951,7 @@ export class ChatService {
     const message = await this.messageModel.findById(messageId);
     if (!message || message.isDeleted)
       throw new NotFoundException('Message not found.');
-    if (message.type !== 'poll' || !message.poll)
+    if ((message.type as string) !== 'poll' || !message.poll)
       throw new BadRequestException('Not a poll message.');
 
     const options = message.poll.options as Array<{
@@ -1965,7 +1968,8 @@ export class ChatService {
     ) {
       throw new BadRequestException('Invalid option index.');
     }
-    const allowMultiple = !!(message.poll as any).allowMultiple;
+    const allowMultiple = !!(message.poll as { allowMultiple?: boolean })
+      .allowMultiple;
     if (!allowMultiple && unique.length !== 1) {
       throw new BadRequestException('This poll allows only one answer.');
     }
@@ -2063,13 +2067,18 @@ export class ChatService {
     const job = await this.bullmqService.addDelayedJob(
       'scheduled-messages',
       'send-scheduled-message',
-      { scheduledMessageId: (doc as any)._id.toString() },
+      {
+        scheduledMessageId: (
+          doc as { _id: { toString(): string } }
+        )._id.toString(),
+      },
       delayMs,
     );
 
-    await this.scheduledMessageModel.findByIdAndUpdate((doc as any)._id, {
-      jobId: job.id,
-    });
+    await this.scheduledMessageModel.findByIdAndUpdate(
+      (doc as { _id: unknown })._id,
+      { jobId: job.id },
+    );
 
     return doc as ScheduledMessageDocument;
   }
@@ -2165,13 +2174,16 @@ export class ChatService {
     const job = await this.bullmqService.addDelayedJob(
       'message-reminders',
       'fire-message-reminder',
-      { reminderId: (doc as any)._id.toString() },
+      {
+        reminderId: (doc as { _id: { toString(): string } })._id.toString(),
+      },
       delayMs,
     );
 
-    await this.messageReminderModel.findByIdAndUpdate((doc as any)._id, {
-      jobId: job.id,
-    });
+    await this.messageReminderModel.findByIdAndUpdate(
+      (doc as { _id: unknown })._id,
+      { jobId: job.id },
+    );
 
     return doc as MessageReminderDocument;
   }

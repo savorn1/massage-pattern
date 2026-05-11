@@ -73,8 +73,7 @@ export class TaskActivitiesService extends BaseRepository<TaskActivityDocument> 
       return {
         ...obj,
         user: obj.userId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        userId: (obj.userId as any)?._id || obj.userId,
+        userId: obj.userId._id || obj.userId, // keep userId as string for frontend
       };
     });
 
