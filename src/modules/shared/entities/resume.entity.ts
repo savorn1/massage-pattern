@@ -109,6 +109,9 @@ export class Resume extends BaseEntity {
   @Prop()
   profileUrl?: string;
 
+  @Prop()
+  photo?: string;
+
   // Summary
   @Prop({ type: String, default: '' })
   summary: string;

@@ -128,6 +128,10 @@ export class UpsertResumeDto {
 
   @IsOptional()
   @IsString()
+  photo?: string;
+
+  @IsOptional()
+  @IsString()
   summary?: string;
 
   @IsOptional()
