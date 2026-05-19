@@ -102,9 +102,13 @@ export class ResumeReferenceDto {
 }
 
 export class UpsertResumeDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  fullName: string;
+  cvName?: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
 
   @IsOptional()
   @IsString()

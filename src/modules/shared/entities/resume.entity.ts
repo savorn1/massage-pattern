@@ -83,15 +83,18 @@ export class ResumeReference {
 }
 
 /**
- * Resume entity — one document per user
+ * Resume entity — many documents per user (one per CV)
  */
 @Schema({ collection: 'resumes', timestamps: true })
 export class Resume extends BaseEntity {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   userId: string;
 
+  @Prop({ default: 'Untitled CV' })
+  cvName: string;
+
   // Personal info
-  @Prop({ required: true })
+  @Prop({ default: '' })
   fullName: string;
 
   @Prop()
@@ -146,4 +149,4 @@ export class Resume extends BaseEntity {
 }
 
 export const ResumeSchema = SchemaFactory.createForClass(Resume);
-ResumeSchema.index({ userId: 1 }, { unique: true });
+ResumeSchema.index({ userId: 1 });
